@@ -17,6 +17,11 @@ export const config = {
   // ====================
   // WebdriverIO supports running e2e tests as well as unit and component tests.
   runner: 'local',
+
+  // Connect to locally-running ChromeDriver instead of auto-downloading
+  // hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
+  // port: Number(process.env.CHROMEDRIVER_PORT) || 9515,
+  // path: '/',
   //
   // ==================
   // Specify Test Files
@@ -33,7 +38,7 @@ export const config = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: ['./test/specs/**/*.e2e.js'],
+  specs: ['./test/specs/**/*.js'],
   // Patterns to exclude.
   exclude: [
     // 'path/to/excluded/files'
@@ -68,6 +73,9 @@ export const config = {
         {
           maxInstances: 1,
           browserName: 'chrome',
+          'wdio:chromedriverOptions': {
+            binary: './node_modules/chromedriver/bin/chromedriver'
+          },
           'goog:chromeOptions': {
             args: [
               '--no-sandbox',
