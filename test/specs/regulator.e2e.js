@@ -32,9 +32,6 @@ describe('Regulator Page', () => {
     await RegulatorPage.open()
     let headerText = await RegulatorPage.pageHeading.getText()
     let bodyText = await RegulatorPage.pageText.getText()
-    // await expect(browser).toHaveTitle('Regulator | epr-register-enrol-frontend')
-    // await expect(headerText).toEqual('Regulator')
-    // await expect(bodyText).toEqual('Regulator lanidng page')
     await RegulatorPage.navigateToWorkItems()
 
     headerText = await WorkListItemsPage.pageHeading.getText()

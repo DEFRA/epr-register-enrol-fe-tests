@@ -16,7 +16,6 @@ class WorklistItemsPage extends Page {
       const tag = await child.getTagName()
       const text = await child.getText()
       output = tag + '\n' + text
-      // console.log(output)
     }
     return output
   }
