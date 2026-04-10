@@ -16,7 +16,7 @@ const expectedWorkListItems = [
     assignedTo: 'Assigned To: Reginald Regulator'
   },
   {
-    taskWithRegId: 'Re-Accreditation - for Registration ID:EN2712300000002',
+    taskWithRegId: 'Re-Accreditation for Registration ID:EN2712300000002',
     orgDetails: 'Metal and Metal (UK) Ltd : 023456789',
     status: 'Status: In-progress',
     dateOfApplication: 'Date of Application: 2026-03-04Z11:03:12',

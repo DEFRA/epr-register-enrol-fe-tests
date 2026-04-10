@@ -26,17 +26,7 @@ services:
     ports:
       - 4444:4444
 
-  ################################################################################
-  #  mongodb:
-  #    image: mongo:6
-  #    volumes:
-  #      - ./docker/scripts/mongodb:/docker-entrypoint-initdb.d
-  #    healthcheck:
-  #      test: ['CMD', 'mongosh', '--eval', 'db.hello().ok']
-  #      interval: 5s
-  #      start_period: 5s
-  #      retries: 3
-  ################################################################################
+
   localstack:
     image: localstack/localstack:3.2.0
     environment:
