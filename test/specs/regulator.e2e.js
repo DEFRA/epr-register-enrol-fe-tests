@@ -6,7 +6,7 @@ import OrgListPage from 'page-objects/orglist.page'
 
 const expectedWorkListItems = [
   {
-    taskWithRegId: 'Re-Accreditation - for Registration ID:EN2712300000001',
+    taskWithRegId: 'Re-Accreditation for Registration ID:EN2712300000001',
     orgDetails: 'Glass Recycling Export Import Company : 087654321',
     status: 'Status: New',
     dateOfApplication: 'Date of Application: 2026-04-01Z15:00:00',
