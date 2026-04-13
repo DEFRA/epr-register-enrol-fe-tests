@@ -29,9 +29,14 @@ const expectedWorkListItems = [
 ]
 
 describe('Regulator Page', () => {
-  before(async () => {
+  beforeEach(async () => {
     await LoginPage.open()
+    await expect(LoginPage.pageHeading).toHaveText('Select a regulator user')
     await LoginPage.loginAsUser()
+  })
+
+  afterEach(async () => {
+    await LoginPage.signOut()
   })
 
   it('Should be able to action a work item', async () => {
