@@ -1,5 +1,6 @@
 import { browser, expect } from '@wdio/globals'
 
+import LoginPage from 'page-objects/login.page'
 import RegulatorPage from 'page-objects/regulator.page'
 import WorkListItemsPage from 'page-objects/worklistitems.page'
 import OrgListPage from 'page-objects/orglist.page'
@@ -28,6 +29,11 @@ const expectedWorkListItems = [
 ]
 
 describe('Regulator Page', () => {
+  before(async () => {
+    await LoginPage.open()
+    await LoginPage.loginAsUser()
+  })
+
   it('Should be able to action a work item', async () => {
     await RegulatorPage.open()
     let headerText = await RegulatorPage.pageHeading.getText()
