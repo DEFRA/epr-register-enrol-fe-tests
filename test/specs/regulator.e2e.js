@@ -4,6 +4,7 @@ import LoginPage from 'page-objects/login.page'
 import RegulatorPage from 'page-objects/regulator.page'
 import WorkListItemsPage from 'page-objects/worklistitems.page'
 import OrgListPage from 'page-objects/orglist.page'
+import OrgDetailsPage from 'page-objects/orgdetails.page'
 
 const expectedWorkListItems = [
   {
@@ -93,5 +94,16 @@ describe('Regulator Page', () => {
     )
     await expect(headerText).toEqual('Organisation List')
     await expect(bodyText).toEqual('Organisation List')
+    await expect(OrgListPage.pageBody).toExist()
+    const links = await OrgListPage.orgLinks
+    await expect(links[0]).toBeDisplayed()
+    await links[0].click()
+
+    await expect(OrgDetailsPage.pageHeading).toBeDisplayed()
+    await expect(OrgDetailsPage.pageBody).toExist()
+    const orgDetails = await OrgDetailsPage.orgDetailsList
+    for (const item of orgDetails) {
+      await expect(item).toBeDisplayed()
+    }
   })
 })
