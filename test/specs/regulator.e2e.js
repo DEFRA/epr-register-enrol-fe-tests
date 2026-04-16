@@ -1,33 +1,15 @@
 import { browser, expect } from '@wdio/globals'
 
+import HomePage from 'page-objects/home.page'
 import LoginPage from 'page-objects/login.page'
 import RegulatorPage from 'page-objects/regulator.page'
 import WorkListItemsPage from 'page-objects/worklistitems.page'
 import OrgListPage from 'page-objects/orglist.page'
 import OrgDetailsPage from 'page-objects/orgdetails.page'
-
-const expectedWorkListItems = [
-  {
-    taskWithRegId: 'Re-Accreditation for Registration ID:EN2712300000001',
-    orgDetails: 'Glass Recycling Export Import Company : 087654321',
-    status: 'Status: New',
-    dateOfApplication: 'Date of Application: 2026-04-01Z15:00:00',
-    material: 'Material: Glass',
-    risk: 'Risk: low',
-    role: 'Role: Exporter',
-    assignedTo: 'Assigned To: Reginald Regulator'
-  },
-  {
-    taskWithRegId: 'Re-Accreditation for Registration ID:EN2712300000002',
-    orgDetails: 'Metal and Metal (UK) Ltd : 023456789',
-    status: 'Status: In-progress',
-    dateOfApplication: 'Date of Application: 2026-03-04Z11:03:12',
-    material: 'Material: Metal',
-    risk: 'Risk: medium',
-    role: 'Role: Reprocessor',
-    assignedTo: 'Assigned To: Ironman'
-  }
-]
+import {
+  expectedWorkListItems,
+  expectedOrgSummary
+} from '../data/regulator.data.js'
 
 describe('Regulator Page', () => {
   beforeEach(async () => {
@@ -41,7 +23,7 @@ describe('Regulator Page', () => {
   })
 
   it('Should be able to action a work item', async () => {
-    await RegulatorPage.open()
+    await HomePage.regulatorLink.click()
     let headerText = await RegulatorPage.pageHeading.getText()
     let bodyText = await RegulatorPage.pageText.getText()
     await RegulatorPage.navigateToWorkItems()
@@ -79,7 +61,7 @@ describe('Regulator Page', () => {
   })
 
   it('Should be able to search and select an organisation', async () => {
-    await RegulatorPage.open()
+    await HomePage.regulatorLink.click()
     let headerText = await RegulatorPage.pageHeading.getText()
     let bodyText = await RegulatorPage.pageText.getText()
     await expect(browser).toHaveTitle('Regulator | epr-register-enrol-frontend')
@@ -105,5 +87,8 @@ describe('Regulator Page', () => {
     for (const item of orgDetails) {
       await expect(item).toBeDisplayed()
     }
+
+    const actualSummary = await OrgDetailsPage.getSummaryItems()
+    await expect(actualSummary).toEqual(expectedOrgSummary)
   })
 })
