@@ -11,7 +11,7 @@ import {
   expectedOrgSummary
 } from '../data/regulator.data.js'
 
-describe('Regulator Page', () => {
+describe('Regulator Journey', () => {
   beforeEach(async () => {
     await LoginPage.open()
     await expect(LoginPage.pageHeading).toHaveText('Select a regulator user')
