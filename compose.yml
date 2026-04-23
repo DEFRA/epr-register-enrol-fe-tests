@@ -22,7 +22,8 @@ services:
   # Headless browser, used by the test suite to actually run the tests against the
   # containers.
   selenium-chrome:
-    image: selenium/standalone-chrome:123.0
+    image: selenium/standalone-chrome:dev
+    platform: linux/amd64
     ports:
       - 4444:4444
 
@@ -45,26 +46,44 @@ services:
   ################################################################################
   redis:
     image: redis:7
+    ports:
+      - '6379:6379'
     restart: always
     healthcheck:
       test: ['CMD', 'redis-cli', 'PING']
       interval: 5s
       start_period: 2s
       retries: 5
+    networks:
+      - cdp-tenant
+
+  mongodb:
+    image: mongo:6.0.13
+    networks:
+      - cdp-tenant
+    ports:
+      - '27017:27017'
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")']
+      interval: 5s
+      start_period: 5s
+      retries: 5
+
+    volumes:
+      - mongodb-data:/data
+    restart: always
   ################################################################################
   #
   # Add the services you want to test below.
   #
   ################################################################################
   epr-register-enrol-frontend:
-    image: defradigital/epr-register-enrol-frontend:${CDP_EXAMPLE_NODE_FRONTEND:-latest}
-    env_file:
-      - ./docker/config/defaults.env
-      - ./docker/config/example-frontend.env
+    image: defradigital/epr-register-enrol-frontend:${EPR_REGISTER_ENROL_FRONTEND:-latest}
     environment:
       - PORT=3000
+      - API_BASE_URL='http://epr-register-enrol-backend:8080'
     depends_on:
-      cdp-example-node-backend:
+      epr-register-enrol-backend:
         condition: service_started
       redis:
         condition: service_healthy
@@ -75,19 +94,25 @@ services:
       interval: 3s
       start_period: 2s
       retries: 3
-################################################################################
-# cdp-example-node-backend:
-#   image: defradigital/cdp-example-node-backend:${CDP_EXAMPLE_NODE_BACKEND:-latest}
-#   env_file:
-#     - ./docker/config/defaults.env
-#     - ./docker/config/example-backend.env
-#   environment:
-#     - PORT=3001
-#   depends_on:
-#     mongodb:
-#       condition: service_healthy
-#   healthcheck:
-#     test: ["CMD", "curl", "http://localhost:3001/health"]
-#     interval: 3s
-#     start_period: 2s
-#     retries: 3
+  ################################################################################
+  epr-register-enrol-backend:
+    image: defradigital/epr-register-enrol-backend:${EPR_REGISTER_ENROL_BACKEND:-latest}
+    environment:
+      - PORT=8080
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: ['CMD', 'curl', 'http://localhost:8080/health']
+      interval: 3s
+      start_period: 2s
+      retries: 3
+
+volumes:
+  mongodb-data:
+
+networks:
+  cdp-tenant:
+    driver: bridge
