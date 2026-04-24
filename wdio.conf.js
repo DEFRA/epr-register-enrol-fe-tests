@@ -15,7 +15,7 @@ export const config = {
   // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
   // gets prepended directly.
   baseUrl: `https://epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
-
+  apiBaseUrl: `https://epr-register-enrol-backend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
   // Connection to remote chromedriver
   hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
   port: process.env.CHROMEDRIVER_PORT || 4444,

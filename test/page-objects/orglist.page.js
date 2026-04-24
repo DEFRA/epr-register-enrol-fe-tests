@@ -10,7 +10,12 @@ class OrgListPage extends Page {
   }
 
   get orgLinks() {
-    return $$('li .govuk-link')
+    return $$('td .govuk-link')
+  }
+
+  async getOrgNames() {
+    const links = await this.orgLinks
+    return Promise.all([...links].map((link) => link.getText()))
   }
 }
 
