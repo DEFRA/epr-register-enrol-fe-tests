@@ -1,7 +1,11 @@
 import { Page } from 'page-objects/page'
+import { environment, frontendUrl } from '../config.js'
 
 class LoginPage extends Page {
   open() {
+    if (environment) {
+      return browser.url(`${frontendUrl}/`)
+    }
     return super.open('/')
   }
 
