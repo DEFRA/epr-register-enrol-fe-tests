@@ -14,7 +14,7 @@ export const config = {
   // with `/`, the base url gets prepended, not including the path portion of your baseUrl.
   // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
   // gets prepended directly.
-  baseUrl: `https://test:test123@epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
+  baseUrl: `https://${process.env.TEST_USERNAME}:${process.env.TEST_PASSWORD}@epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
 
   apiBaseUrl: `https://epr-register-enrol-backend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
   // Connection to remote chromedriver
