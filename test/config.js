@@ -1,7 +1,10 @@
 export const environment = process.env.ENVIRONMENT
 
+const username = process.env.TEST_USERNAME
+const password = process.env.TEST_PASSWORD
+
 export const frontendUrl = environment
-  ? `https://test:test123@epr-register-enrol-frontend.${environment}.cdp-int.defra.cloud`
+  ? `https://${username}:${password}@epr-register-enrol-frontend.${environment}.cdp-int.defra.cloud`
   : 'http://localhost:3000'
 
 export const backendUrl =
