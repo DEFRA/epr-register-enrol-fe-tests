@@ -18,8 +18,8 @@ export const config = {
 
   apiBaseUrl: `https://epr-register-enrol-backend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
   // Connection to remote chromedriver
-  // hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
-  // port: process.env.CHROMEDRIVER_PORT || 4444,
+  hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
+  port: process.env.CHROMEDRIVER_PORT || 4444,
 
   // Tests to run
   specs: ['./test/specs/**/*.js'],
