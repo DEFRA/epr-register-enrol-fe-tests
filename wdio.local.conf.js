@@ -126,11 +126,9 @@ export const config = {
   // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
   // gets prepended directly.
   baseUrl: 'http://localhost:3000',
-  //
   // Default timeout for all waitFor* commands.
   waitforTimeout: 10000,
   waitforInterval: 200,
-  //
   // Default timeout in milliseconds for request
   // if browser driver or grid doesn't send response
   connectionRetryTimeout: 120000,

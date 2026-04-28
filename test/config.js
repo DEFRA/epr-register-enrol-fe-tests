@@ -1,4 +1,4 @@
-const environment = process.env.ENVIRONMENT
+export const environment = process.env.ENVIRONMENT
 
 export const backendUrl =
   process.env.API_BASE_URL ||
