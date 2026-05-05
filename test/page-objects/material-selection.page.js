@@ -1,8 +1,4 @@
-<<<<<<< feature/RA-105-prns-tonnage
-import { $ } from '@wdio/globals'
-=======
 import { $, $$ } from '@wdio/globals'
->>>>>>> main
 import { Page } from 'page-objects/page'
 
 class MaterialSelectionPage extends Page {
@@ -14,28 +10,14 @@ class MaterialSelectionPage extends Page {
     return $('[data-testid="page-heading"]')
   }
 
-<<<<<<< feature/RA-105-prns-tonnage
-  get continueButton() {
-    return $('[data-testid="continue-button"]')
-=======
   get backLink() {
     return $('[data-testid="back-link"]')
->>>>>>> main
   }
 
   get errorSummary() {
     return $('[data-testid="error-summary"]')
   }
 
-<<<<<<< feature/RA-105-prns-tonnage
-  radioOption(value) {
-    return $(`[data-testid="material-option-${value.toLowerCase()}"]`)
-  }
-
-  async selectMaterial(value) {
-    await this.radioOption(value).click()
-    await this.continueButton.click()
-=======
   get fieldError() {
     return $('[data-testid="field-error"]')
   }
@@ -78,7 +60,6 @@ class MaterialSelectionPage extends Page {
 
   selectMaterial(value) {
     return $(`[data-testid="material-option-${value.toLowerCase()}"]`).click()
->>>>>>> main
   }
 }
 

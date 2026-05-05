@@ -14,8 +14,8 @@ describe('PRNs Tonnage Page (RA-105 / Acc0003)', () => {
     await OperatorPage.navigateToOperatorAccreditation()
     await MaterialSelectionPage.open()
     await MaterialSelectionPage.selectMaterial('aluminium')
+    await MaterialSelectionPage.continueButton.click()
     // After material selection, server redirects to task list hub
-    // Extract applicationId from current URL
   })
 
   after(async () => {
