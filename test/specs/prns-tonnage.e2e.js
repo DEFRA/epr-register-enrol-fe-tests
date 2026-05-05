@@ -67,7 +67,9 @@ describe('PRNs Tonnage Page (RA-105 / Acc0003)', () => {
       await PrnsTonnagePage.continueButton.click()
       await expect(PrnsTonnagePage.errorSummary).toBeDisplayed()
       const errorText = await PrnsTonnagePage.errorSummary.getText()
-      await expect(errorText).toContain('Select how many PRNs you plan to issue')
+      await expect(errorText).toContain(
+        'Select how many PRNs you plan to issue'
+      )
     })
   })
 
