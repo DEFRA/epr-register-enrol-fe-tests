@@ -22,12 +22,6 @@ describe('PRNs Tonnage Page (RA-105 / Acc0003)', () => {
     await LoginPage.signOut()
   })
 
-  async function getApplicationIdFromUrl() {
-    const url = await browser.getUrl()
-    const match = url.match(/task-list\/([^/]+)/)
-    return match ? match[1] : null
-  }
-
   describe('Task List Hub links to PRNs tonnage page', () => {
     it('PRNs task row renders a clickable link to the PRNs tonnage page', async () => {
       await expect(TaskListPage.prnsTaskLink).toBeDisplayed()
