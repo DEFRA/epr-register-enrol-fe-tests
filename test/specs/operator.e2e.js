@@ -31,6 +31,6 @@ describe('Operator Journey', () => {
     await HomePage.operatorLink.click()
     await OperatorPage.navigateToOperatorAccreditation()
     const headerText = await OperatorPage.pageHeading.getText()
-    await expect(headerText).toEqual('Apply for accreditation')
+    await expect(headerText).toEqual('Accreditation applications')
   })
 })
