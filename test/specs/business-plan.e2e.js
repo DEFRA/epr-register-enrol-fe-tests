@@ -23,7 +23,10 @@ describe('RA-108/109/110: Business Plan journey', () => {
     // Complete PRNs so Business Plan task is unlocked
     await TaskListPage.prnsTaskLink.click()
     await PrnsTonnagePage.saveAndContinue('upto1000')
-    await PrnsAuthorityPage.addAuthoriser('Test Authoriser', 'authoriser@example.com')
+    await PrnsAuthorityPage.addAuthoriser(
+      'Test Authoriser',
+      'authoriser@example.com'
+    )
     await PrnsAuthorityPage.saveAndContinue(['authoriser@example.com'])
     await PrnsCyaPage.confirmButton.click()
     // Now on task list with PRNs COMPLETED — navigate into Business Plan
@@ -99,7 +102,9 @@ describe('RA-108/109/110: Business Plan journey', () => {
     describe('Page renders correctly', () => {
       it('displays the page heading', async () => {
         const heading = await BusinessPlanDetailPage.pageHeading.getText()
-        await expect(heading).toContain("More detail about how you'll spend PRN income")
+        await expect(heading).toContain(
+          "More detail about how you'll spend PRN income"
+        )
       })
 
       it('displays intro text', async () => {
@@ -154,18 +159,24 @@ describe('RA-108/109/110: Business Plan journey', () => {
       })
 
       it('shows percentage values for all fields', async () => {
-        const value = await BusinessPlanCyaPage.percentValue('newInfrastructurePercent').getText()
+        const value = await BusinessPlanCyaPage.percentValue(
+          'newInfrastructurePercent'
+        ).getText()
         await expect(value).toContain('%')
       })
 
       it('change percent link includes fromCYA param', async () => {
-        const href = await BusinessPlanCyaPage.changePercentLink('newInfrastructurePercent').getAttribute('href')
+        const href = await BusinessPlanCyaPage.changePercentLink(
+          'newInfrastructurePercent'
+        ).getAttribute('href')
         await expect(href).toContain('/accreditation/business-plan/')
         await expect(href).toContain('fromCYA=true')
       })
 
       it('change detail link includes fromCYA param', async () => {
-        const href = await BusinessPlanCyaPage.changeDetailLink('newInfrastructureDetail').getAttribute('href')
+        const href = await BusinessPlanCyaPage.changeDetailLink(
+          'newInfrastructureDetail'
+        ).getAttribute('href')
         await expect(href).toContain('/accreditation/business-plan-detail/')
         await expect(href).toContain('fromCYA=true')
       })

@@ -77,7 +77,8 @@ describe('RA-114: Session and Data Persistence Integration', () => {
 
       await SessionPersistencePage.openBusinessPlan(applicationId)
 
-      const infraValue = await SessionPersistencePage.newInfrastructureInput.getValue()
+      const infraValue =
+        await SessionPersistencePage.newInfrastructureInput.getValue()
       await expect(infraValue).toBe('30')
     })
   })
@@ -128,7 +129,8 @@ describe('RA-114: Session and Data Persistence Integration', () => {
       await SessionPersistencePage.saveAndComeLaterButton.click()
       await SessionPersistencePage.openBusinessPlan(applicationId)
 
-      const infraValue = await SessionPersistencePage.newInfrastructureInput.getValue()
+      const infraValue =
+        await SessionPersistencePage.newInfrastructureInput.getValue()
       await expect(infraValue).toBe('55')
       const newUsesValue = await SessionPersistencePage.newUsesInput.getValue()
       await expect(newUsesValue).toBe('45')
