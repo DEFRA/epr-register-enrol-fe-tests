@@ -79,7 +79,9 @@ describe('PRNs Authority Page (RA-106 / Acc0004)', () => {
       await PrnsAuthorityPage.continueButton.click()
       await expect(PrnsAuthorityPage.errorSummary).toBeDisplayed()
       const errorText = await PrnsAuthorityPage.errorSummary.getText()
-      await expect(errorText).toContain('Select at least one person to authorise')
+      await expect(errorText).toContain(
+        'Select at least one person to authorise'
+      )
     })
   })
 
