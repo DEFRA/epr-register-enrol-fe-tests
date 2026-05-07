@@ -1,9 +1,8 @@
-import { browser, expect } from '@wdio/globals'
+import { expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
-import OperatorPage from 'page-objects/operator.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 
-describe('RA-102: Operator Accreditation Landing Page', () => {
+describe('RA-102-A: Operator Accreditation Landing Page', () => {
   beforeEach(async () => {
     await LoginPage.open()
     await LoginPage.switchToOperator()
@@ -14,32 +13,39 @@ describe('RA-102: Operator Accreditation Landing Page', () => {
     await LoginPage.signOut()
   })
 
-  it('Should display the accreditation landing page heading', async () => {
-    await OperatorPage.navigateToOperatorAccreditation()
-    const heading = await OperatorAccreditationPage.pageHeading.getText()
-    await expect(heading).toEqual('Accreditation applications')
+  it('displays the application summary when navigating with org/site/material/year params', async () => {
+    await OperatorAccreditationPage.open()
+    await expect(OperatorAccreditationPage.applicationSummary).toBeDisplayed()
   })
 
-  it('Should display Re/Ex service back link', async () => {
+  it('displays site name from the URL params', async () => {
     await OperatorAccreditationPage.open()
-    const backLink = OperatorAccreditationPage.reExBackLink
-    await expect(backLink).toBeDisplayed()
-    const text = await backLink.getText()
+    const text = await OperatorAccreditationPage.siteName.getText()
+    await expect(text).toContain('Stub Site Alpha')
+  })
+
+  it('displays material name in summary', async () => {
+    await OperatorAccreditationPage.open()
+    const text = await OperatorAccreditationPage.materialDisplay.getText()
+    await expect(text).toContain('Plastic')
+  })
+
+  it('displays a status tag', async () => {
+    await OperatorAccreditationPage.open()
+    await expect(OperatorAccreditationPage.statusTag).toBeDisplayed()
+  })
+
+  it('displays the Re/Ex service back link', async () => {
+    await OperatorAccreditationPage.open()
+    await expect(OperatorAccreditationPage.reExBackLink).toBeDisplayed()
+    const text = await OperatorAccreditationPage.reExBackLink.getText()
     await expect(text).toEqual('Return to Re/Ex service')
   })
 
-  it('Should display start-new CTA when operator has no applications', async () => {
+  it('displays Continue button linking to task list', async () => {
     await OperatorAccreditationPage.open()
-    const startNewLink = await OperatorAccreditationPage.startNewLink
-    await expect(startNewLink).toBeDisplayed()
-    const text = await startNewLink.getText()
-    await expect(text).toEqual('Start new accreditation application')
-  })
-
-  it('Should navigate to material selection from start-new CTA', async () => {
-    await OperatorAccreditationPage.open()
-    await OperatorAccreditationPage.startNewLink.click()
-    const url = await browser.getUrl()
-    await expect(url).toContain('/accreditation/material-selection')
+    await expect(OperatorAccreditationPage.continueButton).toBeDisplayed()
+    const href = await OperatorAccreditationPage.continueButton.getAttribute('href')
+    await expect(href).toContain('/accreditation/task-list/')
   })
 })
