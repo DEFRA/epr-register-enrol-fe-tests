@@ -1,9 +1,16 @@
-import { $, $$ } from '@wdio/globals'
+import { $ } from '@wdio/globals'
 import { Page } from 'page-objects/page'
 
 class OperatorAccreditationPage extends Page {
-  open() {
-    return super.open('/operator-accreditation')
+  open(
+    orgId = 'stub-org-1',
+    siteId = 'Stub Site Alpha',
+    material = 'Plastic',
+    year = new Date().getFullYear()
+  ) {
+    return super.open(
+      `/operator-accreditation/${orgId}/${siteId}/${material}/${year}`
+    )
   }
 
   get pageHeading() {
@@ -14,32 +21,28 @@ class OperatorAccreditationPage extends Page {
     return $('[data-testid="reex-back-link"]')
   }
 
-  get startNewLink() {
-    return $('[data-testid="start-new-link"]')
+  get continueButton() {
+    return $('[data-testid="continue-button"]')
   }
 
-  get applyAnotherLink() {
-    return $('[data-testid="apply-another-link"]')
+  get applicationSummary() {
+    return $('[data-testid="application-summary"]')
+  }
+
+  get siteName() {
+    return $('[data-testid="site-name"]')
+  }
+
+  get materialDisplay() {
+    return $('[data-testid="material-display"]')
+  }
+
+  get statusTag() {
+    return $('[data-testid="status-tag"]')
   }
 
   get errorMessage() {
     return $('[data-testid="error-message"]')
-  }
-
-  get applicationCards() {
-    return $$('[data-testid="application-card"]')
-  }
-
-  get statusTags() {
-    return $$('[data-testid="status-tag"]')
-  }
-
-  get continueLinks() {
-    return $$('[data-testid="continue-link"]')
-  }
-
-  get viewLinks() {
-    return $$('[data-testid="view-link"]')
   }
 }
 
