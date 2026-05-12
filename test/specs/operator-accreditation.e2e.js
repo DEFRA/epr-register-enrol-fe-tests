@@ -31,95 +31,6 @@ describe('RA-102: Operator Accreditation Landing Page', () => {
   afterEach(async () => {
     await LoginPage.signOut()
   })
-
-  // it('Should display the operator accreditation for stub data - Plastic', async () => {
-  //   let heading = await OperatorAccreditationPage.pageHeading.getText()
-  //   await expect(heading).toEqual('Operator Testing Flows Landing Page')
-
-  //   await OperatorPage.navigateToOperatorAccreditationPlastic()
-  //   heading = await OperatorAccreditationPage.pageHeading.getText()
-  //   await expect(heading).toEqual(
-  //     'Stub Organisation Ltd'
-  //   )
-  //   const backLink = OperatorAccreditationPage.reExBackLink
-  //   await expect(backLink).toBeDisplayed()
-  //   const text = await backLink.getText()
-  //   await expect(text).toEqual('Return to Re/Ex service')
-
-  //   const orgName = await OperatorAccreditationPage.OrgNameTags.getText()
-  //   const siteName = await OperatorAccreditationPage.SiteNameTags.getText()
-  //   const material = await OperatorAccreditationPage.MaterialTags.getText()
-  //   const accreditationYear = await OperatorAccreditationPage.accreditationYear.getText()
-  //   const applicationStatus = await OperatorAccreditationPage.applicationStatus.getText()
-
-  //   await expect(orgName).toEqual('Stub Organisation Ltd')
-  //   await expect(siteName).toEqual('Stub Organisation House, Site Lane 001, Siteville, SIT3 OO1')
-  //   await expect(material).toEqual('Plastic')
-  //   await expect(accreditationYear).toEqual('2027')
-  //   await expect(applicationStatus).toEqual('IN PROGRESS')
-
-  // })
-
-  // it('Should be able to continue to the task list for Plastic accreditation', async () => {
-  //   let heading = await OperatorAccreditationPage.pageHeading.getText()
-  //   await expect(heading).toEqual('Operator Testing Flows Landing Page')
-
-  //   await OperatorPage.navigateToOperatorAccreditationPlastic()
-  //   await OperatorAccreditationPage.clickContinue()
-
-  //   await expect(browser).toHaveUrl(expect.stringContaining('/accreditation/task-list/app001'))
-
-  //   const year = await TaskListPage.forYear.getText()
-  //   const site = await TaskListPage.forProcessingSite.getText()
-  //   await expect(year).toEqual('2027')
-
-  //   await expect(site).toEqual('site001')
-
-  //   await expect(TaskListPage.PRNTagStatus).toBeDisplayed()
-  //   await expect(TaskListPage.businessPlanStatus).toBeDisplayed()
-  //   await expect(TaskListPage.SIPlanStatus).toBeDisplayed()
-
-  //   await expect(TaskListPage.PRNTonnageLink).toBeDisplayed()
-  //   await TaskListPage.PRNTonnageLink.click()
-
-  //   await expect(browser).toHaveUrl(expect.stringContaining('/accreditation/prns-tonnage'))
-  //   await expect(PrnTonnagePage.pageHeading).toBeDisplayed()
-
-  //   await PrnTonnagePage.selectRandomOption()
-  //   await PrnTonnagePage.saveAndContinue()
-  //    await expect(PrnAuthorityPage.pageHeading).toBeDisplayed()
-  //   await PrnAuthorityPage.addAuthoriser()
-  //   await PrnAuthorityPage.saveAndContinue()
-
-  //    })
-
-  //  it('Should display the operator landing page heading - Glass', async () => {
-  //   let heading = await OperatorAccreditationPage.pageHeading.getText()
-  //   await expect(heading).toEqual('Operator Testing Flows Landing Page')
-  //   await OperatorPage.navigateToOperatorAccreditationGlass()
-  //   heading = await OperatorAccreditationPage.pageHeading.getText()
-  //   await expect(heading).toEqual(
-  //     'Beta Recycling Co'
-  //   )
-  //   const backLink = OperatorAccreditationPage.reExBackLink
-  //   await expect(backLink).toBeDisplayed()
-  //   const text = await backLink.getText()
-  //   await expect(text).toEqual('Return to Re/Ex service')
-
-  //   const orgName = await OperatorAccreditationPage.OrgNameTags.getText()
-  //   const siteName = await OperatorAccreditationPage.SiteNameTags.getText()
-  //   const material = await OperatorAccreditationPage.MaterialTags.getText()
-  //   const accreditationYear = await OperatorAccreditationPage.accreditationYear.getText()
-  //   const applicationStatus = await OperatorAccreditationPage.applicationStatus.getText()
-
-  //   await expect(orgName).toEqual('Beta Recycling Co')
-  //   await expect(siteName).toEqual('Site Lane 002, Siteville, SIT3 OO2')
-  //   await expect(material).toEqual('Glass')
-  //   await expect(accreditationYear).toEqual('2027')
-  //   // await expect(applicationStatus).toEqual('NOT STARTED')
-
-  // })
-
   it('Should complete the full accreditation journey for Plastic - PRN and business plan', async () => {
     const heading = await OperatorAccreditationPage.pageHeading.getText()
     await expect(heading).toEqual('Operator Testing Flows Landing Page')
@@ -186,19 +97,4 @@ describe('RA-102: Operator Accreditation Landing Page', () => {
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
     await expect(ref).toContain('REF-STUB-')
   })
-
-  // it('Should display start-new CTA when operator has no applications', async () => {
-  //   await OperatorAccreditationPage.open()
-  //   const startNewLink = await OperatorAccreditationPage.startNewLink
-  //   await expect(startNewLink).toBeDisplayed()
-  //   const text = await startNewLink.getText()
-  //   await expect(text).toEqual('Start new accreditation application')
-  // })
-
-  // it('Should navigate to material selection from start-new CTA', async () => {
-  //   await OperatorAccreditationPage.open()
-  //   await OperatorAccreditationPage.startNewLink.click()
-  //   const url = await browser.getUrl()
-  //   await expect(url).toContain('/accreditation/material-selection')
-  // })
 })

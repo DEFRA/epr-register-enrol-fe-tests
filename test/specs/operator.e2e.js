@@ -14,30 +14,14 @@ describe('Operator Journey', () => {
   })
 
   it('Should be able to apply for a new registration', async () => {
-    // await HomePage.operatorLink.click()
     await OperatorPage.navigateToOperatorRegistration()
     const headerText = await OperatorPage.pageHeading.getText()
     await expect(headerText).toEqual('Operator Registration')
   })
 
   it('Should be able to renew registration', async () => {
-    // await HomePage.operatorLink.click()
     await OperatorPage.navigateToOperatorRegistration()
     const headerText = await OperatorPage.pageHeading.getText()
     await expect(headerText).toEqual('Operator Registration')
   })
-
-  // it('Should be able to apply for accreditation for site 1 Plastic', async () => {
-  //   // await HomePage.operatorLink.click()
-  //   await OperatorPage.navigateToOperatorAccreditationPlastic()
-  //   const headerText = await OperatorPage.pageHeading.getText()
-  //   await expect(headerText).toEqual('Stub Organisation Ltd')
-  // })
-
-  // it('Should be able to apply for accreditation for site 2 Glass', async () => {
-  //   // await HomePage.operatorLink.click()
-  //   await OperatorPage.navigateToOperatorAccreditationGlass()
-  //   const headerText = await OperatorPage.pageHeading.getText()
-  //   await expect(headerText).toEqual('Beta Recycling Co')
-  // })
 })
