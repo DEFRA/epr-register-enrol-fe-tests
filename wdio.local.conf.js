@@ -81,6 +81,7 @@ export const config = {
               '--no-sandbox',
               '--disable-infobars',
               '--disable-gpu',
+              // '--headless',
               '--window-size=1920,1080'
             ]
           }

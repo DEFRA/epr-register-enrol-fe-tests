@@ -21,6 +21,26 @@ class OrgDetailsPage extends Page {
     return $$('.govuk-summary-list__value')
   }
 
+  get organisationId() {
+    return $('[data-testid="organisation-id"]')
+  }
+
+  get companyName() {
+    return $('[data-testid="company-name"]')
+  }
+
+  get registrationNumber() {
+    return $('[data-testid="registration-number"]')
+  }
+
+  get businessType() {
+    return $('[data-testid="business-type"]')
+  }
+
+  get contact() {
+    return $('[data-testid="contact"]')
+  }
+
   async getSummaryItems() {
     const keys = await this.summaryKeys
     const values = await this.summaryValues
