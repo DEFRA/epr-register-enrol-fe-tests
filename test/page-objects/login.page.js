@@ -26,12 +26,19 @@ class LoginPage extends Page {
   }
 
   async loginAsUser() {
-    await this.userRadioButton.click()
+    await this.userRadioButton.waitForExist()
+    await $('label[for="user-1"]').click()
     await this.loginButton.click()
   }
 
+  async loginAsOperator() {
+    await $('input[type="radio"]').waitForExist()
+    await $('label.govuk-label').click()
+    await $('button.govuk-button').click()
+  }
+
   async switchToOperator() {
-    await this.switchToOperatorLink.click()
+    return super.open('/auth/stub/login?type=operator')
   }
 
   async switchToRegulator() {

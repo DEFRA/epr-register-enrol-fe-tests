@@ -9,6 +9,22 @@ class OperatorPage extends Page {
     await $('a[href="/operator-registration"]').click()
   }
 
+  async navigateToOperatorAccreditationPlastic() {
+    await $(
+      'a[href="/operator-accreditation/org001/site001/Plastic/2027"]'
+    ).click()
+  }
+
+  async navigateToOperatorAccreditationGlass() {
+    await $(
+      'a[href="/operator-accreditation/org002/site002/Glass/2027"]'
+    ).click()
+  }
+
+  get accreditationLinks() {
+    return $$('a[href^="/operator-accreditation"]')
+  }
+
   async navigateToOperatorAccreditation() {
     await $('a[href="/operator-accreditation"]').click()
   }
