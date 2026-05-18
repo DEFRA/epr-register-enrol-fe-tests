@@ -6,7 +6,7 @@ class PrnCheckAnswersPage extends Page {
   }
 
   get tonnageValue() {
-    return $('[data-testid="check-tonnage-value"]')
+    return $('[data-testid="tonnage-value"]')
   }
 
   get authoriserValue() {
