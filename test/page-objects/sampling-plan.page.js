@@ -22,9 +22,10 @@ class SamplingPlanPage extends Page {
   }
 
   async uploadFile(filename) {
-    const filePath = path.resolve(__dirname, '../fixtures', filename)
+    const localPath = path.resolve(__dirname, '../fixtures', filename)
+    const remotePath = await browser.uploadFile(localPath)
     await this.fileInput.waitForExist()
-    await this.fileInput.setValue(filePath)
+    await this.fileInput.setValue(remotePath)
     await this.uploadFileButton.waitForDisplayed()
     await this.uploadFileButton.click()
   }

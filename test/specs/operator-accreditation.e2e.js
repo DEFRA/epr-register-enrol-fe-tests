@@ -95,6 +95,6 @@ describe('RA-102: Operator Accreditation Landing Page', () => {
       'Application submitted'
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
-    await expect(ref).toContain('REF-STUB-')
+    await expect(ref).toContain('A27')
   })
 })
