@@ -13,7 +13,7 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 
-describe('RA-102: Operator Accreditation Landing Page', () => {
+describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()
@@ -31,23 +31,37 @@ describe('RA-102: Operator Accreditation Landing Page', () => {
   afterEach(async () => {
     await LoginPage.signOut()
   })
-  it('Should complete the full accreditation journey for Plastic - PRN and business plan', async () => {
-    const heading = await OperatorAccreditationPage.pageHeading.getText()
-    await expect(heading).toEqual('Operator Testing Flows Landing Page')
-    await OperatorPage.navigateToOperatorAccreditationPlastic()
-    await OperatorAccreditationPage.clickContinue()
-    // await expect(browser).toHaveUrl(expect.stringContaining('/accreditation/task-list/app001'))
 
-    // PRN tonnage
+  it('Should complete the full accreditation journey and submit the application', async () => {
+    // Accreditation landing
+    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
+      'Operator Testing Flows Landing Page'
+    )
+    await OperatorPage.navigateToOperatorAccreditationPlastic()
+    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
+      'NEWDEV RECYCLING LIMITED'
+    )
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/app001')
+    )
+
+    // Task list — PRN tonnage
     await TaskListPage.PRNTonnageLink.click()
-    // await expect(browser).toHaveUrl(expect.stringContaining('/accreditation/prns-tonnage'))
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/tonnage')
+    )
     const selectedTonnage = await PrnTonnagePage.selectRandomOption()
     await PrnTonnagePage.saveAndContinue()
 
+    // PRN authority
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/tonnage-authority')
+    )
     await PrnAuthorityPage.addAuthoriser()
     await PrnAuthorityPage.saveAndContinue()
 
-    // Check your answers — assert the selected tonnage is shown
+    // PRN check your answers — assert tonnage carried through
     await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
       'Check your answers before continuing'
     )
@@ -56,23 +70,31 @@ describe('RA-102: Operator Accreditation Landing Page', () => {
     await PrnCheckAnswersPage.confirmAndContinue()
 
     // Back to task list
-    // await expect(browser).toHaveUrl(expect.stringContaining('/accreditation/task-list/app001'))
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/app001')
+    )
 
-    // Business plan — 6 fields, values must total 100%
+    // Task list — business plan
     await TaskListPage.businessPlanLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/business-plan')
+    )
     await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
-    // More detail about how you'll spend PRN income (all optional)
+    // More detail (all optional)
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
       "More detail about how you'll spend PRN income"
     )
     await BusinessPlanDetailPage.saveAndContinue()
 
-    // Check answers for business plan
+    // Business plan check your answers
     await BusinessPlanCheckAnswersPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/app001')
+    )
 
-    // Sampling and inspection plan — upload file
+    // Task list — sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
       'Upload accreditation sampling and inspection plan'
@@ -80,21 +102,24 @@ describe('RA-102: Operator Accreditation Landing Page', () => {
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
 
-    // Task list — all tasks completed, click Continue
+    // Task list — all tasks completed
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/app001')
+    )
     await TaskListPage.assertAllTasksCompleted()
     await TaskListPage.continueToSubmit()
 
-    // Submit application — declaration
+    // Declaration
     await expect(SubmitApplicationPage.pageHeading).toHaveText(
       'Submit accreditation application'
     )
     await SubmitApplicationPage.submitApplication('Test User', 'Test Manager')
 
-    // Confirmation screen
+    // Confirmation
     await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
       'Application submitted'
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
-    await expect(ref).toContain('REF-STUB-')
+    await expect(ref).toMatch(/APP\d{4}ER\d+[A-Z]{2}/)
   })
 })

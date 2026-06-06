@@ -18,7 +18,7 @@ class TaskListPage extends Page {
   }
 
   get businessPlanStatus() {
-    return $('[data-testid="task-business-plan-status"]')
+    return $('[data-testid="task-business-plan-tag"]')
   }
 
   get SIPlanStatus() {
@@ -38,7 +38,7 @@ class TaskListPage extends Page {
   }
 
   get continueButton() {
-    return $('a=Continue')
+    return $('[data-testid="continue-button"]')
   }
 
   async assertAllTasksCompleted() {
