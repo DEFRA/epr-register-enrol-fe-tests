@@ -29,12 +29,17 @@ class BesEvidencePage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
+  get fileStatusClean() {
+    return $('td*=Clean')
+  }
+
   async uploadFile(filename) {
     const filePath = path.resolve(__dirname, '../fixtures', filename)
     await this.fileInput.waitForExist()
     await this.fileInput.setValue(filePath)
     await this.uploadFileButton.waitForDisplayed()
     await this.uploadFileButton.click()
+    await this.fileStatusClean.waitForDisplayed({ timeout: 30000 })
   }
 
   async saveAndContinue() {
