@@ -25,7 +25,7 @@ runs:
   steps:
     - name: Checkout repository if not called by Journey Test PR
       if: inputs.journey-test-pr == 'false'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
       with:
         repository: DEFRA/epr-register-enrol-fe-tests
         ref: ${{ inputs.branch }}
@@ -46,7 +46,7 @@ runs:
 
     - name: Checkout operator-fe if matching branch exists
       if: inputs.journey-test-pr != 'false' && steps.operator-fe-branch.outputs.exists == 'true'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
       with:
         repository: DEFRA/epr-register-enrol-frontend
         ref: ${{ steps.operator-fe-branch.outputs.ref }}
@@ -78,7 +78,7 @@ runs:
 
     - name: Checkout operator-be if matching branch exists
       if: inputs.journey-test-pr != 'false' && steps.operator-be-branch.outputs.exists == 'true'
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
       with:
         repository: DEFRA/epr-register-enrol-backend
         ref: ${{ steps.operator-be-branch.outputs.ref }}
@@ -95,7 +95,7 @@ runs:
         docker build -t $IMAGE_TAG .
         echo "image=$OPERATOR_BE_SHA" >> "$GITHUB_OUTPUT"
 
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v4
       with:
         node-version-file: .nvmrc
         cache: npm

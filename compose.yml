@@ -22,56 +22,50 @@ services:
   # Headless browser, used by the test suite to actually run the tests against the
   # containers.
   selenium-chrome:
-    image: selenium/standalone-chrome:dev
+    image: selenium/standalone-chrome:123.0
     platform: linux/amd64
     ports:
       - 4444:4444
 
-  localstack:
-    image: localstack/localstack:3.2.0
-    environment:
-      - LOCALSTACK_HOST=127.0.0.1
-      - SERVICES=s3,sqs,sns,dynamodb
-      - LS_LOG=WARN
-    env_file:
-      - ./docker/config/defaults.env
+  ################################################################################
+  mongodb:
+    image: mongo:6
     volumes:
-      - ./docker/scripts/localstack:/etc/localstack/init/ready.d
+      - ./docker/scripts/mongodb:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ['CMD', 'curl', 'localhost:4566']
+      test: ['CMD', 'mongosh', '--eval', 'db.hello().ok']
       interval: 5s
       start_period: 5s
       retries: 3
 
   ################################################################################
+
+  floci:
+    image: hectorvent/floci:1.5.5-aws
+    environment:
+      - FLOCI_DEFAULT_REGION=eu-west-2
+    env_file:
+      - ./docker/config/defaults.env
+
+    ################################################################################
   redis:
     image: redis:7
-    ports:
-      - '6379:6379'
     restart: always
+    command: redis-server --requirepass E2eTestRedisPassword
     healthcheck:
-      test: ['CMD', 'redis-cli', 'PING']
+      test:
+        [
+          'CMD',
+          'redis-cli',
+          '-a',
+          'E2eTestRedisPassword',
+          '--no-auth-warning',
+          'PING'
+        ]
       interval: 5s
       start_period: 2s
       retries: 5
-    networks:
-      - cdp-tenant
 
-  mongodb:
-    image: mongo:6.0.13
-    networks:
-      - cdp-tenant
-    ports:
-      - '27017:27017'
-    healthcheck:
-      test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")']
-      interval: 5s
-      start_period: 5s
-      retries: 5
-
-    volumes:
-      - mongodb-data:/data
-    restart: always
   ################################################################################
   #
   # Add the services you want to test below.
@@ -79,10 +73,11 @@ services:
   ################################################################################
   epr-register-enrol-frontend:
     image: defradigital/epr-register-enrol-frontend:${EPR_REGISTER_ENROL_FRONTEND:-latest}
+    env_file:
+      - ./docker/config/defaults.env
+      - ./docker/config/operator-fe.env
     environment:
       - PORT=3000
-      - API_BASE_URL='http://epr-register-enrol-backend:8080'
-      - API_STUB_ENABLED=true
     depends_on:
       epr-register-enrol-backend:
         condition: service_started
