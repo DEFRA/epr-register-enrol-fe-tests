@@ -40,6 +40,10 @@ class LoginPage extends Page {
     const submitBtn = await $('button.govuk-button')
     await submitBtn.waitForClickable()
     await submitBtn.click()
+    await browser.waitUntil(
+      async () => !(await browser.getUrl()).includes('/stub/login'),
+      { timeout: 15000, timeoutMsg: 'Stub login did not redirect after login' }
+    )
   }
 
   async switchToOperator() {
