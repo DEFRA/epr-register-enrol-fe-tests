@@ -27,8 +27,14 @@ class SamplingPlanPage extends Page {
 
   async uploadFile(filename) {
     const filePath = path.resolve(__dirname, '../fixtures', filename)
+    let uploadPath
+    try {
+      uploadPath = await browser.uploadFile(filePath)
+    } catch {
+      uploadPath = filePath
+    }
     await this.fileInput.waitForExist()
-    await this.fileInput.setValue(filePath)
+    await this.fileInput.setValue(uploadPath)
     await this.uploadFileButton.waitForDisplayed()
     await this.uploadFileButton.click()
     await this.fileStatusClean.waitForDisplayed({ timeout: 30000 })
