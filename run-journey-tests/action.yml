@@ -1,56 +1,154 @@
 name: Run Journey Tests on GitHub
 
 inputs:
-  example-node-backend:
+  epr-register-enrol-be:
+    description: epr-register-enrol-be image tag (commit hash) to use
     required: false
     type: string
-  example-node-frontend:
+  epr-register-enrol-fe:
+    description: epr-register-enrol-fe image tag (commit hash) to use
     required: false
     type: string
+  branch:
+    description: Branch in this repo to use when not a PR
+    required: false
+    default: main
+    type: string
+  journey-test-pr:
+    description: Is this action being run from a PR in this repo?
+    required: false
+    default: 'false'
+    type: string  
 
 runs:
   using: 'composite'
   steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository if not called by Journey Test PR
+      if: inputs.journey-test-pr == 'false'
+      uses: actions/checkout@v6
       with:
-        repository: DEFRA/cdp-node-journey-test-suite-template
+        repository: DEFRA/epr-register-enrol-fe-tests
+        ref: ${{ inputs.branch }}
 
-    - name: Docker Login
-      uses: DEFRA/cdp-build-action/docker-login@main
-
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: npm
-    - name: Setup the tests
-      run: npm i
-      shell: bash
-    - name: Start docker compose
+    - name: Check for matching operator-fe branch
+      if: inputs.journey-test-pr != 'false'
+      id: operator-fe-branch
       shell: bash
       run: |
-        CDP_EXAMPLE_NODE_FRONTEND=${{inputs.example-node-frontend}} \
-        CDP_EXAMPLE_NODE_BACKEND=${{inputs.example-node-backend}} \
-        docker compose up --wait-timeout 300 -d --quiet-pull
+        BRANCH="${{ github.head_ref }}"
+        if git ls-remote --heads https://github.com/DEFRA/epr-register-enrol-frontend.git "$BRANCH" | grep -q .; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+          echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "ref=main" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Checkout operator-fe if matching branch exists
+      if: inputs.journey-test-pr != 'false' && steps.operator-fe-branch.outputs.exists == 'true'
+      uses: actions/checkout@v6
+      with:
+        repository: DEFRA/epr-register-enrol-frontend
+        ref: ${{ steps.operator-fe-branch.outputs.ref }}
+        path: epr-register-enrol-frontend
+
+    - name: Build operator-fe Docker image from source
+      if: inputs.journey-test-pr != 'false' && steps.operator-fe-branch.outputs.exists == 'true'
+      id: docker-operator-fe
+      shell: bash
+      run: |
+        cd epr-register-enrol-operator-fe
+        OPERATOR_FE_SHA=$(git rev-parse --short HEAD)
+        IMAGE_TAG="defradigital/epr-register-enrol-frontend:${OPERATOR_FE_SHA}"
+        docker build -t $IMAGE_TAG .
+        echo "image=$OPERATOR_FE_SHA" >> "$GITHUB_OUTPUT"
+
+    - name: Check for matching management-be branch
+      if: inputs.journey-test-pr != 'false'
+      id: operator-be-branch
+      shell: bash
+      run: |
+        BRANCH="${{ github.head_ref }}"
+        if git ls-remote --heads https://github.com/DEFRA/epr-register-enrol-frontend.git "$BRANCH" | grep -q .; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+          echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Checkout operator-be if matching branch exists
+      if: inputs.journey-test-pr != 'false' && steps.operator-be-branch.outputs.exists == 'true'
+      uses: actions/checkout@v6
+      with:
+        repository: DEFRA/epr-register-enrol-backend
+        ref: ${{ steps.operator-be-branch.outputs.ref }}
+        path: epr-register-enrol-backend
+
+    - name: Build operator-be Docker image from source
+      if: inputs.journey-test-pr != 'false' && steps.operator-be-branch.outputs.exists == 'true'
+      id: docker-operator-be
+      shell: bash
+      run: |
+        cd epr-register-enrol-backend
+        OPERATOR_BE_SHA=$(git rev-parse --short HEAD)
+        IMAGE_TAG="defradigital/epr-register-enrol-operator-be:${OPERATOR_BE_SHA}"
+        docker build -t $IMAGE_TAG .
+        echo "image=$OPERATOR_BE_SHA" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/setup-node@v6
+      with:
+        node-version-file: .nvmrc
+        cache: npm
+    - run: npm install -g npm@11.12.1
+      shell: bash
+    - name: Install test dependencies
+      run: npm ci
+      shell: bash
+
+    - name: Start docker compose (with matching branches)
+      if: inputs.journey-test-pr != 'false' && steps.management-fe-branch.outputs.exists == 'true'
+      shell: bash
+      run: |
+        OPERATOR_FE=${{ steps.docker-operator-fe.outputs.image }} \
+        operator_BE=${{ steps.docker-operator-be.outputs.image || inputs.operator-be }} \
+        docker compose up --wait --wait-timeout 300 -d --quiet-pull
+
+    - name: Start docker compose (default images)
+      if: steps.operator-fe-branch.outputs.exists != 'true'
+      shell: bash
+      run: |
+        OPERATOR_FE=${{ inputs.management-fe }} \
+        OPERATOR_BE=${{ inputs.management-be }} \
+        docker compose up --wait --wait-timeout 300 -d --quiet-pull
+
     - name: Run the tests
       shell: bash
       run: |
         npm run test:github
         npm run report
-    - name: debug
+
+    - name: Collect logs
       if: always()
+      shell: bash
       run: |
         docker compose logs > logs.txt
         docker ps
-      shell: bash
+
     - name: Upload allure report
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: allure-report
         path: ./allure-report
+
     - name: Upload docker compose logs
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: docker-compose-logs
         path: ./logs.txt
+
+    - name: Check for test failures
+      if: always()
+      shell: bash
+      run: if [ -f "FAILED" ]; then exit 1; fi    
