@@ -18,7 +18,7 @@ inputs:
     description: Is this action being run from a PR in this repo?
     required: false
     default: 'false'
-    type: string  
+    type: string
 
 runs:
   using: 'composite'
@@ -151,4 +151,4 @@ runs:
     - name: Check for test failures
       if: always()
       shell: bash
-      run: if [ -f "FAILED" ]; then exit 1; fi    
+      run: if [ -f "FAILED" ]; then exit 1; fi
