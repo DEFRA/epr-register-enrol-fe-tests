@@ -82,6 +82,7 @@ services:
     environment:
       - PORT=3000
       - API_BASE_URL='http://epr-register-enrol-backend:8080'
+      - API_STUB_ENABLED=true
     depends_on:
       epr-register-enrol-backend:
         condition: service_started

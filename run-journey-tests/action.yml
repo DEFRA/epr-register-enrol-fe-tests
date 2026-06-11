@@ -106,19 +106,19 @@ runs:
       shell: bash
 
     - name: Start docker compose (with matching branches)
-      if: inputs.journey-test-pr != 'false' && steps.management-fe-branch.outputs.exists == 'true'
+      if: inputs.journey-test-pr != 'false' && steps.operator-fe-branch.outputs.exists == 'true'
       shell: bash
       run: |
-        OPERATOR_FE=${{ steps.docker-operator-fe.outputs.image }} \
-        operator_BE=${{ steps.docker-operator-be.outputs.image || inputs.operator-be }} \
+        EPR_REGISTER_ENROL_FRONTEND=${{ steps.docker-operator-fe.outputs.image }} \
+        EPR_REGISTER_ENROL_BACKEND=${{ steps.docker-operator-be.outputs.image || inputs.epr-register-enrol-be }} \
         docker compose up --wait --wait-timeout 300 -d --quiet-pull
 
     - name: Start docker compose (default images)
       if: steps.operator-fe-branch.outputs.exists != 'true'
       shell: bash
       run: |
-        OPERATOR_FE=${{ inputs.management-fe }} \
-        OPERATOR_BE=${{ inputs.management-be }} \
+        EPR_REGISTER_ENROL_FRONTEND=${{ inputs.epr-register-enrol-fe }} \
+        EPR_REGISTER_ENROL_BACKEND=${{ inputs.epr-register-enrol-be }} \
         docker compose up --wait --wait-timeout 300 -d --quiet-pull
 
     - name: Run the tests
