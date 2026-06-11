@@ -32,13 +32,19 @@ class LoginPage extends Page {
   }
 
   async loginAsOperator() {
-    await $('input[type="radio"]').waitForExist()
-    await $('label.govuk-label').click()
-    await $('button.govuk-button').click()
+    const firstRadio = await $('input[type="radio"]')
+    await firstRadio.waitForExist({ timeout: 15000 })
+    const id = await firstRadio.getAttribute('id')
+    await $(`label[for="${id}"]`).waitForDisplayed()
+    await $(`label[for="${id}"]`).click()
+    const submitBtn = await $('button.govuk-button')
+    await submitBtn.waitForClickable()
+    await submitBtn.click()
   }
 
   async switchToOperator() {
-    return super.open('/auth/stub/login?type=operator')
+    await super.open('/auth/stub/login?type=operator')
+    await $('input[type="radio"]').waitForExist({ timeout: 15000 })
   }
 
   async switchToRegulator() {

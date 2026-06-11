@@ -76,7 +76,7 @@ export const config = {
             args: [
               '--no-sandbox',
               '--disable-infobars',
-              // '--headless',
+              '--headless',
               '--disable-gpu',
               '--window-size=1920,1080',
               '--disable-dev-shm-usage'
