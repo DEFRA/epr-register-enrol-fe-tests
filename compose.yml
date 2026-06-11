@@ -95,9 +95,6 @@ services:
       SQS_DOWNLOAD_REQUESTS: http://localhost:4566/000000000000/cdp-uploader-download-requests
       SQS_MOCK_CLAMAV: http://localhost:4566/000000000000/mock-clamav
       CONSUMER_BUCKETS: epr-register-enrol-file-uploads
-    networks:
-      - cdp-tenant
-
   ################################################################################
   #
   # Add the services you want to test below.
@@ -146,7 +143,3 @@ services:
 
 volumes:
   mongodb-data:
-
-networks:
-  cdp-tenant:
-    driver: bridge
