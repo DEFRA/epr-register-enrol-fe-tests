@@ -21,6 +21,12 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  async navigateToExporterAccreditationPlastic() {
+    const link = $('a*=Exporter accreditation')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
   get accreditationLinks() {
     return $$('a[href*="accreditation"]')
   }

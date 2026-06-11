@@ -50,7 +50,7 @@ class LoginPage extends Page {
   }
 
   async signOut() {
-    await this.signOutLink.click()
+    await browser.url('/auth/logout')
   }
 }
 

@@ -25,6 +25,14 @@ class TaskListPage extends Page {
     return $('[data-testid="task-sampling-plan-tag"]')
   }
 
+  get overseasSitesStatus() {
+    return $('[data-testid="task-overseas-sites-tag"]')
+  }
+
+  get besStatus() {
+    return $('[data-testid="task-bes-tag"]')
+  }
+
   get PRNTonnageLink() {
     return $('[data-testid="task-prns-link"]')
   }
@@ -37,14 +45,26 @@ class TaskListPage extends Page {
     return $('[data-testid="task-sampling-plan-link"]')
   }
 
+  get overseasSitesLink() {
+    return $('[data-testid="task-overseas-sites-link"]')
+  }
+
+  get besLink() {
+    return $('a*=Evidence of broadly equivalent')
+  }
+
   get continueButton() {
     return $('[data-testid="continue-button"]')
   }
 
-  async assertAllTasksCompleted() {
+  async assertAllTasksCompleted({ isExporter = false } = {}) {
     await expect(this.PRNTagStatus).toHaveText('COMPLETED')
     await expect(this.businessPlanStatus).toHaveText('COMPLETED')
     await expect(this.SIPlanStatus).toHaveText('COMPLETED')
+    if (isExporter) {
+      await expect(this.overseasSitesStatus).toHaveText('COMPLETED')
+      await expect(this.besStatus).toHaveText('COMPLETED')
+    }
   }
 
   async continueToSubmit() {
