@@ -32,13 +32,23 @@ class LoginPage extends Page {
   }
 
   async loginAsOperator() {
-    await $('input[type="radio"]').waitForExist()
-    await $('label.govuk-label').click()
-    await $('button.govuk-button').click()
+    await $('input[type="radio"]').waitForExist({ timeout: 15000 })
+    await browser.execute(() => {
+      // eslint-disable-next-line no-undef
+      document.querySelector('input[type="radio"]').click()
+    })
+    const submitBtn = await $('button.govuk-button')
+    await submitBtn.waitForClickable()
+    await submitBtn.click()
+    await browser.waitUntil(
+      async () => !(await browser.getUrl()).includes('/stub/login'),
+      { timeout: 15000, timeoutMsg: 'Stub login did not redirect after login' }
+    )
   }
 
   async switchToOperator() {
-    return super.open('/auth/stub/login?type=operator')
+    await super.open('/auth/stub/login?type=operator')
+    await $('input[type="radio"]').waitForExist({ timeout: 15000 })
   }
 
   async switchToRegulator() {
@@ -50,7 +60,7 @@ class LoginPage extends Page {
   }
 
   async signOut() {
-    await this.signOutLink.click()
+    await browser.url('/auth/logout')
   }
 }
 

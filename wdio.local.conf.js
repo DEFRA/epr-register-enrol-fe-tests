@@ -1,4 +1,5 @@
 import allure from 'allure-commandline'
+import { fetch } from 'undici'
 
 const debug = process.env.DEBUG
 const oneMinute = 60 * 1000
@@ -17,11 +18,6 @@ export const config = {
   // ====================
   // WebdriverIO supports running e2e tests as well as unit and component tests.
   runner: 'local',
-
-  // Connect to locally-running ChromeDriver instead of auto-downloading
-  // hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
-  // port: Number(process.env.CHROMEDRIVER_PORT) || 9515,
-  // path: '/',
   //
   // ==================
   // Specify Test Files
@@ -38,7 +34,7 @@ export const config = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: ['./test/specs/**/*.js'],
+  specs: ['./test/specs/**/*.e2e.js'],
   // Patterns to exclude.
   exclude: [
     // 'path/to/excluded/files'
@@ -74,14 +70,16 @@ export const config = {
           maxInstances: 1,
           browserName: 'chrome',
           'wdio:chromedriverOptions': {
-            binary: './node_modules/chromedriver/bin/chromedriver'
+            binary: './node_modules/chromedriver/lib/chromedriver/chromedriver'
           },
           'goog:chromeOptions': {
             args: [
               '--no-sandbox',
               '--disable-infobars',
+              '--headless',
               '--disable-gpu',
-              '--window-size=1920,1080'
+              '--window-size=1920,1080',
+              '--disable-dev-shm-usage'
             ]
           }
         }
@@ -126,9 +124,11 @@ export const config = {
   // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
   // gets prepended directly.
   baseUrl: 'http://localhost:3000',
+  //
   // Default timeout for all waitFor* commands.
   waitforTimeout: 10000,
   waitforInterval: 200,
+  //
   // Default timeout in milliseconds for request
   // if browser driver or grid doesn't send response
   connectionRetryTimeout: 120000,
@@ -192,7 +192,41 @@ export const config = {
    * @param {object} config wdio configuration object
    * @param {Array.<Object>} capabilities list of capabilities details
    */
-  // onPrepare: function (config, capabilities) {},
+  async onPrepare() {
+    const maxWaitMs = 120_000
+    const pollIntervalMs = 2_000
+    const endpoints = [
+      {
+        name: 'epr-register-enrol-frontend',
+        url: 'http://localhost:3000/health'
+      }
+    ]
+
+    for (const { name, url } of endpoints) {
+      const deadline = Date.now() + maxWaitMs
+      let ready = false
+      process.stdout.write(`Waiting for ${name} at ${url} …\n`)
+      while (!ready) {
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(3_000) })
+          if (res.ok) {
+            ready = true
+            process.stdout.write(`✓ ${name} ready\n`)
+          }
+        } catch {
+          // still starting up — swallow and retry
+        }
+        if (!ready) {
+          if (Date.now() >= deadline) {
+            throw new Error(
+              `${name} not ready at ${url} after ${maxWaitMs / 1000}s — is Docker running?`
+            )
+          }
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
+        }
+      }
+    }
+  },
   /**
    * Gets executed before a worker process is spawned and can be used to initialise specific service
    * for that worker as well as modify runtime environments in an async fashion.
@@ -330,7 +364,6 @@ export const config = {
         if (exitCode !== 0) {
           return reject(reportError)
         }
-
         allure(['open'])
         resolve()
       })

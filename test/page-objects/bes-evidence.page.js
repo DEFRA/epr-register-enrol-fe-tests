@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-class SamplingPlanPage extends Page {
+class BesEvidencePage extends Page {
   get pageHeading() {
     return $('h1')
   }
@@ -19,6 +19,14 @@ class SamplingPlanPage extends Page {
 
   get saveAndContinueButton() {
     return $('button=Save and continue')
+  }
+
+  get confirmAndContinueButton() {
+    return $('button=Confirm and continue')
+  }
+
+  get continueButton() {
+    return $('[data-testid="continue-button"]')
   }
 
   get fileStatusClean() {
@@ -45,6 +53,15 @@ class SamplingPlanPage extends Page {
     await this.saveAndContinueButton.scrollIntoView()
     await this.saveAndContinueButton.click()
   }
+
+  async confirmAndContinue() {
+    await this.continueButton.waitForDisplayed()
+    await this.continueButton.scrollIntoView()
+    await this.continueButton.click()
+    // await this.confirmAndContinueButton.waitForDisplayed()
+    // await this.confirmAndContinueButton.scrollIntoView()
+    // await this.confirmAndContinueButton.click()
+  }
 }
 
-export default new SamplingPlanPage()
+export default new BesEvidencePage()

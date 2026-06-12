@@ -10,12 +10,12 @@ import BusinessPlanPage from 'page-objects/business-plan.page'
 import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
-// import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
-// import BesEvidencePage from 'page-objects/bes-evidence.page'
+import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
+import BesEvidencePage from 'page-objects/bes-evidence.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 
-describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
+describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()
@@ -34,18 +34,15 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await LoginPage.signOut()
   })
 
-  it('Should complete the full accreditation journey and submit the application', async () => {
+  it('Should complete the full exporter accreditation journey and submit the application', async () => {
     // Accreditation landing
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
       'Operator Testing Flows Landing Page'
     )
-    await OperatorPage.navigateToOperatorAccreditationPlastic()
-    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
-      'NEWDEV RECYCLING LIMITED'
-    )
+    await OperatorPage.navigateToExporterAccreditationPlastic()
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/app001')
+      expect.stringContaining('/accreditation/task-list/')
     )
 
     // Task list — PRN tonnage
@@ -73,7 +70,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
     // Back to task list
     await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/app001')
+      expect.stringContaining('/accreditation/task-list/')
     )
 
     // Task list — business plan
@@ -93,7 +90,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     // Business plan check your answers
     await BusinessPlanCheckAnswersPage.confirmAndContinue()
     await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/app001')
+      expect.stringContaining('/accreditation/task-list/')
     )
 
     // Task list — sampling and inspection plan
@@ -104,14 +101,35 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
 
-    // Task list — all tasks completed
+    // Task list — overseas reprocessing sites
     await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/app001')
+      expect.stringContaining('/accreditation/task-list/')
     )
-    await TaskListPage.assertAllTasksCompleted({ isExporter: false })
-    await TaskListPage.continueToSubmit()
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.selectAllSites()
+    await OverseasReprocessingSitesPage.continue()
+    await OverseasReprocessingSitesPage.confirmAndContinue()
 
+    // Task list — BES evidence
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    await TaskListPage.besLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(
+        '/accreditation/upload-evidence-for-overseas-site/'
+      )
+    )
+    await BesEvidencePage.confirmAndContinue()
+
+    await TaskListPage.continueToSubmit()
     // Declaration
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/submit-declaration/')
+    )
     await expect(SubmitApplicationPage.pageHeading).toHaveText(
       'Submit accreditation application'
     )

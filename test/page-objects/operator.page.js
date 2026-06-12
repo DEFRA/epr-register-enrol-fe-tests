@@ -10,19 +10,25 @@ class OperatorPage extends Page {
   }
 
   async navigateToOperatorAccreditationPlastic() {
-    await $(
-      'a[href="/operator-accreditation/org001/site001/Plastic/2027"]'
-    ).click()
+    const link = $('a[href*="Plastic"]')
+    await link.waitForDisplayed()
+    await link.click()
   }
 
   async navigateToOperatorAccreditationGlass() {
-    await $(
-      'a[href="/operator-accreditation/org002/site002/Glass/2027"]'
-    ).click()
+    const link = $('a[href*="Glass"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
+  async navigateToExporterAccreditationPlastic() {
+    const link = $('a*=Exporter accreditation')
+    await link.waitForDisplayed()
+    await link.click()
   }
 
   get accreditationLinks() {
-    return $$('a[href^="/operator-accreditation"]')
+    return $$('a[href*="accreditation"]')
   }
 
   async navigateToOperatorAccreditation() {
