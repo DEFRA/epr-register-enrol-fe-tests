@@ -22,7 +22,13 @@ class OperatorPage extends Page {
   }
 
   async navigateToExporterAccreditationPlastic() {
-    const link = $('a*=Exporter accreditation')
+    const link = $('a[href*="Plastic"][href*="exporter"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
+  async navigateToExporterAccreditationGlass() {
+    const link = $('a[href*="Glass"][href*="exporter"]')
     await link.waitForDisplayed()
     await link.click()
   }

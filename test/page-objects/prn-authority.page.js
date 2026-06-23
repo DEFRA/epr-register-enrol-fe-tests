@@ -49,8 +49,23 @@ class PrnAuthorityPage extends Page {
     return `${slug}.${Date.now()}@stub.example`
   }
 
+  get existingAuthoriserCheckboxes() {
+    return $$('table input[type="checkbox"]')
+  }
+
   async addAuthoriser() {
-    await this.addNewAuthoriserLink.scrollIntoView()
+    const existing = await this.existingAuthoriserCheckboxes
+    if (existing.length > 0) {
+      for (const checkbox of existing) {
+        const checked = await checkbox.isSelected()
+        if (!checked) {
+          const id = await checkbox.getAttribute('id')
+          await $(`label[for="${id}"]`).click()
+        }
+      }
+      return
+    }
+
     await this.addNewAuthoriserLink.click()
 
     const name = this.randomName()
@@ -59,12 +74,11 @@ class PrnAuthorityPage extends Page {
     await this.authoriserNameInput.waitForDisplayed()
     await this.authoriserNameInput.setValue(name)
     await this.authoriserEmailInput.setValue(email)
-    await this.addAuthoriserSubmitButton.scrollIntoView()
     await this.addAuthoriserSubmitButton.click()
   }
 
   async saveAndContinue() {
-    await this.saveAndContinueButton.scrollIntoView()
+    await this.saveAndContinueButton.waitForDisplayed()
     await this.saveAndContinueButton.click()
   }
 }
