@@ -94,7 +94,8 @@ services:
       SQS_SCAN_RESULTS_CALLBACK: http://localhost:4566/000000000000/cdp-uploader-scan-results-callback.fifo
       SQS_DOWNLOAD_REQUESTS: http://localhost:4566/000000000000/cdp-uploader-download-requests
       SQS_MOCK_CLAMAV: http://localhost:4566/000000000000/mock-clamav
-      CONSUMER_BUCKETS: epr-register-enrol-file-uploads
+      CONSUMER_BUCKETS: epr-register-enrol-file-uploads,epr-register-enrol-sampling-plans,epr-register-enrol-bes-evidence
+      
   ################################################################################
   #
   # Add the services you want to test below.
