@@ -26,9 +26,14 @@ class LoginPage extends Page {
   }
 
   async loginAsUser() {
-    await this.userRadioButton.waitForExist()
-    await $('label[for="user-1"]').click()
-    await this.loginButton.click()
+    await $('input[type="radio"]').waitForExist({ timeout: 15000 })
+    await browser.execute(() => {
+      // eslint-disable-next-line no-undef
+      document.querySelector('input[type="radio"]').click()
+    })
+    const submitBtn = await $('button.govuk-button')
+    await submitBtn.waitForClickable()
+    await submitBtn.click()
   }
 
   async loginAsOperator() {

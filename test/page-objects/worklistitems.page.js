@@ -5,23 +5,17 @@ class WorklistItemsPage extends Page {
     return super.open('/worklist-items')
   }
 
-  async getWorkItemsLists() {
+  get pageHeading() {
+    return $('h1')
+  }
+
+  get workItems() {
     return $$('[data-testid="app-page-body"] ul li')
   }
 
-  async getWorkItemDetails(workItem) {
-    const children = await workItem.$$('*')
-    let output = ''
-    for (const child of children) {
-      const tag = await child.getTagName()
-      const text = await child.getText()
-      output = tag + '\n' + text
-    }
-    return output
-  }
-
-  async getWorkItemsList(index) {
-    return this.getWorkItemsLists().get(index).get()
+  async getWorkItemsCount() {
+    const items = await this.workItems
+    return items.length
   }
 }
 
