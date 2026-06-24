@@ -176,7 +176,6 @@ services:
     networks:
       - cdp-tenant
 
-
 volumes:
   mongodb-data:
 
