@@ -26,45 +26,51 @@ services:
     platform: linux/amd64
     ports:
       - 4444:4444
+    networks:
+      - cdp-tenant
 
   ################################################################################
   mongodb:
     image: mongo:6
     volumes:
       - ./docker/scripts/mongodb:/docker-entrypoint-initdb.d
+      - mongodb-data:/data
     healthcheck:
       test: ['CMD', 'mongosh', '--eval', 'db.hello().ok']
       interval: 5s
       start_period: 5s
       retries: 3
+    networks:
+      - cdp-tenant
 
   ################################################################################
-
   floci:
     image: hectorvent/floci:1.5.5-aws
     environment:
       - FLOCI_DEFAULT_REGION=eu-west-2
     env_file:
       - ./docker/config/defaults.env
+    volumes:
+      - ./docker/scripts/localstack:/etc/floci/init/start.d
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://localhost:4566']
+      interval: 5s
+      start_period: 5s
+      retries: 3
+    networks:
+      - cdp-tenant
 
-    ################################################################################
+  ################################################################################
   redis:
     image: redis:7
     restart: always
-    command: redis-server --requirepass E2eTestRedisPassword
     healthcheck:
-      test:
-        [
-          'CMD',
-          'redis-cli',
-          '-a',
-          'E2eTestRedisPassword',
-          '--no-auth-warning',
-          'PING'
-        ]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       start_period: 2s
       retries: 5
+    networks:
+      - cdp-tenant
 
   ################################################################################
   cdp-uploader:
@@ -90,11 +96,14 @@ services:
       MOCK_VIRUS_RESULT_DELAY: 3
       SQS_ENDPOINT: http://floci:4566
       S3_ENDPOINT: http://floci:4566
-      SQS_SCAN_RESULTS: http://localhost:4566/000000000000/cdp-clamav-results
-      SQS_SCAN_RESULTS_CALLBACK: http://localhost:4566/000000000000/cdp-uploader-scan-results-callback.fifo
-      SQS_DOWNLOAD_REQUESTS: http://localhost:4566/000000000000/cdp-uploader-download-requests
-      SQS_MOCK_CLAMAV: http://localhost:4566/000000000000/mock-clamav
-      CONSUMER_BUCKETS: epr-register-enrol-file-uploads
+      SQS_SCAN_RESULTS: http://floci:4566/000000000000/cdp-clamav-results
+      SQS_SCAN_RESULTS_CALLBACK: http://floci:4566/000000000000/cdp-uploader-scan-results-callback.fifo
+      SQS_DOWNLOAD_REQUESTS: http://floci:4566/000000000000/cdp-uploader-download-requests
+      SQS_MOCK_CLAMAV: http://floci:4566/000000000000/mock-clamav
+      CONSUMER_BUCKETS: epr-register-enrol-file-uploads,epr-register-enrol-sampling-plans,epr-register-enrol-bes-evidence
+    networks:
+      - cdp-tenant
+
   ################################################################################
   #
   # Add the services you want to test below.
@@ -107,8 +116,6 @@ services:
       - ./docker/config/operator-fe.env
     environment:
       - PORT=3000
-      - API_STUB_ENABLED=true
-      - CDP_UPLOADER_STUB_ENABLED=true
     depends_on:
       epr-register-enrol-backend:
         condition: service_started
@@ -118,6 +125,8 @@ services:
         condition: service_healthy
     links:
       - 'floci:floci'
+      - 'redis:redis'
+      - 'epr-register-enrol-backend:epr-register-enrol-backend'
     ports:
       - 3000:3000
     healthcheck:
@@ -125,21 +134,51 @@ services:
       interval: 3s
       start_period: 2s
       retries: 3
+    networks:
+      - cdp-tenant
+
   ################################################################################
   epr-register-enrol-backend:
     image: defradigital/epr-register-enrol-backend:${EPR_REGISTER_ENROL_BACKEND:-latest}
+    platform: linux/amd64
+    env_file:
+      - ./docker/config/defaults.env
+      - ./docker/config/operator-be.env
     environment:
       - PORT=8080
+      - LOCALSTACK_ENDPOINT=http://floci:4566
+      - Mongo__DatabaseUri=mongodb://mongodb:27017/
+      - Mongo__DatabaseName=epr
+      - CdpUploader__Url=http://cdp-uploader:7337
+      - App__BaseUrl=http://epr-register-enrol-backend:8080
+      - CaseWorking__UseStub=true
     depends_on:
       redis:
         condition: service_healthy
+      floci:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+      cdp-uploader:
+        condition: service_started
+    links:
+      - 'floci:floci'
+      - 'mongodb:mongodb'
+      - 'redis:redis'
+      - 'cdp-uploader:cdp-uploader'
     ports:
       - 8080:8080
     healthcheck:
-      test: ['CMD', 'curl', 'http://localhost:8080/health']
+      test: ['CMD', 'curl', 'http://epr-register-enrol-backend:8080/health']
       interval: 3s
       start_period: 2s
       retries: 3
+    networks:
+      - cdp-tenant
 
 volumes:
   mongodb-data:
+
+networks:
+  cdp-tenant:
+    driver: bridge

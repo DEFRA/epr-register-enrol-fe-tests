@@ -1,9 +1,17 @@
+import { browser } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 
 describe('Operator Journey', () => {
   beforeEach(async () => {
+    await browser.deleteCookies()
     await LoginPage.open()
+    await browser.execute(() => {
+      // eslint-disable-next-line no-undef
+      localStorage.clear()
+      // eslint-disable-next-line no-undef
+      sessionStorage.clear()
+    })
     await LoginPage.switchToOperator()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()

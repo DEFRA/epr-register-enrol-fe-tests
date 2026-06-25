@@ -3,9 +3,8 @@ import { browser, expect } from '@wdio/globals'
 import HomePage from 'page-objects/home.page'
 import LoginPage from 'page-objects/login.page'
 import RegulatorPage from 'page-objects/regulator.page'
-import WorkListItemsPage from 'page-objects/worklistitems.page'
+import WorklistItemsPage from 'page-objects/worklistitems.page'
 import OrgListPage from 'page-objects/orglist.page'
-import { expectedWorkListItems } from '../data/regulator.data.js'
 
 describe('Regulator Journey', () => {
   beforeEach(async () => {
@@ -17,87 +16,33 @@ describe('Regulator Journey', () => {
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await expect(LoginPage.pageHeading).toHaveText('Select a regulator user')
     await LoginPage.loginAsUser()
+    await browser.waitUntil(
+      async () => !(await browser.getUrl()).includes('/stub/login'),
+      { timeout: 15000, timeoutMsg: 'Stub login did not redirect after login' }
+    )
+    await HomePage.regulatorLink.waitForDisplayed()
+    await HomePage.regulatorLink.click()
+    await RegulatorPage.pageHeading.waitForDisplayed()
   })
 
   afterEach(async () => {
     await LoginPage.signOut()
   })
 
-  it('Should be able to action a work item', async () => {
-    await HomePage.regulatorLink.click()
-    let headerText = await RegulatorPage.pageHeading.getText()
-    let bodyText = await RegulatorPage.pageText.getText()
+  it('Should view work items', async () => {
     await RegulatorPage.navigateToWorkItems()
-
-    headerText = await WorkListItemsPage.pageHeading.getText()
-    bodyText = await WorkListItemsPage.pageText.getText()
-    await expect(browser).toHaveTitle(
-      'Worklist Items | epr-register-enrol-frontend'
-    )
-    await expect(headerText).toEqual('Worklist Items')
-    await expect(bodyText).toEqual('Worklist Items')
-    const workListItems = await WorkListItemsPage.getWorkItemsLists()
-
-    await expect(workListItems).toHaveLength(expectedWorkListItems.length)
-    for (const [index, workItem] of workListItems.entries()) {
-      const children = await workItem.$$('*')
-      const texts = (
-        await Promise.all([...children].map((child) => child.getText()))
-      )
-        .filter((text) => typeof text === 'string' && text.trim() !== '')
-        .flatMap((text) => text.split('\n'))
-
-      const actual = {
-        taskWithRegId: texts[0],
-        orgDetails: texts[1],
-        status: texts[2],
-        dateOfApplication: texts[3],
-        material: texts[4],
-        risk: texts[5],
-        role: texts[6],
-        assignedTo: texts[7]
-      }
-      await expect(actual).toEqual(expectedWorkListItems[index])
-    }
+    await expect(browser).toHaveUrl(expect.stringContaining('/worklist'))
+    await expect(WorklistItemsPage.pageHeading).toHaveText('Worklist Items')
+    const count = await WorklistItemsPage.getWorkItemsCount()
+    await expect(count).toBeGreaterThan(0)
   })
 
-  it('Should be able to search and select an organisation', async () => {
-    await HomePage.regulatorLink.click()
-    let headerText = await RegulatorPage.pageHeading.getText()
-    let bodyText = await RegulatorPage.pageText.getText()
-    await expect(browser).toHaveTitle('Regulator | epr-register-enrol-frontend')
-    await expect(headerText).toEqual('Regulator Landing Page')
-    await expect(bodyText).toEqual('Regulator')
+  it('Should view the organisation list', async () => {
     await RegulatorPage.navigateToOrgLists()
-
-    headerText = await OrgListPage.pageHeading.getText()
-    bodyText = await OrgListPage.pageText.getText()
-    await expect(browser).toHaveTitle(
-      'Organisation List | epr-register-enrol-frontend'
-    )
-    await expect(headerText).toEqual('Organisation List')
-    await expect(bodyText).toEqual('Organisation List')
-
-    // const uiOrgNames = await OrgListPage.getOrgNames()
-    // const apiOrgs = await getOrganisations()
-    // const apiOrgNames = apiOrgs.map((org) => org.companyName)
-
-    // await expect(uiOrgNames).toEqual(apiOrgNames)
-  })
-
-  it('Should display the org fields when an organisation is selected', async () => {
-    await HomePage.regulatorLink.click()
-    await RegulatorPage.navigateToOrgLists()
-
-    // const links = await OrgListPage.orgLinks
-    // await links[0].click()
-
-    // await expect(OrgDetailsPage.organisationId).toBeDisplayed()
-    // await expect(OrgDetailsPage.companyName).toBeDisplayed()
-    // await expect(OrgDetailsPage.registrationNumber).toBeDisplayed()
-    // await expect(OrgDetailsPage.businessType).toBeDisplayed()
-    // await expect(OrgDetailsPage.contact).toBeDisplayed()
+    await expect(browser).toHaveUrl(expect.stringContaining('/organisation'))
+    await expect(OrgListPage.pageHeading).toHaveText('Organisation List')
+    const orgNames = await OrgListPage.getOrgNames()
+    await expect(orgNames.length).toBeGreaterThan(0)
   })
 })

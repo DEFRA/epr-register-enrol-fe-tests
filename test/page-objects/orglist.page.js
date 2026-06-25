@@ -5,12 +5,16 @@ class OrgListPage extends Page {
     return super.open('/organisation-list')
   }
 
-  get pageBody() {
-    return $(".govuk-body[data-testid='app-page-body']")
+  get pageHeading() {
+    return $('h1')
+  }
+
+  get orgRows() {
+    return $$('.govuk-table__body .govuk-table__row')
   }
 
   get orgLinks() {
-    return $$('td .govuk-link')
+    return $$('.govuk-table__cell .govuk-link')
   }
 
   async getOrgNames() {

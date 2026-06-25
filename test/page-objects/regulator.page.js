@@ -5,16 +5,20 @@ class Regulatorpage extends Page {
     return super.open('/regulator')
   }
 
-  async getHeaderText() {
-    return $('#main-content h1.govuk-heading-xl').getText()
+  get pageHeading() {
+    return $('h1')
   }
 
   async navigateToWorkItems() {
-    await $('=Worklist Items').click()
+    const link = await $('=Worklist Items')
+    await link.waitForDisplayed()
+    await link.click()
   }
 
   async navigateToOrgLists() {
-    await $('=Organisation List').click()
+    const link = await $('=Organisation List')
+    await link.waitForDisplayed()
+    await link.click()
   }
 }
 
