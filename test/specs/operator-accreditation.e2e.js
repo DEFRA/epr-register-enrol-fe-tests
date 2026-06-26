@@ -34,6 +34,43 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await LoginPage.signOut()
   })
 
+  it('Should show validation errors when percentages are entered without descriptions', async () => {
+    await OperatorPage.navigateToOperatorAccreditationPlastic()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list')
+    )
+
+    await TaskListPage.businessPlanLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/business-plan')
+    )
+
+    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "More detail about how you'll spend PRN income"
+    )
+
+    // Save without entering any descriptions
+    await BusinessPlanDetailPage.saveAndContinue()
+
+    // Should remain on the same page with validation errors
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "More detail about how you'll spend PRN income"
+    )
+    await expect(BusinessPlanDetailPage.errorSummary).toBeDisplayed()
+    await expect(BusinessPlanDetailPage.errorSummaryTitle).toHaveText(
+      'There is a problem'
+    )
+    const errorLinks = await BusinessPlanDetailPage.errorLinks
+    await expect(errorLinks.length).toBeGreaterThan(0)
+    await expect(errorLinks[0]).toHaveText(
+      'Enter a description when you have allocated a percentage to this category'
+    )
+  })
+
   it('Should complete the full accreditation journey and submit the application', async () => {
     // Accreditation landing
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
@@ -82,10 +119,11 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
-    // More detail (all optional)
+    // More detail — required when percentages are filled
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
       "More detail about how you'll spend PRN income"
     )
+    await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
 
     // Business plan check your answers
