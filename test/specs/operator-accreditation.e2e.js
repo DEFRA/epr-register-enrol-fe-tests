@@ -35,7 +35,25 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
   async function goToBusinessPlanForm() {
     await OperatorPage.navigateToOperatorAccreditationPlastic()
     await OperatorAccreditationPage.clickContinue()
-    await TaskListPage.businessPlanLink.click()
+
+    // Wait to land on the task list
+    await browser.waitUntil(
+      async () =>
+        (await browser.getUrl()).includes('/accreditation/task-list/'),
+      { timeout: 10000, timeoutMsg: 'Did not reach task list' }
+    )
+
+    // When the business plan task is already COMPLETED the link testid is not rendered.
+    // In that case extract the appId from the task list URL and navigate directly.
+    if (await TaskListPage.businessPlanLink.isExisting()) {
+      await TaskListPage.businessPlanLink.click()
+    } else {
+      const taskListUrl = await browser.getUrl()
+      const appId = taskListUrl
+        .split('/accreditation/task-list/')[1]
+        .split('?')[0]
+      await browser.url(`/accreditation/business-plan/${appId}`)
+    }
 
     await browser.waitUntil(
       async () =>
