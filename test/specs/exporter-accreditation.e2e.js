@@ -90,10 +90,11 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
-    // More detail (all optional)
+    // More detail — required when percentages are filled
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
       "More detail about how you'll spend PRN income"
     )
+    await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
 
     // Business plan check your answers
@@ -132,7 +133,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
         '/accreditation/upload-evidence-for-overseas-site/'
       )
     )
-    await BesEvidencePage.confirmAndContinue()
+    await BesEvidencePage.uploadAllEvidence('business-plan.pdf')
 
     await TaskListPage.continueToSubmit()
     // Declaration
@@ -207,6 +208,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
       "More detail about how you'll spend PRN income"
     )
+    await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
 
     await BusinessPlanCheckAnswersPage.confirmAndContinue()
@@ -244,7 +246,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
         '/accreditation/upload-evidence-for-overseas-site/'
       )
     )
-    await BesEvidencePage.confirmAndContinue()
+    await BesEvidencePage.uploadAllEvidence('business-plan.pdf')
 
     await TaskListPage.continueToSubmit()
 

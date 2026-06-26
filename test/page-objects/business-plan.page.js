@@ -13,6 +13,18 @@ class BusinessPlanPage extends Page {
     return $$('.govuk-input')
   }
 
+  get errorSummary() {
+    return $('[data-testid="error-summary"]')
+  }
+
+  get errorSummaryTitle() {
+    return $('[data-testid="error-summary"] .govuk-error-summary__title')
+  }
+
+  get errorLinks() {
+    return $$('[data-testid="error-summary"] .govuk-error-summary__list li a')
+  }
+
   get saveAndContinueButton() {
     return $('button=Save and continue')
   }
