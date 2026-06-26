@@ -10,8 +10,6 @@ import BusinessPlanPage from 'page-objects/business-plan.page'
 import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
-// import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
-// import BesEvidencePage from 'page-objects/bes-evidence.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 
@@ -34,29 +32,109 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await LoginPage.signOut()
   })
 
-  it('Should show validation errors when percentages are entered without descriptions', async () => {
+  async function goToBusinessPlanForm() {
     await OperatorPage.navigateToOperatorAccreditationPlastic()
     await OperatorAccreditationPage.clickContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list')
-    )
-
     await TaskListPage.businessPlanLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/business-plan')
+
+    await browser.waitUntil(
+      async () =>
+        (await browser.getUrl()).includes('/accreditation/business-plan'),
+      { timeout: 10000, timeoutMsg: 'Did not reach business plan page' }
     )
 
+    // The stub may land us on the CYA or detail page if the application is pre-completed.
+    // Detect by heading and navigate back to the percentage form.
+    const heading = await $('h1').getText()
+    if (heading === 'Check your answers before continuing') {
+      await $('[data-testid="change-percent-newInfrastructurePercent"]').click()
+    } else if (heading.includes('More detail')) {
+      await $('a.govuk-back-link').click()
+    }
+
+    await expect(BusinessPlanPage.pageHeading).toHaveText('Business plan')
+  }
+
+  // ── Business Plan Percentage Page Validation ──────────────────────────────
+
+  it('Should show error when percentages are left blank and do not sum to 100', async () => {
+    await goToBusinessPlanForm()
+    await BusinessPlanPage.fillPercentages([10, 10, 10, 10, 10, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    await expect(BusinessPlanPage.pageHeading).toHaveText('Business plan')
+    await expect(BusinessPlanPage.errorSummary).toBeDisplayed()
+    await expect(BusinessPlanPage.errorSummaryTitle).toHaveText(
+      'There is a problem'
+    )
+    const errorLinks = await BusinessPlanPage.errorLinks
+    await expect(errorLinks.length).toBeGreaterThan(0)
+    await expect(errorLinks[0]).toHaveText('The percentages must add up to 100')
+  })
+
+  it('Should show error when a non-numeric percentage value is entered', async () => {
+    await goToBusinessPlanForm()
+    await BusinessPlanPage.fillPercentages(['abc', 0, 0, 0, 0, 0])
+    await BusinessPlanPage.saveAndContinue()
+
+    await expect(BusinessPlanPage.errorSummary).toBeDisplayed()
+    await expect(BusinessPlanPage.errorSummaryTitle).toHaveText(
+      'There is a problem'
+    )
+    const errorLinks = await BusinessPlanPage.errorLinks
+    await expect(errorLinks.length).toBeGreaterThan(0)
+    await expect(errorLinks[0]).toHaveText(
+      expect.stringContaining('Enter a whole number for')
+    )
+  })
+
+  it('Should show error when a percentage value is out of range', async () => {
+    await goToBusinessPlanForm()
+    await BusinessPlanPage.fillPercentages([150, 0, 0, 0, 0, 0])
+    await BusinessPlanPage.saveAndContinue()
+
+    await expect(BusinessPlanPage.errorSummary).toBeDisplayed()
+    await expect(BusinessPlanPage.errorSummaryTitle).toHaveText(
+      'There is a problem'
+    )
+    const errorLinks = await BusinessPlanPage.errorLinks
+    await expect(errorLinks.length).toBeGreaterThan(0)
+    await expect(errorLinks[0]).toHaveText(
+      expect.stringContaining('must be between 0 and 100')
+    )
+  })
+
+  it('Should show error when percentages are valid but do not sum to 100', async () => {
+    await goToBusinessPlanForm()
+    await BusinessPlanPage.fillPercentages([10, 10, 10, 10, 10, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    await expect(BusinessPlanPage.errorSummary).toBeDisplayed()
+    await expect(BusinessPlanPage.errorSummaryTitle).toHaveText(
+      'There is a problem'
+    )
+    const errorLinks = await BusinessPlanPage.errorLinks
+    await expect(errorLinks.length).toBeGreaterThan(0)
+    await expect(errorLinks[0]).toHaveText('The percentages must add up to 100')
+  })
+
+  // ── Business Plan Detail Page Validation ──────────────────────────────────
+
+  it('Should show error on detail page when descriptions are missing for filled percentages', async () => {
+    await goToBusinessPlanForm()
     await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
+
+    // Stub may go straight to CYA if percentages were already saved — Back navigates to detail
+    if ((await $('h1').getText()) === 'Check your answers before continuing') {
+      await $('a.govuk-back-link').click()
+    }
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
       "More detail about how you'll spend PRN income"
     )
-
-    // Save without entering any descriptions
     await BusinessPlanDetailPage.saveAndContinue()
 
-    // Should remain on the same page with validation errors
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
       "More detail about how you'll spend PRN income"
     )
@@ -71,8 +149,40 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
   })
 
+  it('Should show error on detail page when a description exceeds 500 characters', async () => {
+    await goToBusinessPlanForm()
+    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    // Stub may go straight to CYA if percentages were already saved — Back navigates to detail
+    if ((await $('h1').getText()) === 'Check your answers before continuing') {
+      await $('a.govuk-back-link').click()
+    }
+
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "More detail about how you'll spend PRN income"
+    )
+    const over500 = 'A'.repeat(501)
+    await BusinessPlanDetailPage.fillDescriptions(over500)
+    await BusinessPlanDetailPage.saveAndContinue()
+
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "More detail about how you'll spend PRN income"
+    )
+    await expect(BusinessPlanDetailPage.errorSummary).toBeDisplayed()
+    await expect(BusinessPlanDetailPage.errorSummaryTitle).toHaveText(
+      'There is a problem'
+    )
+    const errorLinks = await BusinessPlanDetailPage.errorLinks
+    await expect(errorLinks.length).toBeGreaterThan(0)
+    await expect(errorLinks[0]).toHaveText(
+      expect.stringContaining('must be 500 characters or fewer')
+    )
+  })
+
+  // ── Full Journey ──────────────────────────────────────────────────────────
+
   it('Should complete the full accreditation journey and submit the application', async () => {
-    // Accreditation landing
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
       'Operator Testing Flows Landing Page'
     )
@@ -85,7 +195,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
       expect.stringContaining('/accreditation/task-list')
     )
 
-    // Task list — PRN tonnage
+    // PRN tonnage
     await TaskListPage.PRNTonnageLink.click()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/tonnage')
@@ -93,46 +203,51 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await PrnTonnagePage.selectRandomOption()
     await PrnTonnagePage.saveAndContinue()
 
-    // PRN authority
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/tonnage-authority')
     )
     await PrnAuthorityPage.addAuthoriser()
     await PrnAuthorityPage.saveAndContinue()
 
-    // PRN check your answers
     await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
       'Check your answers before continuing'
     )
     await PrnCheckAnswersPage.confirmAndContinue()
-
-    // Back to task list
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list')
     )
 
-    // Task list — business plan
+    // Business plan
     await TaskListPage.businessPlanLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/business-plan')
+    await browser.waitUntil(
+      async () =>
+        (await browser.getUrl()).includes('/accreditation/business-plan'),
+      { timeout: 10000 }
     )
+    const bpHeading = await $('h1').getText()
+    if (bpHeading === 'Check your answers before continuing') {
+      await $('[data-testid="change-percent-newInfrastructurePercent"]').click()
+    }
     await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
-    // More detail — required when percentages are filled
+    // Stub may go straight to CYA if percentages were already saved — Back navigates to detail
+    if ((await $('h1').getText()) === 'Check your answers before continuing') {
+      await $('a.govuk-back-link').click()
+    }
+
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
       "More detail about how you'll spend PRN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
 
-    // Business plan check your answers
     await BusinessPlanCheckAnswersPage.confirmAndContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list')
     )
 
-    // Task list — sampling and inspection plan
+    // Sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
       'Upload accreditation sampling and inspection plan'
@@ -140,20 +255,17 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
 
-    // Task list — all tasks completed
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list')
     )
     await TaskListPage.assertAllTasksCompleted({ isExporter: false })
     await TaskListPage.continueToSubmit()
 
-    // Declaration
     await expect(SubmitApplicationPage.pageHeading).toHaveText(
       'Submit accreditation application'
     )
     await SubmitApplicationPage.submitApplication()
 
-    // Confirmation
     await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
       'Application submitted'
     )

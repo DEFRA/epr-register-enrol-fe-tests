@@ -1,3 +1,4 @@
+import { browser } from '@wdio/globals'
 import { Page } from 'page-objects/page'
 
 class BusinessPlanDetailPage extends Page {
@@ -32,7 +33,14 @@ class BusinessPlanDetailPage extends Page {
     for (const area of areas) {
       if (await area.isDisplayed()) {
         await area.scrollIntoView()
-        await area.setValue(text)
+        // Use JS to bypass maxlength attribute so over-500 strings can be set
+        await browser.execute(
+          (el, val) => {
+            el.value = val
+          },
+          area,
+          text
+        )
       }
     }
   }
