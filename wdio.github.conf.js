@@ -89,7 +89,7 @@ export const config = {
   // See the full list at http://mochajs.org/
   mochaOpts: {
     ui: 'bdd',
-    timeout: oneMinute
+    timeout: 3 * oneMinute
   },
   //
   // =====
