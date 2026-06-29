@@ -30,22 +30,21 @@ runs:
         repository: DEFRA/epr-register-enrol-fe-tests
         ref: ${{ inputs.branch }}
 
-    - name: Check for matching operator-fe branch
+    # ── Frontend image ─────────────────────────────────────────────────
+    - name: Resolve operator-fe branch
       if: inputs.journey-test-pr != 'false'
       id: operator-fe-branch
       shell: bash
       run: |
         BRANCH="${{ github.head_ref }}"
         if git ls-remote --heads https://github.com/DEFRA/epr-register-enrol-frontend.git "$BRANCH" | grep -q .; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
           echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
         else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
           echo "ref=main" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Checkout operator-fe if matching branch exists
-      if: inputs.journey-test-pr != 'false' && steps.operator-fe-branch.outputs.exists == 'true'
+    - name: Checkout operator-fe
+      if: inputs.journey-test-pr != 'false'
       uses: actions/checkout@v4
       with:
         repository: DEFRA/epr-register-enrol-frontend
@@ -53,31 +52,30 @@ runs:
         path: epr-register-enrol-frontend
 
     - name: Build operator-fe Docker image from source
-      if: inputs.journey-test-pr != 'false' && steps.operator-fe-branch.outputs.exists == 'true'
+      if: inputs.journey-test-pr != 'false'
       id: docker-operator-fe
       shell: bash
       run: |
-        cd epr-register-enrol-operator-fe
+        cd epr-register-enrol-frontend
         OPERATOR_FE_SHA=$(git rev-parse --short HEAD)
-        IMAGE_TAG="defradigital/epr-register-enrol-frontend:${OPERATOR_FE_SHA}"
-        docker build -t $IMAGE_TAG .
+        docker build -t "defradigital/epr-register-enrol-frontend:${OPERATOR_FE_SHA}" .
         echo "image=$OPERATOR_FE_SHA" >> "$GITHUB_OUTPUT"
 
-    - name: Check for matching management-be branch
+    # ── Backend image ──────────────────────────────────────────────────
+    - name: Resolve operator-be branch
       if: inputs.journey-test-pr != 'false'
       id: operator-be-branch
       shell: bash
       run: |
         BRANCH="${{ github.head_ref }}"
-        if git ls-remote --heads https://github.com/DEFRA/epr-register-enrol-frontend.git "$BRANCH" | grep -q .; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
+        if git ls-remote --heads https://github.com/DEFRA/epr-register-enrol-backend.git "$BRANCH" | grep -q .; then
           echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
         else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "ref=main" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Checkout operator-be if matching branch exists
-      if: inputs.journey-test-pr != 'false' && steps.operator-be-branch.outputs.exists == 'true'
+    - name: Checkout operator-be
+      if: inputs.journey-test-pr != 'false'
       uses: actions/checkout@v4
       with:
         repository: DEFRA/epr-register-enrol-backend
@@ -85,16 +83,16 @@ runs:
         path: epr-register-enrol-backend
 
     - name: Build operator-be Docker image from source
-      if: inputs.journey-test-pr != 'false' && steps.operator-be-branch.outputs.exists == 'true'
+      if: inputs.journey-test-pr != 'false'
       id: docker-operator-be
       shell: bash
       run: |
         cd epr-register-enrol-backend
         OPERATOR_BE_SHA=$(git rev-parse --short HEAD)
-        IMAGE_TAG="defradigital/epr-register-enrol-operator-be:${OPERATOR_BE_SHA}"
-        docker build -t $IMAGE_TAG .
+        docker build -t "defradigital/epr-register-enrol-backend:${OPERATOR_BE_SHA}" .
         echo "image=$OPERATOR_BE_SHA" >> "$GITHUB_OUTPUT"
 
+    # ── Test runner ────────────────────────────────────────────────────
     - uses: actions/setup-node@v4
       with:
         node-version-file: .nvmrc
@@ -105,20 +103,11 @@ runs:
       run: npm ci
       shell: bash
 
-    - name: Start docker compose (with matching branches)
-      if: inputs.journey-test-pr != 'false' && steps.operator-fe-branch.outputs.exists == 'true'
+    - name: Start docker compose
       shell: bash
       run: |
-        EPR_REGISTER_ENROL_FRONTEND=${{ steps.docker-operator-fe.outputs.image }} \
+        EPR_REGISTER_ENROL_FRONTEND=${{ steps.docker-operator-fe.outputs.image || inputs.epr-register-enrol-fe }} \
         EPR_REGISTER_ENROL_BACKEND=${{ steps.docker-operator-be.outputs.image || inputs.epr-register-enrol-be }} \
-        docker compose up --wait --wait-timeout 300 -d --quiet-pull
-
-    - name: Start docker compose (default images)
-      if: steps.operator-fe-branch.outputs.exists != 'true'
-      shell: bash
-      run: |
-        EPR_REGISTER_ENROL_FRONTEND=${{ inputs.epr-register-enrol-fe }} \
-        EPR_REGISTER_ENROL_BACKEND=${{ inputs.epr-register-enrol-be }} \
         docker compose up --wait --wait-timeout 300 -d --quiet-pull
 
     - name: Run the tests
