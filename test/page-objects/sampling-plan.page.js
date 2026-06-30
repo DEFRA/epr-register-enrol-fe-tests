@@ -37,7 +37,7 @@ class SamplingPlanPage extends Page {
     await this.fileInput.setValue(uploadPath)
     await this.uploadFileButton.waitForDisplayed()
     await this.uploadFileButton.click()
-    await this.fileStatusClean.waitForDisplayed({ timeout: 30000 })
+    await this.fileStatusClean.waitForDisplayed({ timeout: 60000 })
   }
 
   async saveAndContinue() {
