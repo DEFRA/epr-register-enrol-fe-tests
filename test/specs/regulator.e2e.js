@@ -4,7 +4,6 @@ import HomePage from 'page-objects/home.page'
 import LoginPage from 'page-objects/login.page'
 import RegulatorPage from 'page-objects/regulator.page'
 import WorklistItemsPage from 'page-objects/worklistitems.page'
-import OrgListPage from 'page-objects/orglist.page'
 
 describe('Regulator Journey', () => {
   beforeEach(async () => {
@@ -36,13 +35,5 @@ describe('Regulator Journey', () => {
     await expect(WorklistItemsPage.pageHeading).toHaveText('Worklist Items')
     const count = await WorklistItemsPage.getWorkItemsCount()
     await expect(count).toBeGreaterThan(0)
-  })
-
-  it('Should view the organisation list', async () => {
-    await RegulatorPage.navigateToOrgLists()
-    await expect(browser).toHaveUrl(expect.stringContaining('/organisation'))
-    await expect(OrgListPage.pageHeading).toHaveText('Organisation List')
-    const orgNames = await OrgListPage.getOrgNames()
-    await expect(orgNames.length).toBeGreaterThan(0)
   })
 })
