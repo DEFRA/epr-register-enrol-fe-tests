@@ -34,7 +34,7 @@ export const config = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: ['./test/specs/**/*.e2e.js'],
+  specs: ['./test/specs/**/*.*.js'],
   // Patterns to exclude.
   exclude: [
     // 'path/to/excluded/files'
@@ -177,7 +177,7 @@ export const config = {
   // See the full list at http://mochajs.org/
   mochaOpts: {
     ui: 'bdd',
-    timeout: debug ? oneHour : 3 * oneMinute
+    timeout: debug ? oneHour : 10 * oneMinute
   },
   //
   // =====

@@ -151,6 +151,8 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
       "More detail about how you'll spend PRN income"
     )
+    // Stub may have pre-filled descriptions — clear them so the blank submission triggers errors
+    await BusinessPlanDetailPage.fillDescriptions('')
     await BusinessPlanDetailPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
