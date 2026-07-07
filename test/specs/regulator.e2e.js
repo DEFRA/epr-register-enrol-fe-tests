@@ -8,7 +8,7 @@ import WorklistItemsPage from 'page-objects/worklistitems.page'
 describe('Regulator Journey', () => {
   beforeEach(async () => {
     await browser.deleteCookies()
-    await LoginPage.open()
+    await LoginPage.openRegulatorLogin()
     await browser.execute(() => {
       // eslint-disable-next-line no-undef
       localStorage.clear()
