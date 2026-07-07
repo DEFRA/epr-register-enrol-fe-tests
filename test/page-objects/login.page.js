@@ -56,6 +56,11 @@ class LoginPage extends Page {
     await $('input[type="radio"]').waitForExist({ timeout: 15000 })
   }
 
+  async openRegulatorLogin() {
+    await super.open('/auth/stub/login?type=regulator')
+    await $('input[type="radio"]').waitForExist({ timeout: 15000 })
+  }
+
   async switchToRegulator() {
     await this.switchToRegulatorLink.click()
   }
