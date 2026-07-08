@@ -270,7 +270,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     // Sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan'
+      'Upload accreditation sampling and inspection plan - part 2'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
