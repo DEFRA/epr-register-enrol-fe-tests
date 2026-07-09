@@ -106,7 +106,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Task list — sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan - part 2'
+      'Upload accreditation sampling and inspection plan - part 2 - Plastic'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
@@ -147,7 +147,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
     // Confirmation
     await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
-      'Application submitted'
+      'Now pay the application charge'
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
     await expect(ref).toMatch(/RA-\d+/)
@@ -219,7 +219,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan - part 2'
+      'Upload accreditation sampling and inspection plan - part 2 - Glass'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
@@ -261,7 +261,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
     // Confirmation
     await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
-      'Application submitted'
+      'Now pay the application charge'
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
     await expect(ref).toMatch(/RA-\d+/)
