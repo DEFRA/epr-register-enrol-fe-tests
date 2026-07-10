@@ -8,10 +8,6 @@ class HomePage extends Page {
   get operatorLink() {
     return $('=OPERATOR')
   }
-
-  get regulatorLink() {
-    return $('=REGULATOR')
-  }
 }
 
 export default new HomePage()

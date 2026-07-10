@@ -1,8 +1,6 @@
 import { browser, expect } from '@wdio/globals'
 
-import HomePage from 'page-objects/home.page'
 import LoginPage from 'page-objects/login.page'
-import RegulatorPage from 'page-objects/regulator.page'
 import WorklistItemsPage from 'page-objects/worklistitems.page'
 
 describe('Regulator Journey', () => {
@@ -20,9 +18,6 @@ describe('Regulator Journey', () => {
       async () => !(await browser.getUrl()).includes('/stub/login'),
       { timeout: 15000, timeoutMsg: 'Stub login did not redirect after login' }
     )
-    await HomePage.regulatorLink.waitForDisplayed()
-    await HomePage.regulatorLink.click()
-    await RegulatorPage.pageHeading.waitForDisplayed()
   })
 
   afterEach(async () => {
@@ -30,8 +25,8 @@ describe('Regulator Journey', () => {
   })
 
   it('Should view work items', async () => {
-    await RegulatorPage.navigateToWorkItems()
-    await expect(browser).toHaveUrl(expect.stringContaining('/worklist'))
+    await WorklistItemsPage.open()
+    await expect(browser).toHaveUrl(expect.stringContaining('/worklist-items'))
     await expect(WorklistItemsPage.pageHeading).toHaveText('Worklist Items')
     const count = await WorklistItemsPage.getWorkItemsCount()
     await expect(count).toBeGreaterThan(0)
