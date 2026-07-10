@@ -219,7 +219,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan - part 2 - Glass'
+      'Upload accreditation sampling and inspection plan - part 2 - Glass - Remelt'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
@@ -262,6 +262,9 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Confirmation
     await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
       'Now pay the application charge'
+    )
+    await expect(ApplicationSubmittedPage.panelBody).toHaveText(
+      expect.stringContaining('Glass - Remelt')
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
     await expect(ref).toMatch(/RA-\d+/)

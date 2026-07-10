@@ -9,6 +9,10 @@ class ApplicationSubmittedPage extends Page {
     return $('.govuk-panel__title')
   }
 
+  get panelBody() {
+    return $('.govuk-panel__body')
+  }
+
   get referenceNumber() {
     return $('.govuk-panel__body strong')
   }
