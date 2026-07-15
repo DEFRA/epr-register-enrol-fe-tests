@@ -13,8 +13,8 @@ class ApplicationSubmittedPage extends Page {
     return $('.govuk-panel__body strong')
   }
 
-  get viewInvoiceLink() {
-    return $('a=View invoice')
+  get viewPaymentDetailsLink() {
+    return $('[data-testid="view-payment-details-link"]')
   }
 
   get returnToHomeLink() {
