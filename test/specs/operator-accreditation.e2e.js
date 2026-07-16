@@ -12,6 +12,7 @@ import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answe
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
+import ViewPaymentDetailsPage from 'page-objects/view-payment-details.page'
 
 describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
   beforeEach(async () => {
@@ -291,5 +292,25 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
     await expect(ref).toMatch(/RA-\d+/)
+
+    // View payment details
+    await ApplicationSubmittedPage.viewPaymentDetailsLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/view-payment-details')
+    )
+    await expect(ViewPaymentDetailsPage.pageHeading).toBeDisplayed()
+    await expect(ViewPaymentDetailsPage.amountDue).toBeDisplayed()
+    await expect(ViewPaymentDetailsPage.descriptionHeading).toBeDisplayed()
+    await expect(ViewPaymentDetailsPage.bankAmount).toBeDisplayed()
+    await expect(ViewPaymentDetailsPage.bankSortCode).toHaveText('30 94 30')
+    await expect(ViewPaymentDetailsPage.bankAccountNumber).toHaveText(
+      '00733445'
+    )
+    await expect(ViewPaymentDetailsPage.bankAccountName).toHaveText(
+      'Environment Agency'
+    )
+    const paymentRef =
+      await ViewPaymentDetailsPage.bankPaymentReference.getText()
+    await expect(paymentRef).toBe(ref)
   })
 })
