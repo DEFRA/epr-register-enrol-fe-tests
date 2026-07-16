@@ -291,7 +291,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
       'Now pay the application charge'
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
-    await expect(ref).toMatch(/RA-\d+/)
+    await expect(ref).toMatch(/APP\d{2}[A-Z]{2}/)
 
     // View payment details
     await ApplicationSubmittedPage.viewPaymentDetailsLink.click()
