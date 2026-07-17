@@ -150,7 +150,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       'Now pay the application charge'
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
-    await expect(ref).toMatch(/RA-\d+/)
+    await expect(ref).toMatch(/AP\d{2}[A-Z]{2}/)
   })
 
   it('Should complete the full exporter accreditation journey for Glass and submit the application', async () => {
@@ -264,6 +264,6 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       'Now pay the application charge'
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
-    await expect(ref).toMatch(/RA-\d+/)
+    await expect(ref).toMatch(/AP\d{2}[A-Z]{2}/)
   })
 })
