@@ -29,6 +29,10 @@ class ViewPaymentDetailsPage extends Page {
     return $('[data-testid="bank-account-name"]')
   }
 
+  get bankCompanyName() {
+    return $('[data-testid="bank-company-name"]')
+  }
+
   get bankPaymentReference() {
     return $('[data-testid="bank-payment-reference"]')
   }

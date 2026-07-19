@@ -302,11 +302,14 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await expect(ViewPaymentDetailsPage.amountDue).toBeDisplayed()
     await expect(ViewPaymentDetailsPage.descriptionHeading).toBeDisplayed()
     await expect(ViewPaymentDetailsPage.bankAmount).toBeDisplayed()
-    await expect(ViewPaymentDetailsPage.bankSortCode).toHaveText('30 94 30')
+    await expect(ViewPaymentDetailsPage.bankSortCode).toHaveText('60-70-80')
     await expect(ViewPaymentDetailsPage.bankAccountNumber).toHaveText(
-      '00733445'
+      '10014411'
     )
     await expect(ViewPaymentDetailsPage.bankAccountName).toHaveText(
+      'EA RECEIPTS'
+    )
+    await expect(ViewPaymentDetailsPage.bankCompanyName).toHaveText(
       'Environment Agency'
     )
     const paymentRef =
