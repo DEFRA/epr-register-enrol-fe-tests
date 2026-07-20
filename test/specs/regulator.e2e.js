@@ -1,7 +1,7 @@
 import { browser, expect } from '@wdio/globals'
 
 import LoginPage from 'page-objects/login.page'
-import WorklistItemsPage from 'page-objects/worklistitems.page'
+import RegulatorPage from 'page-objects/regulator.page'
 
 describe('Regulator Journey', () => {
   beforeEach(async () => {
@@ -24,11 +24,9 @@ describe('Regulator Journey', () => {
     await LoginPage.signOut()
   })
 
-  it('Should view work items', async () => {
-    await WorklistItemsPage.open()
-    await expect(browser).toHaveUrl(expect.stringContaining('/worklist-items'))
-    await expect(WorklistItemsPage.pageHeading).toHaveText('Worklist Items')
-    const count = await WorklistItemsPage.getWorkItemsCount()
-    await expect(count).toBeGreaterThan(0)
+  it('Should land on the regulator page after login', async () => {
+    await expect(browser).toHaveUrl(expect.stringContaining('/regulator'))
+    await expect(RegulatorPage.pageHeading).toHaveText('Regulator Landing Page')
+    await expect(RegulatorPage.pageText).toHaveText('Regulator')
   })
 })
