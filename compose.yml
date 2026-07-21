@@ -53,10 +53,15 @@ services:
     volumes:
       - ./docker/scripts/localstack:/etc/floci/init/start.d
     healthcheck:
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://localhost:4566']
-      interval: 5s
-      start_period: 5s
-      retries: 3
+      # floci's HTTP port opens and answers before its init hook (which
+      # provisions the S3 buckets/SQS queues cdp-uploader depends on) has
+      # run, so checking the port alone reports healthy too early. Wait for
+      # the marker the hook writes on completion instead — see
+      # docker/scripts/localstack/10-setup-buckets.sh.
+      test: ['CMD', 'test', '-f', '/tmp/floci-init-complete']
+      interval: 2s
+      start_period: 15s
+      retries: 10
     networks:
       - cdp-tenant
 
