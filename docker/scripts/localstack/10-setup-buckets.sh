@@ -17,3 +17,11 @@ aws --endpoint-url=$ENDPOINT sqs create-queue --queue-name cdp-uploader-download
 aws --endpoint-url=$ENDPOINT sqs create-queue --queue-name mock-clamav --region eu-west-2
 aws --endpoint-url=$ENDPOINT sqs create-queue --queue-name cdp-uploader-scan-results-callback.fifo \
   --attributes FifoQueue=true,ContentBasedDeduplication=true --region eu-west-2
+
+# Marker consumed by the floci healthcheck (compose.yml). floci's HTTP port
+# opens and answers requests before this init hook runs, so a plain "is the
+# port up" healthcheck reports healthy while these buckets/queues don't exist
+# yet — cdp-uploader then starts consuming from queues that aren't there and
+# never recovers. This file only exists once provisioning has actually
+# finished.
+touch /tmp/floci-init-complete
