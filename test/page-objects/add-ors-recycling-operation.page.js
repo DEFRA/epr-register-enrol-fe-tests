@@ -27,7 +27,7 @@ class AddOrsRecyclingOperationPage extends Page {
 
   async selectOperationCode(code) {
     await this.operationCodeSelect.waitForDisplayed()
-    await this.operationCodeSelect.selectByValue(code)
+    await this.operationCodeSelect.selectByAttribute('value', code)
   }
 
   async continue() {
