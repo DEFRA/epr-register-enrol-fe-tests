@@ -6,11 +6,11 @@ class AddOrsSiteLocationPage extends Page {
   }
 
   get addressLine1Input() {
-    return $('[data-testid="address-line-1-input"]')
+    return $('[data-testid="address-line1-input"]')
   }
 
   get addressLine2Input() {
-    return $('[data-testid="address-line-2-input"]')
+    return $('[data-testid="address-line2-input"]')
   }
 
   get townOrCityInput() {

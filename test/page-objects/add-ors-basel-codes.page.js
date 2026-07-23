@@ -6,15 +6,15 @@ class AddOrsBaselCodesPage extends Page {
   }
 
   get code1Input() {
-    return $('[data-testid="code1-input"]')
+    return $('[data-testid="basel-code-1-input"]')
   }
 
   get code2Input() {
-    return $('[data-testid="code2-input"]')
+    return $('[data-testid="basel-code-2-input"]')
   }
 
   get code3Input() {
-    return $('[data-testid="code3-input"]')
+    return $('[data-testid="basel-code-3-input"]')
   }
 
   get errorSummary() {
@@ -42,6 +42,7 @@ class AddOrsBaselCodesPage extends Page {
 
   async continue() {
     await this.continueButton.waitForDisplayed()
+    await this.continueButton.scrollIntoView()
     await this.continueButton.click()
   }
 }

@@ -6,7 +6,7 @@ class AddOrsRecyclingOperationPage extends Page {
   }
 
   get operationCodeSelect() {
-    return $('[data-testid="operation-code-select"]')
+    return $('[data-testid="recycling-operation-select"]')
   }
 
   get errorSummary() {

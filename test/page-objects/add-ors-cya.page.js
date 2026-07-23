@@ -21,6 +21,14 @@ class AddOrsCyaPage extends Page {
     return $('[data-testid="row-contact-name"]')
   }
 
+  get contactEmailRow() {
+    return $('[data-testid="row-contact-email"]')
+  }
+
+  get contactPhoneRow() {
+    return $('[data-testid="row-contact-phone"]')
+  }
+
   get recyclingOperationRow() {
     return $('[data-testid="row-recycling-operation"]')
   }
@@ -29,8 +37,20 @@ class AddOrsCyaPage extends Page {
     return $('[data-testid="row-basel-code-1"]')
   }
 
+  get baselCode2Row() {
+    return $('[data-testid="row-basel-code-2"]')
+  }
+
+  get baselCode3Row() {
+    return $('[data-testid="row-basel-code-3"]')
+  }
+
   get repatriatedLoadsRow() {
     return $('[data-testid="row-repatriated-loads"]')
+  }
+
+  get conditionsOfExportRow() {
+    return $('[data-testid="row-conditions-of-export"]')
   }
 
   get changeSiteNameLink() {
@@ -47,6 +67,7 @@ class AddOrsCyaPage extends Page {
 
   async submit() {
     await this.submitButton.waitForDisplayed()
+    await this.submitButton.scrollIntoView()
     await this.submitButton.click()
   }
 }

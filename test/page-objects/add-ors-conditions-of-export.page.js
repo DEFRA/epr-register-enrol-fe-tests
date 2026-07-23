@@ -5,14 +5,6 @@ class AddOrsConditionsOfExportPage extends Page {
     return $('[data-testid="page-heading"]')
   }
 
-  get radioYes() {
-    return $('[data-testid="radio-yes"]')
-  }
-
-  get radioNo() {
-    return $('[data-testid="radio-no"]')
-  }
-
   get errorSummary() {
     return $('[data-testid="error-summary"]')
   }
@@ -30,19 +22,20 @@ class AddOrsConditionsOfExportPage extends Page {
   }
 
   async selectYes() {
-    const label = await $('label[for="conditionsOfExport-yes"]')
+    const label = $('label[for="conditionsOfExport-yes"]')
     await label.waitForDisplayed()
     await label.click()
   }
 
   async selectNo() {
-    const label = await $('label[for="conditionsOfExport-no"]')
+    const label = $('label[for="conditionsOfExport-no"]')
     await label.waitForDisplayed()
     await label.click()
   }
 
   async continue() {
     await this.continueButton.waitForDisplayed()
+    await this.continueButton.scrollIntoView()
     await this.continueButton.click()
   }
 }
