@@ -14,6 +14,13 @@ import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-si
 import BesEvidencePage from 'page-objects/bes-evidence.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
+import AddOrsSiteNamePage from 'page-objects/add-ors-site-name.page'
+import AddOrsSiteLocationPage from 'page-objects/add-ors-site-location.page'
+import AddOrsSiteContactPage from 'page-objects/add-ors-site-contact.page'
+import AddOrsRecyclingOperationPage from 'page-objects/add-ors-recycling-operation.page'
+import AddOrsBaselCodesPage from 'page-objects/add-ors-basel-codes.page'
+import AddOrsRepatriatedLoadsPage from 'page-objects/add-ors-repatriated-loads.page'
+import AddOrsCyaPage from 'page-objects/add-ors-cya.page'
 
 describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
   beforeEach(async () => {
@@ -265,5 +272,91 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
     await expect(ref).toMatch(/AP\d{2}[A-Z]{2}/)
+  })
+
+  it('Should add a new overseas reprocessing site via the Add ORS wizard (Plastic)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // Navigate to overseas reprocessing sites
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+
+    // Click the Add new ORS button
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/add-overseas-site/')
+    )
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    // Step 1: Site name
+    await expect(AddOrsSiteNamePage.pageHeading).toBeDisplayed()
+    await AddOrsSiteNamePage.enterSiteName('Test Recycling GmbH')
+    await AddOrsSiteNamePage.continue()
+
+    // Step 2: Site location
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Industriestrasse 42',
+      townOrCity: 'Hamburg',
+      country: 'Germany'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    // Step 3: Contact details
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Hans Müller',
+      email: 'hans@testrecycling.de',
+      phone: '+49 40 12345678'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    // Step 4: Recycling operation
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    // Step 5: Basel/OECD codes
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes({ code1: 'A1181' })
+    await AddOrsBaselCodesPage.continue()
+
+    // Step 6: Repatriated loads
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await AddOrsRepatriatedLoadsPage.enterDescription(
+      'Rejected loads are returned within 30 days at our expense via licensed courier.'
+    )
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    // Plastic skips conditions-of-export and goes straight to CYA
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+
+    // Step 7: Check your answers
+    await expect(AddOrsCyaPage.summaryList).toBeDisplayed()
+    await expect(AddOrsCyaPage.siteNameRow).toBeDisplayed()
+    await AddOrsCyaPage.submit()
+
+    // Back on select-overseas-sites with success banner
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
   })
 })

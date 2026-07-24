@@ -28,6 +28,14 @@ class OverseasReprocessingSitesPage extends Page {
     }
   }
 
+  get addNewOrsButton() {
+    return $('[data-testid="add-new-ors-button"]')
+  }
+
+  get successBanner() {
+    return $('[data-testid="ors-success-banner"]')
+  }
+
   get confirmAndContinueButton() {
     return $('button=Confirm and continue')
   }
