@@ -305,7 +305,8 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await AddOrsSiteLocationPage.enterLocation({
       addressLine1: 'Industriestrasse 42',
       townOrCity: 'Hamburg',
-      country: 'Germany'
+      country: 'Germany',
+      coordinates: '53.5511, 9.9937'
     })
     await AddOrsSiteLocationPage.continue()
 
