@@ -11,8 +11,13 @@ class BesEvidencePage extends Page {
     return $('h1')
   }
 
-  get uploadLinks() {
-    return $$('[data-testid^="upload-link-"]')
+  get pendingUploadLink() {
+    // Scoped to a row with a "Not uploaded" (grey) status tag, since upload
+    // links are also rendered for EU/OECD sites that don't need evidence and
+    // whose status never turns grey/green, unlike sites still pending upload.
+    return $(
+      '//tr[.//strong[contains(@class, "govuk-tag--grey")]]//a[starts-with(@data-testid, "upload-link-")]'
+    )
   }
 
   get continueButton() {
@@ -112,12 +117,12 @@ class BesEvidencePage extends Page {
 
   async uploadAllEvidence(filename) {
     // Loop only while there are sites with "Not uploaded" status (govuk-tag--grey).
-    // Upload links are always rendered for non-EU/non-OECD sites even after uploading,
-    // so we drive the loop off evidence status rather than link presence.
+    // Upload links are rendered for every site now (EU/OECD sites can upload
+    // voluntarily even though it's not required), so we must target the link
+    // for a still-pending row specifically rather than the first link in the DOM.
     let pending = await $$('.govuk-tag--grey')
     while (pending.length > 0) {
-      const uploadLinks = await this.uploadLinks
-      await uploadLinks[0].click()
+      await this.pendingUploadLink.click()
       // Upload file → status page → Upload More Evidence page
       await this.uploadFile(filename)
       // Select No (no more uploads for this site) → CYA page

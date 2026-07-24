@@ -99,7 +99,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
     // More detail — required when percentages are filled
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "More detail about how you'll spend PERN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
@@ -213,7 +213,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "More detail about how you'll spend PERN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
@@ -305,7 +305,8 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await AddOrsSiteLocationPage.enterLocation({
       addressLine1: 'Industriestrasse 42',
       townOrCity: 'Hamburg',
-      country: 'Germany'
+      country: 'Germany',
+      coordinates: '53.5511, 9.9937'
     })
     await AddOrsSiteLocationPage.continue()
 
