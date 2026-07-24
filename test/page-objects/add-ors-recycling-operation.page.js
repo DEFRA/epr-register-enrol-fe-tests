@@ -5,10 +5,6 @@ class AddOrsRecyclingOperationPage extends Page {
     return $('[data-testid="page-heading"]')
   }
 
-  get operationCodeSelect() {
-    return $('[data-testid="recycling-operation-select"]')
-  }
-
   get errorSummary() {
     return $('[data-testid="error-summary"]')
   }
@@ -26,8 +22,9 @@ class AddOrsRecyclingOperationPage extends Page {
   }
 
   async selectOperationCode(code) {
-    await this.operationCodeSelect.waitForDisplayed()
-    await this.operationCodeSelect.selectByAttribute('value', code)
+    const operationRadio = $(`[data-testid="option-${code}"]`)
+    await operationRadio.waitForDisplayed()
+    await operationRadio.click()
   }
 
   async continue() {
