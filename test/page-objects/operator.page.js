@@ -33,6 +33,12 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  async navigateToReaccreditationPlastic() {
+    const link = $('a[href*="/operator-accreditation/50003/"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
   get accreditationLinks() {
     return $$('a[href*="accreditation"]')
   }
