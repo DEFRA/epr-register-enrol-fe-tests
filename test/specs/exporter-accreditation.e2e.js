@@ -99,7 +99,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
     // More detail — required when percentages are filled
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "More detail about how you'll spend PERN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
@@ -213,7 +213,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "More detail about how you'll spend PERN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
