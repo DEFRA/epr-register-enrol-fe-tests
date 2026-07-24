@@ -22,9 +22,11 @@ class AddOrsRecyclingOperationPage extends Page {
   }
 
   async selectOperationCode(code) {
-    const operationRadio = $(`[data-testid="option-${code}"]`)
-    await operationRadio.waitForDisplayed()
-    await operationRadio.click()
+    const operationLabel = $(
+      `label[for="recycling-operation-code-${code.toLowerCase()}"]`
+    )
+    await operationLabel.waitForDisplayed()
+    await operationLabel.click()
   }
 
   async continue() {
