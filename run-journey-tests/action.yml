@@ -31,8 +31,11 @@ runs:
         ref: ${{ inputs.branch }}
 
     # ── Frontend image ─────────────────────────────────────────────────
+    # Falls back to building fe main from source whenever the caller didn't
+    # supply a pre-built tag (e.g. no matching branch found upstream), so we
+    # never silently fall through to a possibly-stale `:latest` image.
     - name: Resolve operator-fe branch
-      if: inputs.journey-test-pr != 'false'
+      if: inputs.journey-test-pr != 'false' || inputs.epr-register-enrol-fe == ''
       id: operator-fe-branch
       shell: bash
       run: |
@@ -44,7 +47,7 @@ runs:
         fi
 
     - name: Checkout operator-fe
-      if: inputs.journey-test-pr != 'false'
+      if: inputs.journey-test-pr != 'false' || inputs.epr-register-enrol-fe == ''
       uses: actions/checkout@v4
       with:
         repository: DEFRA/epr-register-enrol-frontend
@@ -52,7 +55,7 @@ runs:
         path: epr-register-enrol-frontend
 
     - name: Build operator-fe Docker image from source
-      if: inputs.journey-test-pr != 'false'
+      if: inputs.journey-test-pr != 'false' || inputs.epr-register-enrol-fe == ''
       id: docker-operator-fe
       shell: bash
       run: |
@@ -62,8 +65,9 @@ runs:
         echo "image=$OPERATOR_FE_SHA" >> "$GITHUB_OUTPUT"
 
     # ── Backend image ──────────────────────────────────────────────────
+    # Same fallback as above, mirrored for the backend image.
     - name: Resolve operator-be branch
-      if: inputs.journey-test-pr != 'false'
+      if: inputs.journey-test-pr != 'false' || inputs.epr-register-enrol-be == ''
       id: operator-be-branch
       shell: bash
       run: |
@@ -75,7 +79,7 @@ runs:
         fi
 
     - name: Checkout operator-be
-      if: inputs.journey-test-pr != 'false'
+      if: inputs.journey-test-pr != 'false' || inputs.epr-register-enrol-be == ''
       uses: actions/checkout@v4
       with:
         repository: DEFRA/epr-register-enrol-backend
@@ -83,7 +87,7 @@ runs:
         path: epr-register-enrol-backend
 
     - name: Build operator-be Docker image from source
-      if: inputs.journey-test-pr != 'false'
+      if: inputs.journey-test-pr != 'false' || inputs.epr-register-enrol-be == ''
       id: docker-operator-be
       shell: bash
       run: |
