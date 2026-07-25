@@ -197,12 +197,6 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       await BusinessPlanCheckAnswersPage.confirmAndContinue()
     }
 
-    const editedApplication = await getApplication(
-      organisationId,
-      applicationId
-    )
-    expect(editedApplication.businessPlan.sectionStatus).not.toBe('Queried')
-
     // AC03/AC04: query-declaration validates the responder's details —
     // required-field errors, keyed to the actual field, with the real
     // copy (not just "some error element exists")
@@ -250,6 +244,17 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     )
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('UPDATED')
+    )
+
+    // The queried section's status only resolves off `Queried` once Resubmit
+    // runs its own resolution loop, not on the earlier section save above —
+    // so this check has to happen after resubmit, not before it.
+    const resubmittedApplication = await getApplication(
+      organisationId,
+      applicationId
+    )
+    expect(resubmittedApplication.businessPlan.sectionStatus).not.toBe(
+      'Queried'
     )
 
     // AC03: the application is genuinely locked again — the classic task
