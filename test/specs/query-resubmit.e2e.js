@@ -157,6 +157,13 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       {}
     )
     expect(lockedPatch.statusCode).toBe(409)
+    // Pin down *why* it's a 409 — the endpoint returns 409 from several
+    // different gates (application-status checks, other section checks), so
+    // the status code alone doesn't prove the section-editability gate is
+    // what actually fired.
+    expect(lockedPatch.text).toEqual(
+      expect.stringContaining('section is not editable')
+    )
 
     // AC02: direct navigation to a non-queried section redirects back to the
     // query task list — no side door via a bookmarked/typed URL
@@ -196,13 +203,38 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     )
     expect(editedApplication.businessPlan.sectionStatus).not.toBe('Queried')
 
-    // AC03/AC04: query-declaration validates the responder's details
+    // AC03/AC04: query-declaration validates the responder's details —
+    // required-field errors, keyed to the actual field, with the real
+    // copy (not just "some error element exists")
     await QueryDeclarationPage.open(applicationId)
     await QueryDeclarationPage.clickResubmit()
     await expect(QueryDeclarationPage.errorSummary).toBeDisplayed()
-    await expect(QueryDeclarationPage.fullNameError).toBeDisplayed()
-    await expect(QueryDeclarationPage.emailError).toBeDisplayed()
-    await expect(QueryDeclarationPage.roleError).toBeDisplayed()
+    await expect(QueryDeclarationPage.fullNameError).toHaveText(
+      expect.stringContaining('Enter your full name')
+    )
+    await expect(QueryDeclarationPage.emailError).toHaveText(
+      expect.stringContaining('Enter your email address')
+    )
+    await expect(QueryDeclarationPage.roleError).toHaveText(
+      expect.stringContaining('Enter your job title')
+    )
+
+    // AC03/AC04: email format is validated too, distinctly from "required" —
+    // a malformed address must surface the format-specific message and must
+    // not trip the other two fields' errors
+    await QueryDeclarationPage.submitResubmission({
+      fullName: 'Test Person',
+      email: 'not-an-email',
+      role: 'Compliance Officer'
+    })
+    await expect(QueryDeclarationPage.errorSummary).toBeDisplayed()
+    await expect(QueryDeclarationPage.emailError).toHaveText(
+      expect.stringContaining('Enter an email address in the correct format')
+    )
+    await expect(await QueryDeclarationPage.fullNameError.isExisting()).toBe(
+      false
+    )
+    await expect(await QueryDeclarationPage.roleError.isExisting()).toBe(false)
 
     await QueryDeclarationPage.submitResubmission({
       role: 'Compliance Officer'
