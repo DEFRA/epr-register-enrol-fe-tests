@@ -22,7 +22,8 @@ class Page {
   async clickReliably(element) {
     await element.waitForDisplayed()
     await element.scrollIntoView()
-    await browser.execute((el) => el.click(), element)
+    const resolved = await element
+    await browser.execute((el) => el.click(), resolved)
   }
 }
 
