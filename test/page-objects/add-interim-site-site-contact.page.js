@@ -33,11 +33,21 @@ class AddInterimSiteSiteContactPage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
+  async setFieldValue(input, value) {
+    await input.setValue(value)
+    // Headless Chrome occasionally drops a setValue on this page under CI
+    // load (autocomplete-triggered refocus mid-type) — verify it stuck and
+    // retry once rather than silently submitting a blank field.
+    if ((await input.getValue()) !== value) {
+      await input.setValue(value)
+    }
+  }
+
   async enterContactDetails({ name, email, phone }) {
     await this.contactNameInput.waitForDisplayed()
-    if (name) await this.contactNameInput.setValue(name)
-    if (email) await this.contactEmailInput.setValue(email)
-    if (phone) await this.contactPhoneInput.setValue(phone)
+    if (name) await this.setFieldValue(this.contactNameInput, name)
+    if (email) await this.setFieldValue(this.contactEmailInput, email)
+    if (phone) await this.setFieldValue(this.contactPhoneInput, phone)
   }
 
   async continue() {
