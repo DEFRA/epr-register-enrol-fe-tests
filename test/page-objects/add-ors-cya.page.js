@@ -65,10 +65,20 @@ class AddOrsCyaPage extends Page {
     return $('[data-testid="submit-button"]')
   }
 
+  get saveAndAddInterimSiteButton() {
+    return $('[data-testid="save-and-add-interim-site-button"]')
+  }
+
   async submit() {
     await this.submitButton.waitForDisplayed()
     await this.submitButton.scrollIntoView()
     await this.submitButton.click()
+  }
+
+  async saveAndAddInterimSite() {
+    await this.saveAndAddInterimSiteButton.waitForDisplayed()
+    await this.saveAndAddInterimSiteButton.scrollIntoView()
+    await this.saveAndAddInterimSiteButton.click()
   }
 }
 

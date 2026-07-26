@@ -36,6 +36,10 @@ class OverseasReprocessingSitesPage extends Page {
     return $('[data-testid="ors-success-banner"]')
   }
 
+  get interimSiteSuccessBanner() {
+    return $('[data-testid="interim-site-success-banner"]')
+  }
+
   get confirmAndContinueButton() {
     return $('button=Confirm and continue')
   }
