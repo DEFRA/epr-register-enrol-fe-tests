@@ -46,9 +46,7 @@ class AddInterimSiteCyaPage extends Page {
   }
 
   async submit() {
-    await this.submitButton.waitForDisplayed()
-    await this.submitButton.scrollIntoView()
-    await this.submitButton.click()
+    await this.clickReliably(this.submitButton)
   }
 }
 
