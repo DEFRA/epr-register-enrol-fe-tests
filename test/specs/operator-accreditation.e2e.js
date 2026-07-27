@@ -209,7 +209,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
     await OperatorPage.navigateToOperatorAccreditationPlastic()
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
-      expect.stringContaining('NEWDEV RECYCLING LIMITED')
+      expect.stringContaining('reapplication for Plastic accreditation')
     )
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
