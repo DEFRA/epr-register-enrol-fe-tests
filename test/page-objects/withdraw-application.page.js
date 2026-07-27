@@ -26,8 +26,12 @@ class WithdrawApplicationPage extends Page {
     return $('[data-testid="reason-input"]')
   }
 
+  // #reason-info is the server-rendered hint govuk-frontend's CharacterCount
+  // JS hides (adds govuk-visually-hidden) once it initialises, freezing its
+  // text — the live, JS-updated status lives in a separate element with no
+  // fixed id: class govuk-character-count__status.
   get reasonCounterMessage() {
-    return $('#reason-info')
+    return $('.govuk-character-count__status')
   }
 
   get submitButton() {
