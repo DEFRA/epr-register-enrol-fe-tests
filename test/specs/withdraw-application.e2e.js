@@ -3,6 +3,16 @@ import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import WithdrawApplicationPage from 'page-objects/withdraw-application.page'
+import TaskListPage from 'page-objects/tasklist.page'
+import PrnTonnagePage from 'page-objects/prn-tonnage.page'
+import PrnAuthorityPage from 'page-objects/prn-authority.page'
+import PrnCheckAnswersPage from 'page-objects/prn-check-answers.page'
+import BusinessPlanPage from 'page-objects/business-plan.page'
+import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
+import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
+import SamplingPlanPage from 'page-objects/sampling-plan.page'
+import SubmitApplicationPage from 'page-objects/submit-application.page'
+import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 
 describe('RA-252: Withdraw an accreditation application', () => {
   let organisationId
@@ -38,6 +48,11 @@ describe('RA-252: Withdraw an accreditation application', () => {
   // 50003, exporter-accreditation.e2e.js uses 50005/50006) — this journey
   // owns its own application, including permanently withdrawing it, without
   // colliding with other specs' run order.
+  //
+  // Draft applications (Saved/Started/NotStarted) can't be withdrawn — only
+  // Submitted/Queried/Updated ones can — and this org's seeded application
+  // starts out as a draft, so we drive it through the real task-list ->
+  // submit journey first to reach a genuinely withdrawable state.
   async function reachWithdrawableApplication() {
     await OperatorPage.navigateToOperatorAccreditationGlass()
 
@@ -47,6 +62,77 @@ describe('RA-252: Withdraw an accreditation application', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
+
+    await OperatorAccreditationPage.clickContinue()
+    await browser.waitUntil(
+      async () =>
+        (await browser.getUrl()).includes('/accreditation/task-list/'),
+      { timeout: 10000, timeoutMsg: 'Did not reach task list' }
+    )
+
+    await TaskListPage.PRNTonnageLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/tonnage')
+    )
+    await PrnTonnagePage.selectRandomOption()
+    await PrnTonnagePage.saveAndContinue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/tonnage-authority')
+    )
+    await PrnAuthorityPage.addAuthoriser()
+    await PrnAuthorityPage.saveAndContinue()
+
+    await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
+      'Check your answers before continuing'
+    )
+    await PrnCheckAnswersPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list')
+    )
+
+    await TaskListPage.businessPlanLink.click()
+    await browser.waitUntil(
+      async () =>
+        (await browser.getUrl()).includes('/accreditation/business-plan'),
+      { timeout: 10000, timeoutMsg: 'Did not reach business plan page' }
+    )
+    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "More detail about how you'll spend PRN income"
+    )
+    await BusinessPlanDetailPage.fillDescriptions()
+    await BusinessPlanDetailPage.saveAndContinue()
+
+    await BusinessPlanCheckAnswersPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list')
+    )
+
+    await TaskListPage.SIPlanLink.click()
+    await SamplingPlanPage.uploadFile('business-plan.pdf')
+    await SamplingPlanPage.saveAndContinue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list')
+    )
+    await TaskListPage.assertAllTasksCompleted({ isExporter: false })
+    await TaskListPage.continueToSubmit()
+
+    await expect(SubmitApplicationPage.pageHeading).toHaveText(
+      'Submit accreditation application'
+    )
+    await SubmitApplicationPage.submitApplication()
+
+    await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
+      'Now pay the application charge'
+    )
+
+    // Back on the landing page the application is now Submitted, and
+    // therefore withdrawable.
+    await browser.url(landingUrl())
   }
 
   it('lets an operator withdraw an in-flight application, with validation, a live word counter, and read-only enforcement afterwards', async () => {
