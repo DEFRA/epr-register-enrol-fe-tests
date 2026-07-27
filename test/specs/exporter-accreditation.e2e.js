@@ -21,6 +21,12 @@ import AddOrsRecyclingOperationPage from 'page-objects/add-ors-recycling-operati
 import AddOrsBaselCodesPage from 'page-objects/add-ors-basel-codes.page'
 import AddOrsRepatriatedLoadsPage from 'page-objects/add-ors-repatriated-loads.page'
 import AddOrsCyaPage from 'page-objects/add-ors-cya.page'
+import AddInterimSiteCountryPage from 'page-objects/add-interim-site-country.page'
+import AddInterimSiteSiteNamePage from 'page-objects/add-interim-site-site-name.page'
+import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-location.page'
+import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
+import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
+import { getOverseasSites } from '../helpers/case-management.js'
 
 describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
   beforeEach(async () => {
@@ -276,10 +282,17 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
   it('Should add a new overseas reprocessing site via the Add ORS wizard (Plastic)', async () => {
     await OperatorPage.navigateToExporterAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
     )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
 
     // Navigate to overseas reprocessing sites
     await TaskListPage.overseasSitesLink.click()
@@ -359,5 +372,222 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/select-overseas-sites')
     )
     await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+
+    // RA-297: a site added fresh via the wizard is flagged isNewSite === true
+    // — asserted via a direct API call since this flag isn't rendered
+    // anywhere in the UI (management-fe is out of scope, see RA-311)
+    const sites = await getOverseasSites(organisationId, applicationId)
+    const newSite = sites.find((s) => s.siteName === 'Test Recycling GmbH')
+    expect(newSite).toBeDefined()
+    expect(newSite.isNewSite).toBe(true)
+  })
+
+  it('Should add an interim site from the Add ORS check-your-answers page (Plastic)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+
+    // Navigate to overseas reprocessing sites and start the Add ORS wizard
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await expect(AddOrsSiteNamePage.pageHeading).toBeDisplayed()
+    await AddOrsSiteNamePage.enterSiteName('Le Relais Recyclage SARL')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Rue de la Logistique 12',
+      townOrCity: 'Lyon',
+      country: 'France',
+      coordinates: '45.7640, 4.8357'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Camille Dubois',
+      email: 'camille@lerelaisrecyclage.fr',
+      phone: '+33 4 12 34 56 78'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes({ code1: 'A1181' })
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await AddOrsRepatriatedLoadsPage.enterDescription(
+      'Rejected loads are returned within 30 days at our expense via licensed courier.'
+    )
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    // Plastic skips conditions-of-export and goes straight to CYA
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await expect(AddOrsCyaPage.summaryList).toBeDisplayed()
+
+    // Instead of the normal "Add this site" submit, use the new entry point
+    // into the interim-site wizard (RA-294)
+    await AddOrsCyaPage.saveAndAddInterimSite()
+
+    // Lands on the interim-site wizard's first step, not select-overseas-sites
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/add-interim-site/')
+    )
+    await expect(browser).toHaveUrl(expect.stringContaining('/country'))
+
+    // Step 1: Country
+    await expect(AddInterimSiteCountryPage.pageHeading).toBeDisplayed()
+    await AddInterimSiteCountryPage.enterCountry('France')
+    await AddInterimSiteCountryPage.continue()
+
+    // Step 2: Site name
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+    await AddInterimSiteSiteNamePage.enterSiteName('Le Relais Interim Depot')
+    await AddInterimSiteSiteNamePage.continue()
+
+    // Step 3: Site location
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddInterimSiteSiteLocationPage.enterLocation({
+      addressLine1: 'Rue de la Logistique 14',
+      townOrCity: 'Lyon',
+      stateOrRegion: 'Auvergne-Rhone-Alpes',
+      postcode: '69001'
+    })
+    await AddInterimSiteSiteLocationPage.continue()
+
+    // Step 4: Contact details
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddInterimSiteSiteContactPage.enterContactDetails({
+      name: 'Camille Dubois',
+      email: 'camille@lerelaisrecyclage.fr',
+      phone: '+33 4 12 34 56 79'
+    })
+    await AddInterimSiteSiteContactPage.continue()
+
+    // Step 5: Check your answers
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await expect(AddInterimSiteCyaPage.summaryList).toBeDisplayed()
+    await expect(AddInterimSiteCyaPage.siteNameRow).toBeDisplayed()
+    await AddInterimSiteCyaPage.submit()
+
+    // Back on select-overseas-sites with the interim-site success banner —
+    // distinct from the ORS success banner used by the plain "Add this site"
+    // path above
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(
+      OverseasReprocessingSitesPage.interimSiteSuccessBanner
+    ).toBeDisplayed()
+
+    // RA-297: both the linked ORS site and its nested interim site are
+    // flagged isNewSite === true, asserted directly against the API since
+    // the flag isn't rendered anywhere in the UI (management-fe is out of
+    // scope, see RA-311)
+    const sites = await getOverseasSites(organisationId, applicationId)
+    const orsSite = sites.find((s) => s.siteName === 'Le Relais Recyclage SARL')
+    expect(orsSite).toBeDefined()
+    expect(orsSite.isNewSite).toBe(true)
+    expect(orsSite.interimSite).toBeDefined()
+    expect(orsSite.interimSite.isNewSite).toBe(true)
+  })
+
+  it('Should show validation errors for missing and malformed interim-site contact details (AC02/AC04)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+
+    // Drive the interim-site wizard's own steps directly — reaching this
+    // point via the ORS CYA button is covered by the happy-path test above,
+    // and the wizard's earlier steps don't gate on a linked ORS site.
+    await browser.url(
+      `/accreditation/add-interim-site/${applicationId}/country`
+    )
+    await AddInterimSiteCountryPage.enterCountry('France')
+    await AddInterimSiteCountryPage.continue()
+    await AddInterimSiteSiteNamePage.enterSiteName('Le Relais Interim Depot')
+    await AddInterimSiteSiteNamePage.continue()
+    await AddInterimSiteSiteLocationPage.enterLocation({
+      addressLine1: 'Rue de la Logistique 14',
+      townOrCity: 'Lyon'
+    })
+    await AddInterimSiteSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+
+    // Missing required fields — name, email and phone all blank
+    await AddInterimSiteSiteContactPage.enterContactDetails({})
+    await AddInterimSiteSiteContactPage.continue()
+    await expect(AddInterimSiteSiteContactPage.errorSummary).toBeDisplayed()
+    await expect(AddInterimSiteSiteContactPage.errorSummary).toHaveText(
+      expect.stringContaining('Enter the contact name')
+    )
+    await expect(AddInterimSiteSiteContactPage.errorSummary).toHaveText(
+      expect.stringContaining('Enter the email address')
+    )
+    await expect(AddInterimSiteSiteContactPage.errorSummary).toHaveText(
+      expect.stringContaining('Enter the phone number')
+    )
+
+    // Malformed email — distinct message from "required", and shouldn't trip
+    // the other two fields' errors once they're filled in correctly
+    await AddInterimSiteSiteContactPage.enterContactDetails({
+      name: 'Camille Dubois',
+      email: 'not-an-email',
+      phone: '+33 4 12 34 56 79'
+    })
+    await AddInterimSiteSiteContactPage.continue()
+    await expect(AddInterimSiteSiteContactPage.errorSummary).toBeDisplayed()
+    await expect(AddInterimSiteSiteContactPage.errorSummary).toHaveText(
+      expect.stringContaining(
+        'Enter an email address in the correct format, like name@example.com'
+      )
+    )
+    await expect(AddInterimSiteSiteContactPage.errorSummary).not.toHaveText(
+      expect.stringContaining('Enter the contact name')
+    )
+    await expect(AddInterimSiteSiteContactPage.errorSummary).not.toHaveText(
+      expect.stringContaining('Enter the phone number')
+    )
   })
 })

@@ -17,6 +17,16 @@ export async function getApplication(organisationId, applicationId) {
   return body.json()
 }
 
+// Direct-API accessor for the overseas sites nested under an application, so
+// isNewSite (RA-297) can be asserted without a dashboard — management-fe is
+// out of scope for this suite, see the RA-311 precedent above. Each site may
+// itself carry a nested `interimSite` (RA-294's 1:1 add-interim-site wizard
+// result), which also carries its own isNewSite.
+export async function getOverseasSites(organisationId, applicationId) {
+  const application = await getApplication(organisationId, applicationId)
+  return application.overseasSites?.sites ?? []
+}
+
 // Simulates case-management-backend raising a query against an application,
 // bypassing the management-fe UI (out of scope for this repo, see RA-311).
 export async function raiseQuery(
