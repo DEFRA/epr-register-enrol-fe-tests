@@ -14,6 +14,10 @@ class OperatorAccreditationPage extends Page {
     return $('[data-testid="start-new-link"]')
   }
 
+  get withdrawLink() {
+    return $('[data-testid="withdraw-link"]')
+  }
+
   get applyAnotherLink() {
     return $('[data-testid="apply-another-link"]')
   }
