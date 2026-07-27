@@ -1,3 +1,4 @@
+import { browser } from '@wdio/globals'
 import { Page } from 'page-objects/page'
 
 class WithdrawApplicationPage extends Page {
@@ -49,12 +50,20 @@ class WithdrawApplicationPage extends Page {
     return $('[data-testid="error-message"]')
   }
 
+  // GOV.UK radio inputs are visually hidden (opacity: 0) — the visible
+  // clickable target is the associated label. waitForDisplayed() (used by
+  // clickReliably) doesn't reliably resolve for these in CI's
+  // chrome-headless-shell, so wait for DOM presence only and dispatch the
+  // click directly, matching the existing convention for radios elsewhere
+  // in this suite (e.g. bes-evidence.page.js's selectNo).
   async selectYes() {
-    await this.clickReliably(this.confirmYesRadio)
+    await this.confirmYesRadio.waitForExist()
+    await browser.execute((el) => el.click(), await this.confirmYesRadio)
   }
 
   async selectNo() {
-    await this.clickReliably(this.confirmNoRadio)
+    await this.confirmNoRadio.waitForExist()
+    await browser.execute((el) => el.click(), await this.confirmNoRadio)
   }
 
   async submit() {
