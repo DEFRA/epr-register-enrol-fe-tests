@@ -53,15 +53,27 @@ describe('RA-252: Withdraw an accreditation application', () => {
   // Submitted/Queried/Updated ones can — and this org's seeded application
   // starts out as a draft, so we drive it through the real task-list ->
   // submit journey first to reach a genuinely withdrawable state.
+  //
+  // The year is deliberately NOT the static 2027 from the /operator link:
+  // this spec permanently withdraws the application it reaches, and Mongo
+  // persists across runs (compose.yml's named `mongodb-data` volume), so
+  // reusing a fixed year would find the already-Withdrawn document on every
+  // run after the first and time out waiting for a Continue link that no
+  // longer renders. A fresh, run-unique year makes the landing controller's
+  // seed-on-miss path (operator-accreditation/controller.js) always create
+  // a brand new, disposable draft instead — the same reason
+  // query-resubmit.e2e.js stays re-runnable.
   async function reachWithdrawableApplication() {
     await OperatorPage.navigateToOperatorAccreditationGlass()
 
     const landing = await browser.getUrl()
-    ;[, organisationId, registrationId, materialType, year] = new URL(
+    ;[, organisationId, registrationId, materialType] = new URL(
       landing
     ).pathname
       .split('/')
       .filter(Boolean)
+    year = String(3000 + (Date.now() % 1000))
+    await browser.url(landingUrl())
 
     await OperatorAccreditationPage.clickContinue()
     await browser.waitUntil(
