@@ -2,7 +2,7 @@ import { Page } from 'page-objects/page'
 
 class PrnAuthorityPage extends Page {
   open(appId) {
-    return super.open(`/accreditation/prns-authority/${appId}`)
+    return super.open(`/accreditation/tonnage-authority/${appId}`)
   }
 
   get pageHeading() {
