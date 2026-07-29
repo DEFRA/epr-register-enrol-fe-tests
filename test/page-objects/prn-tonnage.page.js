@@ -13,6 +13,10 @@ class PrnTonnagePage extends Page {
     return $$('.govuk-radios__label')
   }
 
+  get queryNote() {
+    return $('[data-testid="query-note"]')
+  }
+
   get saveAndContinueButton() {
     return $('button=Save and continue')
   }
