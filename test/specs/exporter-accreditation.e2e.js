@@ -345,7 +345,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/basel-convention-and-oecd-code')
     )
-    await AddOrsBaselCodesPage.enterCodes({ code1: 'A1181' })
+    await AddOrsBaselCodesPage.enterCodes(['A1181'])
     await AddOrsBaselCodesPage.continue()
 
     // Step 6: Repatriated loads
@@ -437,7 +437,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/basel-convention-and-oecd-code')
     )
-    await AddOrsBaselCodesPage.enterCodes({ code1: 'A1181' })
+    await AddOrsBaselCodesPage.enterCodes(['A1181'])
     await AddOrsBaselCodesPage.continue()
 
     await expect(browser).toHaveUrl(
