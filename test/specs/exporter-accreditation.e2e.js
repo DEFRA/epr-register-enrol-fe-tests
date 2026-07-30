@@ -590,4 +590,100 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('Enter the phone number')
     )
   })
+
+  it('Should support adding and removing multiple Basel/OECD codes via the Add ORS CYA page (Plastic)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('Nordisk Gjenvinning AS')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Gjenvinningsveien 8',
+      townOrCity: 'Oslo',
+      country: 'Norway',
+      coordinates: '59.9139, 10.7522'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Kari Nordmann',
+      email: 'kari@nordiskgjenvinning.no',
+      phone: '+47 22 12 34 56'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    // Basel/OECD codes — exercise the "add another code" path with the
+    // maximum of 3 codes, which the single-code journeys above never do
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes(['A1181', 'GC010', 'B3011'])
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await AddOrsRepatriatedLoadsPage.enterDescription(
+      'Rejected loads are returned within 30 days at our expense via licensed courier.'
+    )
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    // Plastic skips conditions-of-export and goes straight to CYA
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await expect(AddOrsCyaPage.baselCodesRow).toBeDisplayed()
+    await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
+      expect.stringContaining('A1181')
+    )
+    await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
+      expect.stringContaining('GC010')
+    )
+    await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
+      expect.stringContaining('B3011')
+    )
+
+    // Delete the middle code and confirm only it disappears from the CYA row
+    await AddOrsCyaPage.deleteCode(1)
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
+      expect.stringContaining('A1181')
+    )
+    await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
+      expect.stringContaining('B3011')
+    )
+    await expect(AddOrsCyaPage.baselCodesRow).not.toHaveText(
+      expect.stringContaining('GC010')
+    )
+
+    await AddOrsCyaPage.submit()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+  })
 })
