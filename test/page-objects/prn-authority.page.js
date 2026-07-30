@@ -2,7 +2,7 @@ import { Page } from 'page-objects/page'
 
 class PrnAuthorityPage extends Page {
   open(appId) {
-    return super.open(`/accreditation/prns-authority/${appId}`)
+    return super.open(`/accreditation/tonnage-authority/${appId}`)
   }
 
   get pageHeading() {
@@ -11,6 +11,10 @@ class PrnAuthorityPage extends Page {
 
   get selectedTonnage() {
     return $('[data-testid="selected-tonnage"]')
+  }
+
+  get queryNote() {
+    return $('[data-testid="query-note"]')
   }
 
   get addNewAuthoriserLink() {

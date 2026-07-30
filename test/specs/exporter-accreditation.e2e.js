@@ -153,9 +153,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/submit-declaration/')
     )
-    await expect(SubmitApplicationPage.pageHeading).toHaveText(
-      'Submit accreditation application'
-    )
+    await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
     await SubmitApplicationPage.submitApplication()
 
     // Confirmation
@@ -267,9 +265,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/submit-declaration/')
     )
-    await expect(SubmitApplicationPage.pageHeading).toHaveText(
-      'Submit accreditation application'
-    )
+    await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
     await SubmitApplicationPage.submitApplication()
 
     // Confirmation
