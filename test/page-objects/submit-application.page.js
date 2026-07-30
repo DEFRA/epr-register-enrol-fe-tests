@@ -13,12 +13,8 @@ class SubmitApplicationPage extends Page {
     return $('[name="jobTitle"]')
   }
 
-  get emailInput() {
-    return $('#email')
-  }
-
   get submitApplicationButton() {
-    return $('button=Submit application')
+    return $('[data-testid="submit-button"]')
   }
 
   randomFullName() {
@@ -47,19 +43,12 @@ class SubmitApplicationPage extends Page {
     return titles[Math.floor(Math.random() * titles.length)]
   }
 
-  randomEmail(name) {
-    const slug = name.toLowerCase().replace(/\s+/g, '.')
-    return `${slug}.${Date.now()}@stub.example`
-  }
-
   async submitApplication() {
     const name = this.randomFullName()
     const title = this.randomJobTitle()
-    const email = this.randomEmail(name)
     await this.fullNameInput.waitForDisplayed()
     await this.fullNameInput.setValue(name)
     await this.jobTitleInput.setValue(title)
-    await this.emailInput.setValue(email)
     await this.submitApplicationButton.scrollIntoView()
     await this.submitApplicationButton.click()
   }

@@ -282,9 +282,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await TaskListPage.assertAllTasksCompleted({ isExporter: false })
     await TaskListPage.continueToSubmit()
 
-    await expect(SubmitApplicationPage.pageHeading).toHaveText(
-      'Submit accreditation application'
-    )
+    await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
     await SubmitApplicationPage.submitApplication()
 
     await expect(ApplicationSubmittedPage.panelTitle).toHaveText(

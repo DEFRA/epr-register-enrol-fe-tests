@@ -133,9 +133,7 @@ describe('RA-252: Withdraw an accreditation application', () => {
     await TaskListPage.assertAllTasksCompleted({ isExporter: false })
     await TaskListPage.continueToSubmit()
 
-    await expect(SubmitApplicationPage.pageHeading).toHaveText(
-      'Submit accreditation application'
-    )
+    await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
     await SubmitApplicationPage.submitApplication()
 
     await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
