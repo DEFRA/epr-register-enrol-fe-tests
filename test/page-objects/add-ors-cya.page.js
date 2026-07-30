@@ -33,16 +33,19 @@ class AddOrsCyaPage extends Page {
     return $('[data-testid="row-recycling-operation"]')
   }
 
-  get baselCode1Row() {
-    return $('[data-testid="row-basel-code-1"]')
+  get baselCodesRow() {
+    return $('[data-testid="row-basel-codes"]')
   }
 
-  get baselCode2Row() {
-    return $('[data-testid="row-basel-code-2"]')
+  deleteCodeButton(index) {
+    return $(`[data-testid="delete-code-${index}"]`)
   }
 
-  get baselCode3Row() {
-    return $('[data-testid="row-basel-code-3"]')
+  async deleteCode(index) {
+    const button = this.deleteCodeButton(index)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
   }
 
   get repatriatedLoadsRow() {

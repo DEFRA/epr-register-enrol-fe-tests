@@ -1,20 +1,28 @@
 import { Page } from 'page-objects/page'
 
 class AddOrsBaselCodesPage extends Page {
+  get siteSummary() {
+    return $('[data-testid="site-summary"]')
+  }
+
   get pageHeading() {
     return $('[data-testid="page-heading"]')
   }
 
-  get code1Input() {
-    return $('[data-testid="basel-code-1-input"]')
+  get guidanceLink() {
+    return $('[data-testid="guidance-link"]')
   }
 
-  get code2Input() {
-    return $('[data-testid="basel-code-2-input"]')
+  codeInput(index) {
+    return $(`[data-testid="basel-code-${index}-input"]`)
   }
 
-  get code3Input() {
-    return $('[data-testid="basel-code-3-input"]')
+  removeCodeButton(index) {
+    return $(`[data-testid="remove-code-${index}-button"]`)
+  }
+
+  get addCodeButton() {
+    return $('[data-testid="add-code-button"]')
   }
 
   get errorSummary() {
@@ -33,11 +41,19 @@ class AddOrsBaselCodesPage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
-  async enterCodes({ code1, code2, code3 }) {
-    await this.code1Input.waitForDisplayed()
-    await this.code1Input.setValue(code1)
-    if (code2) await this.code2Input.setValue(code2)
-    if (code3) await this.code3Input.setValue(code3)
+  async enterCodes(codes = []) {
+    const values = codes.length > 0 ? codes : ['']
+
+    for (let i = 1; i < values.length; i++) {
+      await this.addCodeButton.waitForDisplayed()
+      await this.addCodeButton.click()
+    }
+
+    for (let i = 0; i < values.length; i++) {
+      const input = this.codeInput(i + 1)
+      await input.waitForDisplayed()
+      await input.setValue(values[i])
+    }
   }
 
   async continue() {
