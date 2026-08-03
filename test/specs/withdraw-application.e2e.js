@@ -96,7 +96,7 @@ describe('RA-252: Withdraw an accreditation application', () => {
     await PrnAuthorityPage.saveAndContinue()
 
     await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-      'Check your answers before continuing'
+      'Check your answers before you continue'
     )
     await PrnCheckAnswersPage.confirmAndContinue()
     await expect(browser).toHaveUrl(
@@ -113,7 +113,7 @@ describe('RA-252: Withdraw an accreditation application', () => {
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "Add more details about how you'll spend the PRN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()

@@ -150,14 +150,14 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     }
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "Add more details about how you'll spend the PRN income"
     )
     // Stub may have pre-filled descriptions — clear them so the blank submission triggers errors
     await BusinessPlanDetailPage.fillDescriptions('')
     await BusinessPlanDetailPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "Add more details about how you'll spend the PRN income"
     )
     await expect(BusinessPlanDetailPage.errorSummary).toBeDisplayed()
     await expect(BusinessPlanDetailPage.errorSummaryTitle).toHaveText(
@@ -181,14 +181,14 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     }
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "Add more details about how you'll spend the PRN income"
     )
     const over500 = 'A'.repeat(501)
     await BusinessPlanDetailPage.fillDescriptions(over500)
     await BusinessPlanDetailPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "Add more details about how you'll spend the PRN income"
     )
     await expect(BusinessPlanDetailPage.errorSummary).toBeDisplayed()
     await expect(BusinessPlanDetailPage.errorSummaryTitle).toHaveText(
@@ -209,7 +209,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
     await OperatorPage.navigateToOperatorAccreditationPlastic()
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
-      expect.stringContaining('reapplication for Plastic accreditation')
+      expect.stringContaining('reapply for accreditation (Plastic)')
     )
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
@@ -231,7 +231,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await PrnAuthorityPage.saveAndContinue()
 
     await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-      'Check your answers before continuing'
+      'Check your answers before you continue'
     )
     await PrnCheckAnswersPage.confirmAndContinue()
     await expect(browser).toHaveUrl(
@@ -258,7 +258,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     }
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PRN income"
+      "Add more details about how you'll spend the PRN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
@@ -271,7 +271,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     // Sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan - part 2 - Plastic'
+      'Upload sampling and inspection plan - part 2 - Plastic'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()

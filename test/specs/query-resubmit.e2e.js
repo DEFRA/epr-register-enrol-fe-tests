@@ -197,7 +197,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await BusinessPlanPage.saveAndContinue()
 
     let heading = await $('h1').getText()
-    if (heading === "More detail about how you'll spend PRN income") {
+    if (heading === "Add more details about how you'll spend the PRN income") {
       await BusinessPlanDetailPage.fillDescriptions()
       await BusinessPlanDetailPage.saveAndContinue()
       heading = await $('h1').getText()

@@ -66,7 +66,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       .getText()
       .catch(() => '')
     const alreadyOnCheckAnswers =
-      headingText === 'Check your answers before continuing'
+      headingText === 'Check your answers before you continue'
 
     if (alreadyOnCheckAnswers) {
       // Tonnage + authority already selected — just confirm
@@ -86,7 +86,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       await PrnAuthorityPage.saveAndContinue()
 
       await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-        'Check your answers before continuing'
+        'Check your answers before you continue'
       )
       await PrnCheckAnswersPage.confirmAndContinue()
     }
@@ -106,7 +106,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
     // More detail — required when percentages are filled
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PERN income"
+      "Add more details about how you'll spend the PERN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
@@ -120,7 +120,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Task list — sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan - part 2 - Plastic'
+      'Upload sampling and inspection plan - part 2 - Plastic'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
@@ -184,7 +184,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       .getText()
       .catch(() => '')
     const alreadyOnCheckAnswers =
-      headingText === 'Check your answers before continuing'
+      headingText === 'Check your answers before you continue'
 
     if (alreadyOnCheckAnswers) {
       await PrnCheckAnswersPage.confirmAndContinue()
@@ -202,7 +202,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       await PrnAuthorityPage.saveAndContinue()
 
       await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-        'Check your answers before continuing'
+        'Check your answers before you continue'
       )
       await PrnCheckAnswersPage.confirmAndContinue()
     }
@@ -220,7 +220,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PERN income"
+      "Add more details about how you'll spend the PERN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
@@ -233,7 +233,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan - part 2 - Glass'
+      'Upload sampling and inspection plan - part 2 - Glass'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
