@@ -59,6 +59,47 @@ export async function raiseQuery(
   return body.json()
 }
 
+// Simulates case-management pushing a generic status change to OJ (RA-368),
+// bypassing management-fe (out of scope for this repo, see RA-311 precedent
+// above). Unlike raiseQuery, this covers the other CM transitions
+// (duly-made, approved, rejected, ...) that OJ's ApplicationStatus now
+// projects directly from CM state ids.
+export async function pushStatusChanged(
+  organisationId,
+  applicationId,
+  { toStateId, toStateDisplayName, actionId, actionDisplayName, occurredAt }
+) {
+  const application = await getApplication(organisationId, applicationId)
+  const workItemId = application.caseManagementWorkItemId
+  if (!workItemId) {
+    throw new Error(
+      `Application ${applicationId} has no caseManagementWorkItemId to push a status change against`
+    )
+  }
+
+  const { statusCode, body } = await request(
+    apiUrl(`/case-management/${workItemId}/status`),
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        toStateId,
+        toStateDisplayName,
+        actionId,
+        actionDisplayName,
+        occurredAt: occurredAt ?? new Date().toISOString()
+      })
+    }
+  )
+  if (statusCode !== 200) {
+    const text = await body.text()
+    throw new Error(
+      `Failed to push status change against work item ${workItemId}: HTTP ${statusCode} ${text}`
+    )
+  }
+  return body.json()
+}
+
 // Calls a section PATCH endpoint directly, to prove the backend's own
 // status/section-editability gate rejects the write server-side — the
 // frontend redirect is a UX affordance only, not the real enforcement.
