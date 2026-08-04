@@ -27,7 +27,11 @@ import AddInterimSiteSiteNamePage from 'page-objects/add-interim-site-site-name.
 import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-location.page'
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
-import { getOverseasSites } from '../helpers/case-management.js'
+import { getApplication, getOverseasSites } from '../helpers/case-management.js'
+import {
+  expectedMaterialDisplay,
+  expectedSiteName
+} from '../helpers/applicationHeader.js'
 
 describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
   beforeEach(async () => {
@@ -54,10 +58,32 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       'Operator Testing Flows Landing Page'
     )
     await OperatorPage.navigateToExporterAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
     )
+
+    // RA-309 AC03: persistent header on an exporter journey — site name
+    // must show the "Exporter" label rather than a physical site address
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+    const application = await getApplication(organisationId, applicationId)
+    await expect(TaskListPage.applicationHeader).toBeDisplayed()
+    await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
+      application.organisationName
+    )
+    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
+      expectedMaterialDisplay(application)
+    )
+    await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
+      expectedSiteName(application)
+    )
+    expect(application.isExporter).toBe(true)
 
     // Task list — PRN tonnage
     await TaskListPage.PRNTonnageLink.click()
@@ -172,10 +198,32 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       'Operator Testing Flows Landing Page'
     )
     await OperatorPage.navigateToExporterAccreditationGlass()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
     )
+
+    // RA-309 AC03: persistent header on an exporter journey — site name
+    // must show the "Exporter" label rather than a physical site address
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+    const application = await getApplication(organisationId, applicationId)
+    await expect(TaskListPage.applicationHeader).toBeDisplayed()
+    await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
+      application.organisationName
+    )
+    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
+      expectedMaterialDisplay(application)
+    )
+    await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
+      expectedSiteName(application)
+    )
+    expect(application.isExporter).toBe(true)
 
     // Task list — PRN tonnage
     await TaskListPage.PRNTonnageLink.click()

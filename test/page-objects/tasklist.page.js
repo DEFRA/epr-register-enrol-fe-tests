@@ -5,14 +5,6 @@ class TaskListPage extends Page {
     return super.open(`/accreditation/task-list/${appId}`)
   }
 
-  get forYear() {
-    return $('[data-testid="metadata-year"]')
-  }
-
-  get forProcessingSite() {
-    return $('[data-testid="metadata-site"]')
-  }
-
   get PRNTagStatus() {
     return $('[data-testid="task-prns-tag"]')
   }

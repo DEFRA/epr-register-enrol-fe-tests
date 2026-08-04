@@ -13,6 +13,11 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import ViewPaymentDetailsPage from 'page-objects/view-payment-details.page'
+import { getApplication } from '../helpers/case-management.js'
+import {
+  expectedMaterialDisplay,
+  expectedSiteName
+} from '../helpers/applicationHeader.js'
 
 describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
   beforeEach(async () => {
@@ -208,12 +213,43 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
       'Operator Testing Flows Landing Page'
     )
     await OperatorPage.navigateToOperatorAccreditationPlastic()
+    // Heading is now fixed copy (RA-309) — material is shown in the
+    // persistent header instead of being interpolated into the h1.
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
-      expect.stringContaining('reapply for accreditation (Plastic)')
+      'Reapply for accreditation'
     )
+
+    // RA-309 AC03: persistent header is present on the landing page too
+    await expect(OperatorAccreditationPage.applicationHeader).toBeDisplayed()
+    await expect(
+      OperatorAccreditationPage.applicationHeaderOperatorName
+    ).not.toHaveText('')
+
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list')
+    )
+
+    // RA-309 AC03: the header persists onto the task list, showing the
+    // real operator/material/site data behind the application
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+    const application = await getApplication(organisationId, applicationId)
+    await expect(TaskListPage.applicationHeader).toBeDisplayed()
+    await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
+      application.organisationName
+    )
+    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
+      expectedMaterialDisplay(application)
+    )
+    await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
+      expectedSiteName(application)
     )
 
     // PRN tonnage
@@ -313,5 +349,25 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     const paymentRef =
       await ViewPaymentDetailsPage.bankPaymentReference.getText()
     await expect(paymentRef).toBe(ref)
+  })
+
+  // ── AC02: "Home" nav link ──────────────────────────────────────────────
+
+  it('Should mark Home as the current nav item on /operator and link back to it from an application page', async () => {
+    await expect(OperatorPage.homeNavLink).toHaveText('Home')
+    await expect(OperatorPage.homeNavLink).toHaveAttribute(
+      'aria-current',
+      'page'
+    )
+
+    await OperatorPage.navigateToOperatorAccreditationPlastic()
+    await expect(OperatorAccreditationPage.homeNavLink).toBeDisplayed()
+    await expect(OperatorAccreditationPage.homeNavLink).not.toHaveAttribute(
+      'aria-current',
+      'page'
+    )
+
+    await OperatorAccreditationPage.homeNavLink.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/operator'))
   })
 })

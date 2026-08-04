@@ -9,6 +9,30 @@ class Page {
     return $('span.govuk-caption-m')
   }
 
+  // RA-309 AC03: persistent application-header strip (operator/material/site),
+  // rendered below the back link on every accreditation page.
+  get applicationHeader() {
+    return $('[data-testid="application-header"]')
+  }
+
+  get applicationHeaderOperatorName() {
+    return $('[data-testid="application-header-operator-name"]')
+  }
+
+  get applicationHeaderMaterialType() {
+    return $('[data-testid="application-header-material-type"]')
+  }
+
+  get applicationHeaderSiteName() {
+    return $('[data-testid="application-header-site-name"]')
+  }
+
+  // RA-309 AC02: the service-navigation "Home" link, now pointing at
+  // /operator rather than /.
+  get homeNavLink() {
+    return $('a.govuk-service-navigation__link[href="/operator"]')
+  }
+
   open(path) {
     return browser.url(path)
   }
