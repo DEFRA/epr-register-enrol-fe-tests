@@ -11,6 +11,7 @@ import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
+import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
@@ -65,7 +66,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       .getText()
       .catch(() => '')
     const alreadyOnCheckAnswers =
-      headingText === 'Check your answers before continuing'
+      headingText === 'Check your answers before you continue'
 
     if (alreadyOnCheckAnswers) {
       // Tonnage + authority already selected — just confirm
@@ -85,7 +86,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       await PrnAuthorityPage.saveAndContinue()
 
       await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-        'Check your answers before continuing'
+        'Check your answers before you continue'
       )
       await PrnCheckAnswersPage.confirmAndContinue()
     }
@@ -105,7 +106,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
     // More detail — required when percentages are filled
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PERN income"
+      "Add more details about how you'll spend the PERN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
@@ -119,7 +120,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Task list — sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan - part 2 - Plastic'
+      'Upload sampling and inspection plan - part 2 - Plastic'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
@@ -132,9 +133,11 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
-    await OverseasReprocessingSitesPage.selectAllSites()
     await OverseasReprocessingSitesPage.continue()
-    await OverseasReprocessingSitesPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/confirm-overseas-sites')
+    )
+    await ConfirmOverseasSitesPage.confirmAndContinue()
 
     // Task list — BES evidence
     await expect(browser).toHaveUrl(
@@ -181,7 +184,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       .getText()
       .catch(() => '')
     const alreadyOnCheckAnswers =
-      headingText === 'Check your answers before continuing'
+      headingText === 'Check your answers before you continue'
 
     if (alreadyOnCheckAnswers) {
       await PrnCheckAnswersPage.confirmAndContinue()
@@ -199,7 +202,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       await PrnAuthorityPage.saveAndContinue()
 
       await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-        'Check your answers before continuing'
+        'Check your answers before you continue'
       )
       await PrnCheckAnswersPage.confirmAndContinue()
     }
@@ -217,7 +220,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "More detail about how you'll spend PERN income"
+      "Add more details about how you'll spend the PERN income"
     )
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()
@@ -230,7 +233,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Sampling and inspection plan
     await TaskListPage.SIPlanLink.click()
     await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload accreditation sampling and inspection plan - part 2 - Glass'
+      'Upload sampling and inspection plan - part 2 - Glass'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
     await SamplingPlanPage.saveAndContinue()
@@ -243,9 +246,11 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
-    await OverseasReprocessingSitesPage.selectAllSites()
     await OverseasReprocessingSitesPage.continue()
-    await OverseasReprocessingSitesPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/confirm-overseas-sites')
+    )
+    await ConfirmOverseasSitesPage.confirmAndContinue()
 
     // BES evidence
     await expect(browser).toHaveUrl(
@@ -681,5 +686,188 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/select-overseas-sites')
     )
     await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+  })
+
+  it('Should remove a newly added overseas site from accreditation, deleting it entirely (Plastic)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('Temporary Removal Test BV')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Verwijderingsweg 1',
+      townOrCity: 'Utrecht',
+      country: 'Netherlands',
+      coordinates: '52.0907, 5.1214'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Test Contact',
+      email: 'test@temporaryremoval.nl',
+      phone: '+31 30 123 4567'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes(['A1181'])
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await AddOrsRepatriatedLoadsPage.enterDescription(
+      'Rejected loads are returned within 30 days at our expense via licensed courier.'
+    )
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await AddOrsCyaPage.submit()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+
+    const sitesAfterAdd = await getOverseasSites(organisationId, applicationId)
+    const newSite = sitesAfterAdd.find(
+      (s) => s.siteName === 'Temporary Removal Test BV'
+    )
+    expect(newSite).toBeDefined()
+
+    // New sites live in the "New sites" section and their Remove From
+    // Accreditation action deletes the record entirely (RA-298/RA-300) —
+    // unlike an already-accredited site, which is only unaccredited.
+    await expect(
+      OverseasReprocessingSitesPage.newSiteRow(newSite.siteId)
+    ).toBeDisplayed()
+    await OverseasReprocessingSitesPage.removeNewSite(newSite.siteId)
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+
+    const sitesAfterRemove = await getOverseasSites(
+      organisationId,
+      applicationId
+    )
+    expect(
+      sitesAfterRemove.find((s) => s.siteName === 'Temporary Removal Test BV')
+    ).toBeUndefined()
+  })
+
+  it('Should navigate back to select-overseas-sites via the confirm-overseas-sites Change link (Plastic)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('Change Link Test AB')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Andringen 1',
+      townOrCity: 'Stockholm',
+      country: 'Sweden',
+      coordinates: '59.3293, 18.0686'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Test Contact',
+      email: 'test@changelinktest.se',
+      phone: '+46 8 123 456'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes(['A1181'])
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await AddOrsRepatriatedLoadsPage.enterDescription(
+      'Rejected loads are returned within 30 days at our expense via licensed courier.'
+    )
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await AddOrsCyaPage.submit()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+
+    // A freshly added site defaults into the Accredited section, so Continue
+    // is immediately available without any further action.
+    await OverseasReprocessingSitesPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/confirm-overseas-sites')
+    )
+
+    const siteRow = await $(
+      '[data-testid="sites-list"] [data-testid^="site-row-"]'
+    )
+    const testId = await siteRow.getAttribute('data-testid')
+    const siteId = testId.replace('site-row-', '')
+
+    await ConfirmOverseasSitesPage.changeSite(siteId)
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
   })
 })

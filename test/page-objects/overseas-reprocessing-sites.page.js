@@ -2,30 +2,7 @@ import { Page } from 'page-objects/page'
 
 class OverseasReprocessingSitesPage extends Page {
   get pageHeading() {
-    return $('h1')
-  }
-
-  get siteCheckboxes() {
-    return $$('.govuk-checkboxes__input')
-  }
-
-  get siteCheckboxLabels() {
-    return $$('.govuk-checkboxes__label')
-  }
-
-  get continueButton() {
-    return $('button=Continue')
-  }
-
-  async selectAllSites() {
-    const checkboxes = await this.siteCheckboxes
-    for (const checkbox of checkboxes) {
-      const checked = await checkbox.isSelected()
-      if (!checked) {
-        const id = await checkbox.getAttribute('id')
-        await $(`label[for="${id}"]`).click()
-      }
-    }
+    return $('[data-testid="page-heading"]')
   }
 
   get addNewOrsButton() {
@@ -40,8 +17,12 @@ class OverseasReprocessingSitesPage extends Page {
     return $('[data-testid="interim-site-success-banner"]')
   }
 
-  get confirmAndContinueButton() {
-    return $('button=Confirm and continue')
+  get promoteSuccessBanner() {
+    return $('[data-testid="ors-promote-success-banner"]')
+  }
+
+  get continueButton() {
+    return $('[data-testid="continue-button"]')
   }
 
   async continue() {
@@ -50,10 +31,64 @@ class OverseasReprocessingSitesPage extends Page {
     await this.continueButton.click()
   }
 
-  async confirmAndContinue() {
-    await this.confirmAndContinueButton.waitForDisplayed()
-    await this.confirmAndContinueButton.scrollIntoView()
-    await this.confirmAndContinueButton.click()
+  accreditedSiteRow(siteId) {
+    return $(`[data-testid="accredited-site-row-${siteId}"]`)
+  }
+
+  registeredSiteRow(siteId) {
+    return $(`[data-testid="registered-site-row-${siteId}"]`)
+  }
+
+  newSiteRow(siteId) {
+    return $(`[data-testid="new-site-row-${siteId}"]`)
+  }
+
+  registeredSiteAddedRow(siteId) {
+    return $(`[data-testid="registered-sites-added-row-${siteId}"]`)
+  }
+
+  removeAccreditedButton(siteId) {
+    return $(`[data-testid="remove-button-accredited-${siteId}"]`)
+  }
+
+  async removeFromAccreditation(siteId) {
+    const button = this.removeAccreditedButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
+  addToAccreditationButton(siteId) {
+    return $(`[data-testid="add-button-registered-${siteId}"]`)
+  }
+
+  async addToAccreditation(siteId) {
+    const button = this.addToAccreditationButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
+  removeNewSiteButton(siteId) {
+    return $(`[data-testid="remove-button-new-${siteId}"]`)
+  }
+
+  async removeNewSite(siteId) {
+    const button = this.removeNewSiteButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
+  removeRegisteredSiteAddedButton(siteId) {
+    return $(`[data-testid="remove-button-registered-added-${siteId}"]`)
+  }
+
+  async removeRegisteredSiteAdded(siteId) {
+    const button = this.removeRegisteredSiteAddedButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
   }
 }
 
