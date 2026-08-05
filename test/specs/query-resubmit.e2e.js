@@ -18,6 +18,25 @@ import {
   raiseQuery,
   patchSection
 } from '../helpers/case-management.js'
+import {
+  expectedMaterialDisplay,
+  expectedSiteName
+} from '../helpers/applicationHeader.js'
+
+// RA-309 AC03: the persistent header must survive every redirect hop of the
+// queried/resubmit journey, not just the classic task-list path.
+async function assertApplicationHeader(page, application) {
+  await expect(page.applicationHeader).toBeDisplayed()
+  await expect(page.applicationHeaderOperatorName).toHaveText(
+    application.organisationName
+  )
+  await expect(page.applicationHeaderMaterialType).toHaveText(
+    expectedMaterialDisplay(application)
+  )
+  await expect(page.applicationHeaderSiteName).toHaveText(
+    expectedSiteName(application)
+  )
+}
 
 describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
   let organisationId
@@ -139,6 +158,10 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('QUERIED')
     )
+    await assertApplicationHeader(
+      OperatorAccreditationPage,
+      submittedApplication
+    )
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/query-task-list/')
@@ -148,6 +171,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await expect(QueryTaskListPage.queryNote).toHaveText(
       expect.stringContaining(queryNote)
     )
+    await assertApplicationHeader(QueryTaskListPage, submittedApplication)
     await expect(
       QueryTaskListPage.taskLink('task-business-plan')
     ).toBeDisplayed()
@@ -193,6 +217,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/business-plan/')
     )
+    await assertApplicationHeader(BusinessPlanPage, submittedApplication)
     await BusinessPlanPage.fillPercentages([25, 25, 20, 10, 10, 10])
     await BusinessPlanPage.saveAndContinue()
 
@@ -220,6 +245,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/query-declaration/')
     )
+    await assertApplicationHeader(QueryDeclarationPage, submittedApplication)
 
     // AC03/AC04: query-declaration validates the responder's details —
     // required-field errors, keyed to the actual field, with the real
@@ -267,6 +293,10 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     )
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('UPDATED')
+    )
+    await assertApplicationHeader(
+      OperatorAccreditationPage,
+      submittedApplication
     )
 
     // The queried section's status only resolves off `Queried` once Resubmit

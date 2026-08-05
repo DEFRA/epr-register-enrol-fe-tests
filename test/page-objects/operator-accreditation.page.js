@@ -6,10 +6,6 @@ class OperatorAccreditationPage extends Page {
     return $('h1')
   }
 
-  get reExBackLink() {
-    return $('[data-testid="reex-back-link"]')
-  }
-
   get startNewLink() {
     return $('[data-testid="start-new-link"]')
   }
