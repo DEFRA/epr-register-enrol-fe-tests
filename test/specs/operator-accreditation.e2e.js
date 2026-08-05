@@ -367,7 +367,10 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
       'page'
     )
 
+    // Exact match, not stringContaining: the page navigated from
+    // (/operator-accreditation/...) also contains "/operator" as a
+    // substring, so a broken/no-op link would still pass a substring check.
     await OperatorAccreditationPage.homeNavLink.click()
-    await expect(browser).toHaveUrl(expect.stringContaining('/operator'))
+    await expect(browser).toHaveUrl(expect.stringMatching(/\/operator$/))
   })
 })
