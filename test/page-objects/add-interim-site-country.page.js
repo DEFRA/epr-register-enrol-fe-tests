@@ -41,6 +41,15 @@ class AddInterimSiteCountryPage extends Page {
       }
     )
     await this.countryInput.setValue(country)
+
+    // accessible-autocomplete only writes the typed value back into the
+    // underlying (POSTed) <select> on blur (confirmOnBlur, its default).
+    // On pages with a later field, focusing that field naturally triggers
+    // this. Country is the only field here, and Page.clickReliably's
+    // JS-dispatched click on Continue doesn't reliably blur the previously
+    // focused input the way a real focus change does — so blur explicitly.
+    const resolvedInput = await this.countryInput
+    await browser.execute((el) => el.blur(), resolvedInput)
   }
 
   async continue() {
