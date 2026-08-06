@@ -32,4 +32,23 @@ describe('Operator Journey', () => {
     const headerText = await OperatorPage.pageHeading.getText()
     await expect(headerText).toEqual('Operator Registration')
   })
+
+  it('Should render the footer support links with the correct hrefs', async () => {
+    await expect(OperatorPage.footerContactLink).toHaveAttribute(
+      'href',
+      '/contact'
+    )
+    await expect(OperatorPage.footerPrivacyLink).toHaveAttribute(
+      'href',
+      'https://www.gov.uk/guidance/extended-producer-responsibility-for-packaging-privacy-policy'
+    )
+    await expect(OperatorPage.footerCookiesLink).toHaveAttribute(
+      'href',
+      '/cookies'
+    )
+    await expect(OperatorPage.footerAccessibilityLink).toHaveAttribute(
+      'href',
+      'https://www.gov.uk/guidance/extended-producer-responsibility-for-packaging-accessibility-statement'
+    )
+  })
 })

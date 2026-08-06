@@ -49,6 +49,10 @@ class TaskListPage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
+  get backLink() {
+    return $('[data-testid="back-link"]')
+  }
+
   async assertAllTasksCompleted({ isExporter = false } = {}) {
     await expect(this.PRNTagStatus).toHaveText('COMPLETED')
     await expect(this.businessPlanStatus).toHaveText('COMPLETED')

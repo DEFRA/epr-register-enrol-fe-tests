@@ -351,6 +351,35 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await expect(paymentRef).toBe(ref)
   })
 
+  // ── RA-374 regression ────────────────────────────────────────────────────
+  // The task list's back link is built from the application record via the
+  // shared landingUrl() helper. It previously read application.siteId — a
+  // field the API layer never populates (registrationId is the real field)
+  // — so the reprocessor back link would have rendered "undefined" in the
+  // URL and 404'd.
+
+  it('Should navigate back from the task list to the operator-accreditation landing page', async () => {
+    await OperatorPage.navigateToOperatorAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId, registrationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.backLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(
+        `/operator-accreditation/${organisationId}/${registrationId}/Plastic/`
+      )
+    )
+    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
+      'Reapply for accreditation'
+    )
+  })
+
   // ── AC02: "Home" nav link ──────────────────────────────────────────────
 
   it('Should mark Home as the current nav item on /operator and link back to it from an application page', async () => {
