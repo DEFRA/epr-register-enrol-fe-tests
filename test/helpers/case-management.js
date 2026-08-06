@@ -17,6 +17,36 @@ export async function getApplication(organisationId, applicationId) {
   return body.json()
 }
 
+// Every application the backend holds for an organisation, newest first.
+// Withdrawn records are included, so this is the accessor to reach for when a
+// journey needs to prove what a year now holds rather than just what the
+// landing page chose to render.
+export async function listApplications(organisationId) {
+  const { statusCode, body } = await request(apiUrl(`/${organisationId}`))
+  if (statusCode !== 200) {
+    throw new Error(
+      `Failed to list applications for organisation ${organisationId}: HTTP ${statusCode}`
+    )
+  }
+  return body.json()
+}
+
+// One accreditation year can hold more than one application — restarting after
+// a withdrawal keeps the withdrawn record and adds a live one alongside it — so
+// callers need the whole set for a year, not a single "the" application.
+export async function listApplicationsForYear(
+  organisationId,
+  { registrationId, materialType, year }
+) {
+  const applications = await listApplications(organisationId)
+  return applications.filter(
+    (application) =>
+      application.registrationId === registrationId &&
+      application.materialType === materialType &&
+      application.year === Number(year)
+  )
+}
+
 // Direct-API accessor for the overseas sites nested under an application, so
 // isNewSite (RA-297) can be asserted without a dashboard — management-fe is
 // out of scope for this suite, see the RA-311 precedent above. Each site may

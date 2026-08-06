@@ -33,6 +33,15 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  // Org 50012 ("Withdrawn Application Test Co", Plastic) exists specifically
+  // for withdrawal journeys and is driven by no other spec, so the
+  // withdraw-then-restart journey can own its applications outright.
+  async navigateToWithdrawnApplicationTestOrg() {
+    const link = $('a[href*="/operator-accreditation/50012/"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
   async navigateToReaccreditationPlastic() {
     const link = $('a[href*="/operator-accreditation/50003/"]')
     await link.waitForDisplayed()
