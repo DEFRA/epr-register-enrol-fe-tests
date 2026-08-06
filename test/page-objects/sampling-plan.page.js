@@ -21,10 +21,6 @@ class SamplingPlanPage extends Page {
     return $('button=Save and continue')
   }
 
-  get fileStatusClean() {
-    return $('td*=Clean')
-  }
-
   async uploadFile(filename) {
     const filePath = path.resolve(__dirname, '../fixtures', filename)
     let uploadPath
@@ -37,7 +33,17 @@ class SamplingPlanPage extends Page {
     await this.fileInput.setValue(uploadPath)
     await this.uploadFileButton.waitForDisplayed()
     await this.uploadFileButton.click()
-    await this.fileStatusClean.waitForDisplayed({ timeout: 60000 })
+    // RA-290 AC04: upload -> checking -> results is now three separate pages.
+    // The browser follows the checking page's meta-refresh redirects on its
+    // own; wait until it lands on the results page rather than polling for
+    // a Status-column tag that no longer exists.
+    await browser.waitUntil(
+      async () => (await browser.getUrl()).includes('/results'),
+      {
+        timeout: 60000,
+        timeoutMsg: 'Timed out waiting for file check to complete'
+      }
+    )
   }
 
   async saveAndContinue() {
