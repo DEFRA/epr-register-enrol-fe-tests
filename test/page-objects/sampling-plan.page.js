@@ -21,10 +21,6 @@ class SamplingPlanPage extends Page {
     return $('button=Save and continue')
   }
 
-  get fileStatusClean() {
-    return $('td*=Clean')
-  }
-
   async uploadFile(filename) {
     const filePath = path.resolve(__dirname, '../fixtures', filename)
     let uploadPath
@@ -37,7 +33,15 @@ class SamplingPlanPage extends Page {
     await this.fileInput.setValue(uploadPath)
     await this.uploadFileButton.waitForDisplayed()
     await this.uploadFileButton.click()
-    await this.fileStatusClean.waitForDisplayed({ timeout: 60000 })
+    // RA-290 AC04: upload -> checking -> results is now three separate pages.
+    // The browser follows the checking page's meta-refresh redirects on its
+    // own. Wait for a positive success signal (a listed file, no error
+    // summary) rather than a URL substring - a failed upload or infected
+    // virus-check result also redirects to a /results URL (with
+    // ?upload=failed and the file filtered out of the table), so a bare
+    // URL check would sail past that failure and only blow up later.
+    await $('[data-testid="file-name"]').waitForDisplayed({ timeout: 60000 })
+    await expect($('[data-testid="error-summary"]')).not.toBeDisplayed()
   }
 
   async saveAndContinue() {

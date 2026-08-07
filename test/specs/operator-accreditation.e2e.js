@@ -12,7 +12,6 @@ import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answe
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
-import ViewPaymentDetailsPage from 'page-objects/view-payment-details.page'
 import { getApplication } from '../helpers/case-management.js'
 import {
   expectedMaterialDisplay,
@@ -327,27 +326,23 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
     await expect(ref).toMatch(/AP\d{2}[A-Z]{2}/)
 
-    // View payment details
-    await ApplicationSubmittedPage.viewPaymentDetailsLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/view-payment-details')
-    )
-    await expect(ViewPaymentDetailsPage.pageHeading).toBeDisplayed()
-    await expect(ViewPaymentDetailsPage.amountDue).toBeDisplayed()
-    await expect(ViewPaymentDetailsPage.descriptionHeading).toBeDisplayed()
-    await expect(ViewPaymentDetailsPage.bankAmount).toBeDisplayed()
-    await expect(ViewPaymentDetailsPage.bankSortCode).toHaveText('60-70-80')
-    await expect(ViewPaymentDetailsPage.bankAccountNumber).toHaveText(
+    // RA-290 AC06: payment details are shown inline on the submission page
+    // itself now, not behind a separate "View payment details" page.
+    await expect(ApplicationSubmittedPage.amountDue).toBeDisplayed()
+    await expect(ApplicationSubmittedPage.descriptionHeading).toBeDisplayed()
+    await expect(ApplicationSubmittedPage.bankAmount).toBeDisplayed()
+    await expect(ApplicationSubmittedPage.bankSortCode).toHaveText('60-70-80')
+    await expect(ApplicationSubmittedPage.bankAccountNumber).toHaveText(
       '10014411'
     )
-    await expect(ViewPaymentDetailsPage.bankAccountName).toHaveText(
+    await expect(ApplicationSubmittedPage.bankAccountName).toHaveText(
       'EA RECEIPTS'
     )
-    await expect(ViewPaymentDetailsPage.bankCompanyName).toHaveText(
+    await expect(ApplicationSubmittedPage.bankCompanyName).toHaveText(
       'Environment Agency'
     )
     const paymentRef =
-      await ViewPaymentDetailsPage.bankPaymentReference.getText()
+      await ApplicationSubmittedPage.bankPaymentReference.getText()
     await expect(paymentRef).toBe(ref)
   })
 
