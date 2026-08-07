@@ -21,14 +21,18 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  // RA-374: isExporter is now a property of the application record, not the
+  // URL — the /exporter suffix was removed from the frontend's stub links,
+  // so these can no longer be located by href. Locate by the stub link's
+  // visible text instead.
   async navigateToExporterAccreditationPlastic() {
-    const link = $('a[href*="Plastic"][href*="exporter"]')
+    const link = $('a*=Exporter accreditation — Plastic 2027')
     await link.waitForDisplayed()
     await link.click()
   }
 
   async navigateToExporterAccreditationGlass() {
-    const link = $('a[href*="Glass"][href*="exporter"]')
+    const link = $('a*=Exporter accreditation — Glass 2027')
     await link.waitForDisplayed()
     await link.click()
   }

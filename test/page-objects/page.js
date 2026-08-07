@@ -33,6 +33,23 @@ class Page {
     return $('a.govuk-service-navigation__link[href="/operator"]')
   }
 
+  // Footer support links, rendered on every page via the shared layout.
+  get footerContactLink() {
+    return $('.govuk-footer__link[href="/contact"]')
+  }
+
+  get footerPrivacyLink() {
+    return $('.govuk-footer__link[href*="privacy-policy"]')
+  }
+
+  get footerCookiesLink() {
+    return $('.govuk-footer__link[href="/cookies"]')
+  }
+
+  get footerAccessibilityLink() {
+    return $('.govuk-footer__link[href*="accessibility-statement"]')
+  }
+
   open(path) {
     return browser.url(path)
   }
