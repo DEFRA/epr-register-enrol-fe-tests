@@ -174,6 +174,16 @@ describe('RA-357: Start a new application after withdrawing one', () => {
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('WITHDRAWN')
     )
+    // The withdrawn-view controls below (continue/withdraw hidden, start-new
+    // shown) all come from the same server render as the status tag above,
+    // but isExisting() is a single unretried DOM query — unlike toHaveText
+    // and toBeDisplayed, it doesn't wait for a still-settling page. Anchor on
+    // the start-new form's existence first so every check that follows runs
+    // against a page that has definitely finished rendering the withdrawn
+    // view, rather than risking an intermittent race on whichever check
+    // happens to run before the browser has caught up.
+    await OperatorAccreditationPage.startNewForm.waitForExist()
+
     expect(await OperatorAccreditationPage.firstContinueLink.isExisting()).toBe(
       false
     )
