@@ -193,6 +193,33 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(ref).toMatch(/AP\d{2}[A-Z]{2}/)
   })
 
+  // RA-374 regression: the task list's back link is built from the
+  // application record via the shared landingUrl() helper. It previously
+  // omitted registrationId for exporter applications, producing a 404 (e.g.
+  // /operator-accreditation/50005/Plastic/2027 instead of the real 4-segment
+  // route with registrationId included).
+  it('Should navigate back from the task list to the operator-accreditation landing page', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId, registrationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.backLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(
+        `/operator-accreditation/${organisationId}/${registrationId}/Plastic/`
+      )
+    )
+    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
+      'Reapply for accreditation'
+    )
+  })
+
   it('Should complete the full exporter accreditation journey for Glass and submit the application', async () => {
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
       'Operator Testing Flows Landing Page'
