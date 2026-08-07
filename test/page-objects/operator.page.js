@@ -21,14 +21,17 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  // RA-374: isExporter is now derived from the application record, not a
+  // /exporter URL suffix, so these stub links are indistinguishable from
+  // reprocessor links by href alone — match on their link text instead.
   async navigateToExporterAccreditationPlastic() {
-    const link = $('a[href*="Plastic"][href*="exporter"]')
+    const link = $('a*=Exporter accreditation — Plastic')
     await link.waitForDisplayed()
     await link.click()
   }
 
   async navigateToExporterAccreditationGlass() {
-    const link = $('a[href*="Glass"][href*="exporter"]')
+    const link = $('a*=Exporter accreditation — Glass')
     await link.waitForDisplayed()
     await link.click()
   }
