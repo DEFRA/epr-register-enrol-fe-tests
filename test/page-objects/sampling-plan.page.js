@@ -35,15 +35,13 @@ class SamplingPlanPage extends Page {
     await this.uploadFileButton.click()
     // RA-290 AC04: upload -> checking -> results is now three separate pages.
     // The browser follows the checking page's meta-refresh redirects on its
-    // own; wait until it lands on the results page rather than polling for
-    // a Status-column tag that no longer exists.
-    await browser.waitUntil(
-      async () => (await browser.getUrl()).includes('/results'),
-      {
-        timeout: 60000,
-        timeoutMsg: 'Timed out waiting for file check to complete'
-      }
-    )
+    // own. Wait for a positive success signal (a listed file, no error
+    // summary) rather than a URL substring - a failed upload or infected
+    // virus-check result also redirects to a /results URL (with
+    // ?upload=failed and the file filtered out of the table), so a bare
+    // URL check would sail past that failure and only blow up later.
+    await $('[data-testid="file-name"]').waitForDisplayed({ timeout: 60000 })
+    await expect($('[data-testid="error-summary"]')).not.toBeDisplayed()
   }
 
   async saveAndContinue() {
