@@ -1,40 +1,9 @@
 import { Page } from 'page-objects/page'
+import { withPaymentDetails } from 'page-objects/payment-details.mixin'
 
-class ViewPaymentDetailsPage extends Page {
+class ViewPaymentDetailsPage extends withPaymentDetails(Page) {
   get pageHeading() {
     return $('[data-testid="page-heading"]')
-  }
-
-  get amountDue() {
-    return $('[data-testid="amount-due"]')
-  }
-
-  get descriptionHeading() {
-    return $('[data-testid="description-heading"]')
-  }
-
-  get bankAmount() {
-    return $('[data-testid="bank-amount"]')
-  }
-
-  get bankSortCode() {
-    return $('[data-testid="bank-sort-code"]')
-  }
-
-  get bankAccountNumber() {
-    return $('[data-testid="bank-account-number"]')
-  }
-
-  get bankAccountName() {
-    return $('[data-testid="bank-account-name"]')
-  }
-
-  get bankCompanyName() {
-    return $('[data-testid="bank-company-name"]')
-  }
-
-  get bankPaymentReference() {
-    return $('[data-testid="bank-payment-reference"]')
   }
 }
 
