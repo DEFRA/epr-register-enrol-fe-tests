@@ -25,6 +25,18 @@ class SamplingPlanPage extends Page {
     return $('button=Save and continue')
   }
 
+  get uploadAnotherFileLink() {
+    return $('[data-testid="upload-another-file-link"]')
+  }
+
+  get fileRows() {
+    return $$('[data-testid="file-row"]')
+  }
+
+  documentTypeCellContaining(text) {
+    return $(`[data-testid="file-document-type"]*=${text}`)
+  }
+
   async uploadFile(filename, documentType = 'SamplingPlan') {
     const filePath = path.resolve(__dirname, '../fixtures', filename)
     let uploadPath
