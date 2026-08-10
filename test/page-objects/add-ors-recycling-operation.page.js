@@ -29,6 +29,12 @@ class AddOrsRecyclingOperationPage extends Page {
     await operationLabel.click()
   }
 
+  async selectOperationCodes(codes) {
+    for (const code of codes) {
+      await this.selectOperationCode(code)
+    }
+  }
+
   async continue() {
     await this.continueButton.waitForDisplayed()
     await this.continueButton.click()
