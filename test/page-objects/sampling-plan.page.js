@@ -13,6 +13,10 @@ class SamplingPlanPage extends Page {
     return $('input[type="file"]')
   }
 
+  get documentTypeSelect() {
+    return $('[data-testid="document-type-input"]')
+  }
+
   get uploadFileButton() {
     return $('button=Upload file')
   }
@@ -21,7 +25,7 @@ class SamplingPlanPage extends Page {
     return $('button=Save and continue')
   }
 
-  async uploadFile(filename) {
+  async uploadFile(filename, documentType = 'SamplingPlan') {
     const filePath = path.resolve(__dirname, '../fixtures', filename)
     let uploadPath
     try {
@@ -29,6 +33,8 @@ class SamplingPlanPage extends Page {
     } catch {
       uploadPath = filePath
     }
+    await this.documentTypeSelect.waitForExist()
+    await this.documentTypeSelect.selectByAttribute('value', documentType)
     await this.fileInput.waitForExist()
     await this.fileInput.setValue(uploadPath)
     await this.uploadFileButton.waitForDisplayed()
