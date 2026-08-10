@@ -1,6 +1,9 @@
 import { Page } from 'page-objects/page'
+import { withPaymentDetails } from 'page-objects/payment-details.mixin'
 
-class ApplicationSubmittedPage extends Page {
+// RA-290 AC06: payment details are now shown inline on this page instead
+// of behind a separate "View payment details" link/page.
+class ApplicationSubmittedPage extends withPaymentDetails(Page) {
   get panel() {
     return $('.govuk-panel')
   }
@@ -11,10 +14,6 @@ class ApplicationSubmittedPage extends Page {
 
   get referenceNumber() {
     return $('.govuk-panel__body strong')
-  }
-
-  get viewPaymentDetailsLink() {
-    return $('[data-testid="view-payment-details-link"]')
   }
 
   get returnToHomeLink() {
