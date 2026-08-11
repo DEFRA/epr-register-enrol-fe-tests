@@ -130,6 +130,27 @@ export async function pushStatusChanged(
   return body.json()
 }
 
+// Calls the OJ Withdraw endpoint directly, the same bypass-the-UI approach
+// as patchSection below, to prove the backend's own withdraw guard - not
+// just the frontend withdraw link's visibility - accepts the request. Added
+// for RA-368: the guard used to wrongly 409 once AwaitingDecision became a
+// reachable status (see status-push.e2e.js).
+export async function withdrawApplication(
+  organisationId,
+  applicationId,
+  { reason }
+) {
+  const { statusCode, body } = await request(
+    apiUrl(`/${organisationId}/${applicationId}/withdraw`),
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ reason })
+    }
+  )
+  return { statusCode, text: await body.text() }
+}
+
 // Calls a section PATCH endpoint directly, to prove the backend's own
 // status/section-editability gate rejects the write server-side — the
 // frontend redirect is a UX affordance only, not the real enforcement.
