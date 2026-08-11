@@ -309,6 +309,18 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
       'Upload sampling and inspection plan - part 2 - Plastic'
     )
     await SamplingPlanPage.uploadFile('business-plan.pdf')
+
+    // RA-406: prove the SupportingEvidence document type option is actually
+    // wired end to end (selected on upload, persisted, shown correctly on
+    // the results table) — every other spec in this repo only exercises the
+    // default SamplingPlan path.
+    await SamplingPlanPage.uploadAnotherFileLink.click()
+    await SamplingPlanPage.uploadFile('business-plan.pdf', 'SupportingEvidence')
+    await expect(SamplingPlanPage.fileRows).toBeElementsArrayOfSize(2)
+    await expect(
+      SamplingPlanPage.documentTypeCellContaining('Supporting evidence')
+    ).toBeDisplayed()
+
     await SamplingPlanPage.saveAndContinue()
 
     await expect(browser).toHaveUrl(
