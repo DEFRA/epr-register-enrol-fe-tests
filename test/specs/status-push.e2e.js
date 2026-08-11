@@ -11,7 +11,10 @@ import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
-import { pushStatusChanged } from '../helpers/case-management.js'
+import {
+  pushStatusChanged,
+  withdrawApplication
+} from '../helpers/case-management.js'
 
 describe('RA-368: Push CM status changes to OJ', () => {
   let organisationId
@@ -103,7 +106,7 @@ describe('RA-368: Push CM status changes to OJ', () => {
     return applicationId
   }
 
-  it('reflects duly-made then approved statuses pushed from case management', async () => {
+  it('reflects duly-made, updated, awaiting decision then approved statuses pushed from case management', async () => {
     const year = String(3000 + (Date.now() % 1000))
     const applicationId = await reachSubmittedApplication(year)
 
@@ -119,7 +122,38 @@ describe('RA-368: Push CM status changes to OJ', () => {
       expect.stringContaining('DULY MADE')
     )
 
-    // Occurring strictly after the duly-made push, per the plan's
+    // RA-368: assessment-in-progress is CM's "payment received" action. CM
+    // itself displays this state as "Updated" (label collision with its own
+    // updated state), so OJ mirrors that rather than inventing a new tag -
+    // this was the gap that originally left OJ pinned at DULY MADE.
+    await pushStatusChanged(organisationId, applicationId, {
+      toStateId: 'assessment-in-progress',
+      toStateDisplayName: 'Assessment in progress',
+      actionId: 'payment-received',
+      actionDisplayName: 'Payment received',
+      occurredAt: new Date(Date.now() + 1000).toISOString()
+    })
+    await browser.url(landingUrl(year))
+    await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
+      expect.stringContaining('UPDATED')
+    )
+
+    // RA-368: awaiting-decision is CM's "submit for decision" action, and
+    // unlike assessment-in-progress it gets its own distinct OJ status
+    // rather than reusing an existing one.
+    await pushStatusChanged(organisationId, applicationId, {
+      toStateId: 'awaiting-decision',
+      toStateDisplayName: 'Awaiting decision',
+      actionId: 'submit-for-decision',
+      actionDisplayName: 'Submit for decision',
+      occurredAt: new Date(Date.now() + 2000).toISOString()
+    })
+    await browser.url(landingUrl(year))
+    await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
+      expect.stringContaining('AWAITING DECISION')
+    )
+
+    // Occurring strictly after the prior pushes, per the plan's
     // OccurredAt-ordering rule (not state-precedence) - approved is a
     // terminal state, so this application isn't reused by any other case.
     await pushStatusChanged(organisationId, applicationId, {
@@ -127,7 +161,7 @@ describe('RA-368: Push CM status changes to OJ', () => {
       toStateDisplayName: 'Granted',
       actionId: 'approve',
       actionDisplayName: 'Approve',
-      occurredAt: new Date(Date.now() + 1000).toISOString()
+      occurredAt: new Date(Date.now() + 3000).toISOString()
     })
     await browser.url(landingUrl(year))
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
@@ -152,6 +186,37 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await browser.url(landingUrl(year))
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('REJECTED')
+    )
+  })
+
+  // RA-368: before this fix, an application pushed to awaiting-decision
+  // stayed mapped to whatever status preceded it, so the withdraw guard's
+  // AwaitingDecision arm was never exercised. Calling the withdraw endpoint
+  // directly (bypassing withdraw-application.e2e.js's UI journey) proves the
+  // backend guard itself - the authoritative check behind OJ's own withdraw
+  // link - now accepts the request instead of wrongly returning 409.
+  it('accepts a withdrawal of an application awaiting decision, pushed directly to the withdraw endpoint', async () => {
+    const year = String(3000 + ((Date.now() + 1500) % 1000))
+    const applicationId = await reachSubmittedApplication(year)
+
+    await pushStatusChanged(organisationId, applicationId, {
+      toStateId: 'awaiting-decision',
+      toStateDisplayName: 'Awaiting decision',
+      actionId: 'submit-for-decision',
+      actionDisplayName: 'Submit for decision',
+      occurredAt: new Date().toISOString()
+    })
+
+    const { statusCode } = await withdrawApplication(
+      organisationId,
+      applicationId,
+      { reason: 'No longer required' }
+    )
+    expect(statusCode).toBe(200)
+
+    await browser.url(landingUrl(year))
+    await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
+      expect.stringContaining('WITHDRAWN')
     )
   })
 })
