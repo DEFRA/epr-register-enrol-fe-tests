@@ -13,7 +13,8 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import {
   pushStatusChanged,
-  withdrawApplication
+  withdrawApplication,
+  patchSection
 } from '../helpers/case-management.js'
 
 describe('RA-368: Push CM status changes to OJ', () => {
@@ -164,8 +165,31 @@ describe('RA-368: Push CM status changes to OJ', () => {
       occurredAt: new Date(Date.now() + 3000).toISOString()
     })
     await browser.url(landingUrl(year))
+    // RA-415: CM renamed its "Approved" label to "Granted" - OJ's own status
+    // tag now mirrors that instead of still showing "APPROVED".
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
-      expect.stringContaining('APPROVED')
+      expect.stringContaining('GRANTED')
+    )
+    // RA-415: Approved joins Withdrawn as a terminal status the landing page
+    // must not offer a Continue link for.
+    await expect(
+      await OperatorAccreditationPage.firstContinueLink.isExisting()
+    ).toBe(false)
+
+    // RA-415: Approved is now a terminal status server-side too - the
+    // ordinary write endpoints must reject an edit, not just the withdraw
+    // endpoint (proved separately below for Withdrawn/AwaitingDecision).
+    const approvedPatch = await patchSection(
+      organisationId,
+      applicationId,
+      'tonnage',
+      {}
+    )
+    expect(approvedPatch.statusCode).toBe(409)
+    expect(approvedPatch.text).toEqual(
+      expect.stringContaining(
+        'Application is Approved, Rejected or Withdrawn and can no longer be edited.'
+      )
     )
   })
 
@@ -186,6 +210,23 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await browser.url(landingUrl(year))
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('REJECTED')
+    )
+    await expect(
+      await OperatorAccreditationPage.firstContinueLink.isExisting()
+    ).toBe(false)
+
+    // RA-415: Rejected is terminal too - same server-side guard as Approved.
+    const rejectedPatch = await patchSection(
+      organisationId,
+      applicationId,
+      'tonnage',
+      {}
+    )
+    expect(rejectedPatch.statusCode).toBe(409)
+    expect(rejectedPatch.text).toEqual(
+      expect.stringContaining(
+        'Application is Approved, Rejected or Withdrawn and can no longer be edited.'
+      )
     )
   })
 

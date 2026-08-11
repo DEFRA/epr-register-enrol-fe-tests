@@ -167,7 +167,9 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       expect.stringContaining('/accreditation/query-task-list/')
     )
 
-    // AC01: only the queried section is listed, with the query note shown
+    // AC01: the query note is shown, and every section is now listed
+    // (RA-415) - the queried section remains a link, the rest render
+    // locked/read-only instead of being hidden entirely.
     await expect(QueryTaskListPage.queryNote).toHaveText(
       expect.stringContaining(queryNote)
     )
@@ -175,9 +177,19 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await expect(
       QueryTaskListPage.taskLink('task-business-plan')
     ).toBeDisplayed()
-    await expect(await $('[data-testid="task-prns"]').isExisting()).toBe(false)
+    await expect(await $('[data-testid="task-prns"]').isExisting()).toBe(true)
+    await expect(QueryTaskListPage.taskLabel('task-prns')).toBeDisplayed()
+    await expect(await $('[data-testid="task-prns-link"]').isExisting()).toBe(
+      false
+    )
     await expect(
       await $('[data-testid="task-sampling-plan"]').isExisting()
+    ).toBe(true)
+    await expect(
+      QueryTaskListPage.taskLabel('task-sampling-plan')
+    ).toBeDisplayed()
+    await expect(
+      await $('[data-testid="task-sampling-plan-link"]').isExisting()
     ).toBe(false)
 
     // AC02: the backend gate rejects a non-queried section's PATCH server
