@@ -27,10 +27,12 @@ class Page {
     return $('[data-testid="application-header-site-name"]')
   }
 
-  // RA-309 AC02: the service-navigation "Home" link, now pointing at
-  // /operator rather than /.
+  // RA-408: the service-navigation "Home" link. Its href now varies per
+  // page (the operator's landing status page once an application has been
+  // visited, otherwise a bare /operator-accreditation/ fallback), so it's
+  // matched by its fixed link text rather than a fixed href.
   get homeNavLink() {
-    return $('a.govuk-service-navigation__link[href="/operator"]')
+    return $('a=Home')
   }
 
   // Footer support links, rendered on every page via the shared layout.
