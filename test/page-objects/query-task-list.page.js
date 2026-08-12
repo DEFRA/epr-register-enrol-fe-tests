@@ -29,9 +29,10 @@ class QueryTaskListPage extends Page {
     return $(`[data-testid="${testId}-link"]`)
   }
 
-  // RA-415: a non-queried section now renders as locked, read-only text
-  // instead of being omitted from the list entirely - this is the label
-  // span that replaces its link.
+  // RA-415: a NotStarted/InProgress non-queried section renders as locked,
+  // read-only text instead of being omitted from the list entirely - this
+  // is the label span that replaces its link. Completed/Submitted
+  // non-queried sections get a read-only link instead (see taskLink).
   taskLabel(testId) {
     return $(`[data-testid="${testId}-label"]`)
   }

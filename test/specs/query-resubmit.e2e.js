@@ -168,8 +168,10 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     )
 
     // AC01: the query note is shown, and every section is now listed
-    // (RA-415) - the queried section remains a link, the rest render
-    // locked/read-only instead of being hidden entirely.
+    // (RA-415) - the queried section remains a fully editable link.
+    // Completed/Submitted sections (RA-415 follow-up) are also clickable
+    // links rather than locked text - they open a read-only view of the
+    // already-answered section - instead of being hidden entirely.
     await expect(QueryTaskListPage.queryNote).toHaveText(
       expect.stringContaining(queryNote)
     )
@@ -178,18 +180,18 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       QueryTaskListPage.taskLink('task-business-plan')
     ).toBeDisplayed()
     await expect(await $('[data-testid="task-prns"]').isExisting()).toBe(true)
-    await expect(QueryTaskListPage.taskLabel('task-prns')).toBeDisplayed()
-    await expect(await $('[data-testid="task-prns-link"]').isExisting()).toBe(
+    await expect(QueryTaskListPage.taskLink('task-prns')).toBeDisplayed()
+    await expect(await $('[data-testid="task-prns-label"]').isExisting()).toBe(
       false
     )
     await expect(
       await $('[data-testid="task-sampling-plan"]').isExisting()
     ).toBe(true)
     await expect(
-      QueryTaskListPage.taskLabel('task-sampling-plan')
+      QueryTaskListPage.taskLink('task-sampling-plan')
     ).toBeDisplayed()
     await expect(
-      await $('[data-testid="task-sampling-plan-link"]').isExisting()
+      await $('[data-testid="task-sampling-plan-label"]').isExisting()
     ).toBe(false)
 
     // AC02: the backend gate rejects a non-queried section's PATCH server
