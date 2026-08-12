@@ -45,7 +45,7 @@
     "allure-commandline": "2.32.0",
     "esm-module-alias": "2.2.1",
     "global-agent": "3.0.0",
-    "undici": "7.24.6"
+    "undici": "7.29.0"
   },
   "devDependencies": {
     "@axe-core/webdriverio": "4.12.1",
