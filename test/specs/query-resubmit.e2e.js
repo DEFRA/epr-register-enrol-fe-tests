@@ -167,7 +167,11 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       expect.stringContaining('/accreditation/query-task-list/')
     )
 
-    // AC01: only the queried section is listed, with the query note shown
+    // AC01: the query note is shown, and every section is now listed
+    // (RA-415) - the queried section remains a fully editable link.
+    // Completed/Submitted sections (RA-415 follow-up) are also clickable
+    // links rather than locked text - they open a read-only view of the
+    // already-answered section - instead of being hidden entirely.
     await expect(QueryTaskListPage.queryNote).toHaveText(
       expect.stringContaining(queryNote)
     )
@@ -175,14 +179,24 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await expect(
       QueryTaskListPage.taskLink('task-business-plan')
     ).toBeDisplayed()
-    await expect(await $('[data-testid="task-prns"]').isExisting()).toBe(false)
+    await expect(await $('[data-testid="task-prns"]').isExisting()).toBe(true)
+    await expect(QueryTaskListPage.taskLink('task-prns')).toBeDisplayed()
+    await expect(await $('[data-testid="task-prns-label"]').isExisting()).toBe(
+      false
+    )
     await expect(
       await $('[data-testid="task-sampling-plan"]').isExisting()
+    ).toBe(true)
+    await expect(
+      QueryTaskListPage.taskLink('task-sampling-plan')
+    ).toBeDisplayed()
+    await expect(
+      await $('[data-testid="task-sampling-plan-label"]').isExisting()
     ).toBe(false)
 
     // AC02: the backend gate rejects a non-queried section's PATCH server
-    // side — this is the real enforcement, the frontend redirect below is a
-    // UX affordance only (RA-311 plan §3)
+    // side — this is the real enforcement, the frontend read-only view below
+    // is a UX affordance only (RA-311 plan §3)
     const lockedPatch = await patchSection(
       organisationId,
       applicationId,
@@ -198,11 +212,20 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       expect.stringContaining('section is not editable')
     )
 
-    // AC02: direct navigation to a non-queried section redirects back to the
-    // query task list — no side door via a bookmarked/typed URL
+    // AC02: direct navigation to prns/tonnage — Completed, not the queried
+    // section — no longer redirects (RA-415 follow-up, matching the query
+    // task list's own task-prns-link above): it's already-answered data,
+    // safe to open read-only, so it renders in place with no way to edit
+    // rather than bouncing back to the query task list.
     await browser.url(`/accreditation/tonnage/${applicationId}`)
     await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/query-task-list/')
+      expect.stringContaining(`/accreditation/tonnage/${applicationId}`)
+    )
+    await expect(await $('[data-testid="read-only-notice"]').isExisting()).toBe(
+      true
+    )
+    await expect(await $('[data-testid="continue-button"]').isExisting()).toBe(
+      false
     )
 
     // The classic task list isn't reachable while Queried either
