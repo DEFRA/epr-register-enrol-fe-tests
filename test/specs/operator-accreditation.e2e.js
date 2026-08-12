@@ -387,26 +387,47 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
   })
 
-  // ── AC02: "Home" nav link ──────────────────────────────────────────────
+  // ── RA-408: "Home" nav link ──────────────────────────────────────────────
+  // Home no longer points at the fixed /operator testing page. Until an
+  // application has been visited it falls back to the bare
+  // /operator-accreditation/ path; once one has, it points at — and is
+  // marked current on — that application's landing status page, and links
+  // back to it from anywhere deeper in the journey.
 
-  it('Should mark Home as the current nav item on /operator and link back to it from an application page', async () => {
+  it('Should fall back to /operator-accreditation/ on /operator, then track the landing status page once an application is visited', async () => {
     await expect(OperatorPage.homeNavLink).toHaveText('Home')
-    await expect(OperatorPage.homeNavLink).toHaveAttribute(
+    await expect(OperatorPage.homeNavLink).not.toHaveAttribute(
       'aria-current',
       'page'
     )
 
     await OperatorPage.navigateToOperatorAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+
+    // Current on the landing status page itself...
     await expect(OperatorAccreditationPage.homeNavLink).toBeDisplayed()
-    await expect(OperatorAccreditationPage.homeNavLink).not.toHaveAttribute(
+    await expect(OperatorAccreditationPage.homeNavLink).toHaveAttribute(
       'aria-current',
       'page'
     )
 
-    // Exact match, not stringContaining: the page navigated from
-    // (/operator-accreditation/...) also contains "/operator" as a
-    // substring, so a broken/no-op link would still pass a substring check.
-    await OperatorAccreditationPage.homeNavLink.click()
-    await expect(browser).toHaveUrl(expect.stringMatching(/\/operator$/))
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // ...not current from a deeper accreditation page, and clicking it from
+    // there goes back to that same landing status page.
+    await expect(TaskListPage.homeNavLink).toBeDisplayed()
+    await expect(TaskListPage.homeNavLink).not.toHaveAttribute(
+      'aria-current',
+      'page'
+    )
+
+    await TaskListPage.homeNavLink.click()
+    await expect(browser).toHaveUrl(landingUrl)
+    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
+      'Reapply for accreditation'
+    )
   })
 })
