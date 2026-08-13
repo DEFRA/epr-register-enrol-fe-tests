@@ -32,8 +32,28 @@ describe('RA-436: S&I plan upload page vs the browser back button', () => {
 
   // Drives a fresh reaccreditation application only as far as the S&I plan
   // upload step - the rest of the wizard is irrelevant to this bug.
+  //
+  // Org 50003 (Delta Green Ltd, Plastic) is shared with status-push.e2e.js
+  // and owned at its fixed/default year by query-resubmit.e2e.js, which
+  // drives that year's application to Submitted within the same CI run.
+  // Reusing the default year here would land on that already-submitted
+  // application, whose Continue link no longer leads to the task list. A
+  // fresh, run-unique year makes the landing controller's seed-on-miss path
+  // create a brand new disposable draft instead (same reasoning as
+  // status-push.e2e.js and withdraw-application.e2e.js).
   async function reachSamplingPlanUpload() {
     await OperatorPage.navigateToReaccreditationPlastic()
+    const landing = await browser.getUrl()
+    const [, organisationId, registrationId, materialType] = new URL(
+      landing
+    ).pathname
+      .split('/')
+      .filter(Boolean)
+    const year = String(3000 + (Date.now() % 1000))
+    await browser.url(
+      `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
+    )
+
     await OperatorAccreditationPage.clickContinue()
     await browser.waitUntil(
       async () =>
