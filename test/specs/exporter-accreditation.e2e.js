@@ -28,10 +28,26 @@ import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-l
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import { getApplication, getOverseasSites } from '../helpers/case-management.js'
+import { getOrganisationById } from '../helpers/organisations.js'
 import {
   expectedMaterialDisplay,
   expectedSiteName
 } from '../helpers/applicationHeader.js'
+
+// RA-424: the four PRN tonnage bands, in display order, as they must now read.
+const EXPECTED_TONNAGE_LABELS = [
+  'Up to 500 tonnes',
+  'Up to 5,000 tonnes',
+  'Up to 10,000 tonnes',
+  'More than 10,000 tonnes'
+]
+
+async function assertTonnageBandLabels() {
+  const labels = await PrnTonnagePage.radioLabels
+  await labels[0].waitForDisplayed()
+  const labelText = await Promise.all(labels.map((label) => label.getText()))
+  expect(labelText).toEqual(EXPECTED_TONNAGE_LABELS)
+}
 
 describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
   beforeEach(async () => {
@@ -67,12 +83,14 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/task-list/')
     )
 
-    // RA-309 AC03: persistent header on an exporter journey — site name
-    // must show the "Exporter" label rather than a physical site address
+    // RA-309 AC03 / RA-424: persistent header on an exporter journey — site
+    // name must show the operator's UK registered address, not the overseas
+    // reprocessing site address (and not the literal word "Exporter")
     const applicationId = (await browser.getUrl())
       .split('/accreditation/task-list/')[1]
       .split('?')[0]
     const application = await getApplication(organisationId, applicationId)
+    const organisation = await getOrganisationById(organisationId)
     await expect(TaskListPage.applicationHeader).toBeDisplayed()
     await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
       application.organisationName
@@ -81,7 +99,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expectedMaterialDisplay(application)
     )
     await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
-      expectedSiteName(application)
+      expectedSiteName(application, organisation?.registeredAddress)
     )
     expect(application.isExporter).toBe(true)
 
@@ -102,6 +120,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       await expect(browser).toHaveUrl(
         expect.stringContaining('/accreditation/tonnage')
       )
+      await assertTonnageBandLabels()
       await PrnTonnagePage.selectRandomOption()
       await PrnTonnagePage.saveAndContinue()
 
@@ -234,12 +253,14 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/task-list/')
     )
 
-    // RA-309 AC03: persistent header on an exporter journey — site name
-    // must show the "Exporter" label rather than a physical site address
+    // RA-309 AC03 / RA-424: persistent header on an exporter journey — site
+    // name must show the operator's UK registered address, not the overseas
+    // reprocessing site address (and not the literal word "Exporter")
     const applicationId = (await browser.getUrl())
       .split('/accreditation/task-list/')[1]
       .split('?')[0]
     const application = await getApplication(organisationId, applicationId)
+    const organisation = await getOrganisationById(organisationId)
     await expect(TaskListPage.applicationHeader).toBeDisplayed()
     await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
       application.organisationName
@@ -248,7 +269,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expectedMaterialDisplay(application)
     )
     await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
-      expectedSiteName(application)
+      expectedSiteName(application, organisation?.registeredAddress)
     )
     expect(application.isExporter).toBe(true)
 
@@ -267,6 +288,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       await expect(browser).toHaveUrl(
         expect.stringContaining('/accreditation/tonnage')
       )
+      await assertTonnageBandLabels()
       await PrnTonnagePage.selectRandomOption()
       await PrnTonnagePage.saveAndContinue()
 
