@@ -44,7 +44,9 @@ const EXPECTED_TONNAGE_LABELS = [
 async function assertTonnageBandLabels() {
   const labels = await PrnTonnagePage.radioLabels
   await labels[0].waitForDisplayed()
-  const labelText = await Promise.all(labels.map((label) => label.getText()))
+  const labelText = await Promise.all(
+    [...labels].map((label) => label.getText())
+  )
   expect(labelText).toEqual(EXPECTED_TONNAGE_LABELS)
 }
 
