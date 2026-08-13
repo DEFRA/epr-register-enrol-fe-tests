@@ -121,19 +121,15 @@ describe('RA-436: S&I plan upload page vs the browser back button', () => {
       }
     )
 
-    // RA-436: a back-forward-cache restore used to leave the previously
-    // chosen file sitting in the input, so clicking "Upload file" here with
-    // no further action silently resubmitted it as a second row for the
-    // same file. The fix clears the input whenever the page is restored
-    // from bfcache.
-    const fileInputValue = await browser.execute(() => {
-      // eslint-disable-next-line no-undef
-      return document.querySelector('[data-testid="file-input"]').value
-    })
-    expect(fileInputValue).toBe('')
-
-    // Clicking upload with nothing (re-)selected must be rejected, not
-    // silently resubmit the previous file.
+    // RA-436: browsers can silently reassert a previously chosen file into
+    // the input across this kind of navigation (bfcache restore, or a
+    // separate session-history form-state restore Cache-Control: no-store
+    // doesn't prevent), so clicking "Upload file" here with no further
+    // action used to silently resubmit it as a second row for the same
+    // file. The fix gates submission on a fresh 'change' event having fired
+    // since the page was last shown, regardless of what the input's value
+    // claims — so clicking upload with nothing (re-)selected must be
+    // rejected, not silently resubmit the previous file.
     await SamplingPlanPage.uploadFileButton.click()
     await expect($('[data-testid="file-error"]')).toBeDisplayed()
 
