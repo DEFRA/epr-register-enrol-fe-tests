@@ -23,8 +23,8 @@ class PrnTonnagePage extends Page {
 
   async selectRandomOption() {
     const labels = await this.radioLabels
-    await labels[0].waitForDisplayed()
     const randomIndex = Math.floor(Math.random() * labels.length)
+    await labels[randomIndex].waitForDisplayed()
     await labels[randomIndex].scrollIntoView()
     await labels[randomIndex].click()
     return labels[randomIndex].getText()
