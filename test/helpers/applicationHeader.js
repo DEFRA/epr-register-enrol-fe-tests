@@ -20,10 +20,12 @@ export function expectedMaterialDisplay(application) {
 
 // RA-424: exporters show their UK registered address in place of the
 // overseas/reprocessing site address, which the backend never populates for
-// them — not the literal string "Exporter". The registered address lives on
-// the organisation record (see getOrganisationById), not the application.
-export function expectedSiteName(application, registeredAddress) {
+// them — not the literal string "Exporter". The backend already formats and
+// returns it as application.companyRegisteredAddress (see
+// AccreditationApplicationModel.CompanyRegisteredAddress), so no separate
+// organisation lookup is needed.
+export function expectedSiteName(application) {
   return application.isExporter
-    ? (registeredAddress ?? 'Not set')
+    ? (application.companyRegisteredAddress ?? 'Not set')
     : (application.siteAddress ?? 'Not set')
 }

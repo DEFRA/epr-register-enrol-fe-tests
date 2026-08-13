@@ -28,7 +28,6 @@ import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-l
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import { getApplication, getOverseasSites } from '../helpers/case-management.js'
-import { getOrganisationById } from '../helpers/organisations.js'
 import {
   expectedMaterialDisplay,
   expectedSiteName
@@ -90,7 +89,6 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       .split('/accreditation/task-list/')[1]
       .split('?')[0]
     const application = await getApplication(organisationId, applicationId)
-    const organisation = await getOrganisationById(organisationId)
     await expect(TaskListPage.applicationHeader).toBeDisplayed()
     await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
       application.organisationName
@@ -99,7 +97,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expectedMaterialDisplay(application)
     )
     await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
-      expectedSiteName(application, organisation?.registeredAddress)
+      expectedSiteName(application)
     )
     expect(application.isExporter).toBe(true)
 
@@ -260,7 +258,6 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       .split('/accreditation/task-list/')[1]
       .split('?')[0]
     const application = await getApplication(organisationId, applicationId)
-    const organisation = await getOrganisationById(organisationId)
     await expect(TaskListPage.applicationHeader).toBeDisplayed()
     await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
       application.organisationName
@@ -269,7 +266,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expectedMaterialDisplay(application)
     )
     await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
-      expectedSiteName(application, organisation?.registeredAddress)
+      expectedSiteName(application)
     )
     expect(application.isExporter).toBe(true)
 
