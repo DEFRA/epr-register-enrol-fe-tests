@@ -148,6 +148,42 @@ services:
       - cdp-tenant
 
   ################################################################################
+  # RA-439: a second, otherwise-identical frontend instance with the
+  # regulator-query banner's kill switch flipped on. The primary frontend
+  # above is shared by every other spec in this suite (run across parallel
+  # workers), so it can't be restarted mid-run just to flip one env var -
+  # this container exists purely so the banner-hidden e2e case has somewhere
+  # to point at. See test/config.js (regulatorQueryDisabledFrontendUrl).
+  epr-register-enrol-frontend-query-disabled:
+    image: defradigital/epr-register-enrol-frontend:${EPR_REGISTER_ENROL_FRONTEND:-latest}
+    env_file:
+      - ./docker/config/defaults.env
+      - ./docker/config/operator-fe.env
+    environment:
+      - PORT=3000
+      - REGULATOR_QUERY_TEXT_DISABLED=true
+    depends_on:
+      epr-register-enrol-backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      floci:
+        condition: service_healthy
+    links:
+      - 'floci:floci'
+      - 'redis:redis'
+      - 'epr-register-enrol-backend:epr-register-enrol-backend'
+    ports:
+      - 3001:3000
+    healthcheck:
+      test: ['CMD', 'curl', 'http://localhost:3000/health']
+      interval: 3s
+      start_period: 2s
+      retries: 3
+    networks:
+      - cdp-tenant
+
+  ################################################################################
   epr-register-enrol-backend:
     image: defradigital/epr-register-enrol-backend:${EPR_REGISTER_ENROL_BACKEND:-latest}
     platform: linux/amd64
