@@ -387,6 +387,23 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
   })
 
+  // ── RA-431 regression ────────────────────────────────────────────────────
+  // The "Return to Re/Ex service" link was hardcoded to /operator regardless
+  // of AUTH_STUB_ENABLED, so a real operator on an integrated env was sent
+  // back to this frontend's own stub chooser instead of the Re/Ex frontend.
+  // This suite always runs with stub auth enabled, so it only proves the
+  // stub-mode branch (AC2) still resolves to /operator; the non-stub branch
+  // (AC1, the real Re/Ex frontend URL) is covered by the frontend's own unit
+  // tests in operator-accreditation/controller.test.js, since this env has
+  // no real Re/Ex frontend to navigate to.
+
+  it('Should return to the /operator stub chooser via the Re/Ex back link when stub auth is enabled', async () => {
+    await OperatorPage.navigateToOperatorAccreditationPlastic()
+
+    await OperatorAccreditationPage.backLink.click()
+    await expect(browser).toHaveUrl(expect.stringMatching(/\/operator\/?$/))
+  })
+
   // ── RA-408: "Home" nav link ──────────────────────────────────────────────
   // Home no longer points at the fixed /operator testing page. Until an
   // application has been visited it falls back to the bare

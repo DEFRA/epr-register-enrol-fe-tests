@@ -6,6 +6,14 @@ class OperatorAccreditationPage extends Page {
     return $('h1')
   }
 
+  // RA-431: the "Return to Re/Ex service" link. In stub auth (this suite's
+  // env), it stays pointed at the local /operator chooser; a real ReEx
+  // frontend URL only applies when AUTH_STUB_ENABLED is false, which this
+  // e2e stack never runs with.
+  get backLink() {
+    return $('[data-testid="back-link"]')
+  }
+
   // RA-357: "Start new accreditation application" creates an application, so
   // it is a crumb-carrying POST form rather than an anchor. The submit button
   // keeps the start-new-link testid, so callers that only care about the
