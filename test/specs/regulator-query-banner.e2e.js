@@ -15,6 +15,25 @@ import QueryTaskListPage from 'page-objects/query-task-list.page'
 import { raiseQuery } from '../helpers/case-management.js'
 import { regulatorQueryDisabledFrontendUrl } from '../config.js'
 
+// Reachability is checked directly against the container's own healthcheck
+// endpoint (see compose.yml), not by swallowing errors from the actual
+// login/navigation flow - that would let a genuine infra hiccup in this
+// suite's own sandbox skip the test instead of failing it.
+async function isRegulatorQueryDisabledFrontendReachable() {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    const response = await fetch(
+      `${regulatorQueryDisabledFrontendUrl}/health`,
+      { signal: controller.signal }
+    )
+    clearTimeout(timeout)
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-query banner', () => {
   let organisationId
   let registrationId
@@ -120,23 +139,19 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
   // sandbox, so this test skips itself rather than failing when it isn't
   // reachable - e.g. when running against a real CDP environment, where the
   // deployed frontend's flag value is controlled by that environment's own
-  // config, not by this suite.
+  // config, not by this suite. Beyond that reachability check, nothing else
+  // is caught here - a failure past this point is a real test failure.
   it('hides the regulator query banner when REGULATOR_QUERY_TEXT_DISABLED is true', async function () {
     await reachQueriedApplication()
 
-    // A DNS/connection failure here doesn't necessarily throw - WebDriver's
-    // navigate command can succeed at the protocol level even when Chrome
-    // lands on its own "can't be reached" page - so reachability is proven
-    // by the login form actually turning up, not by the navigate call
-    // itself not throwing.
-    try {
-      await browser.url(
-        `${regulatorQueryDisabledFrontendUrl}/auth/stub/login?type=operator`
-      )
-      await $('input[type="radio"]').waitForExist({ timeout: 8000 })
-    } catch {
+    if (!(await isRegulatorQueryDisabledFrontendReachable())) {
       return this.skip()
     }
+
+    await browser.url(
+      `${regulatorQueryDisabledFrontendUrl}/auth/stub/login?type=operator`
+    )
+    await $('input[type="radio"]').waitForExist({ timeout: 8000 })
 
     await browser.execute(() => {
       // eslint-disable-next-line no-undef
