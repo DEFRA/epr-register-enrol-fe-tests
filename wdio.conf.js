@@ -18,12 +18,6 @@ export const config = {
 
   // OJ operator-journey backend (accreditation API)
   apiBaseUrl: `https://epr-register-enrol-backend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
-
-  // Case-management management frontend; overridable via CASE_MANAGEMENT_URL.
-  // Defaults to localhost:5001 when running against local Docker (test/config.js).
-  caseManagementUrl:
-    process.env.CASE_MANAGEMENT_URL ||
-    `https://epr-register-enrol-management-fe.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
   // Connection to remote chromedriver
   hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
   port: process.env.CHROMEDRIVER_PORT || 4444,

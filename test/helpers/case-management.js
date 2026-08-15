@@ -1,5 +1,5 @@
 import { request } from 'undici'
-import { backendUrl, caseManagementUrl } from '../config.js'
+import { backendUrl } from '../config.js'
 
 function apiUrl(path) {
   return `${backendUrl}/api/v1/accreditation-applications${path}`
@@ -72,7 +72,7 @@ export async function waitForCaseManagementWorkItemId(
     },
     {
       timeout,
-      timeoutMsg: `Timed out waiting for CM (${caseManagementUrl}) to assign a work item ID`
+      timeoutMsg: 'Timed out waiting for CM to assign a work item ID'
     }
   )
 }
