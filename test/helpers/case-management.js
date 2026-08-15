@@ -57,6 +57,26 @@ export async function getOverseasSites(organisationId, applicationId) {
   return application.overseasSites?.sites ?? []
 }
 
+// Polls until the OJ backend has written the CM work item ID back to the
+// application record. CM assigns the ID asynchronously after submission, so
+// tests that need it must wait rather than reading immediately after submit.
+export async function waitForCaseManagementWorkItemId(
+  organisationId,
+  applicationId,
+  { timeout = 30000 } = {}
+) {
+  await browser.waitUntil(
+    async () => {
+      const app = await getApplication(organisationId, applicationId)
+      return !!app.caseManagementWorkItemId
+    },
+    {
+      timeout,
+      timeoutMsg: 'Timed out waiting for CM to assign a work item ID'
+    }
+  )
+}
+
 // Simulates case-management-backend raising a query against an application,
 // bypassing the management-fe UI (out of scope for this repo, see RA-311).
 export async function raiseQuery(

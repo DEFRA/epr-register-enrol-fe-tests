@@ -15,6 +15,7 @@ import QueryTaskListPage from 'page-objects/query-task-list.page'
 import QueryDeclarationPage from 'page-objects/query-declaration.page'
 import {
   getApplication,
+  waitForCaseManagementWorkItemId,
   raiseQuery,
   patchSection
 } from '../helpers/case-management.js'
@@ -148,18 +149,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await TaskListPage.continueToSubmit()
     await SubmitApplicationPage.submitApplication()
 
-    // CM assigns the work item ID asynchronously after submission — poll
-    // until it appears before the test begins using it.
-    await browser.waitUntil(
-      async () => {
-        const app = await getApplication(organisationId, applicationId)
-        return !!app.caseManagementWorkItemId
-      },
-      {
-        timeout: 30000,
-        timeoutMsg: 'Timed out waiting for CM to assign a work item ID'
-      }
-    )
+    await waitForCaseManagementWorkItemId(organisationId, applicationId)
   }
 
   it('lets an operator respond to a regulator query and resubmit the application', async () => {
