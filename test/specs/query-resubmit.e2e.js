@@ -94,7 +94,25 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
 
     const application = await getApplication(organisationId, applicationId)
     if (application.applicationStatus === 'Submitted') {
-      return
+      if (application.caseManagementWorkItemId) {
+        return
+      }
+      // Stub data seeds this application as Submitted without going through
+      // the real CM integration flow, so caseManagementWorkItemId is null.
+      // Navigate to a fresh run-unique year to get a real submission.
+      year = String(3000 + (Date.now() % 1000))
+      await browser.url(
+        `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
+      )
+      await OperatorAccreditationPage.clickContinue()
+      await browser.waitUntil(
+        async () =>
+          (await browser.getUrl()).includes('/accreditation/task-list/'),
+        { timeout: 10000, timeoutMsg: 'Did not reach task list for fresh year' }
+      )
+      applicationId = (await browser.getUrl())
+        .split('/accreditation/task-list/')[1]
+        .split('?')[0]
     }
 
     if (await TaskListPage.PRNTonnageLink.isExisting()) {
@@ -129,6 +147,19 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await TaskListPage.assertAllTasksCompleted()
     await TaskListPage.continueToSubmit()
     await SubmitApplicationPage.submitApplication()
+
+    // CM assigns the work item ID asynchronously after submission — poll
+    // until it appears before the test begins using it.
+    await browser.waitUntil(
+      async () => {
+        const app = await getApplication(organisationId, applicationId)
+        return !!app.caseManagementWorkItemId
+      },
+      {
+        timeout: 30000,
+        timeoutMsg: 'Timed out waiting for CM to assign a work item ID'
+      }
+    )
   }
 
   it('lets an operator respond to a regulator query and resubmit the application', async () => {

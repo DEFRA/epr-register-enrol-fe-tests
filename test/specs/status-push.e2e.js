@@ -12,6 +12,7 @@ import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answe
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import {
+  getApplication,
   pushStatusChanged,
   withdrawApplication,
   patchSection
@@ -103,6 +104,19 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await TaskListPage.assertAllTasksCompleted()
     await TaskListPage.continueToSubmit()
     await SubmitApplicationPage.submitApplication()
+
+    // CM assigns the work item ID asynchronously after submission — poll
+    // until it appears before the test begins using it.
+    await browser.waitUntil(
+      async () => {
+        const app = await getApplication(organisationId, applicationId)
+        return !!app.caseManagementWorkItemId
+      },
+      {
+        timeout: 30000,
+        timeoutMsg: 'Timed out waiting for CM to assign a work item ID'
+      }
+    )
 
     return applicationId
   }

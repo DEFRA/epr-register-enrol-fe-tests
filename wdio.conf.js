@@ -16,7 +16,13 @@ export const config = {
   // gets prepended directly.
   baseUrl: `https://${process.env.TEST_USERNAME}:${process.env.TEST_PASSWORD}@epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
 
+  // OJ operator-journey backend (accreditation API)
   apiBaseUrl: `https://epr-register-enrol-backend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
+
+  // Case-management management frontend — used by CM integration helpers
+  caseManagementUrl:
+    process.env.CASE_MANAGEMENT_URL ||
+    `https://epr-register-enrol-management-fe.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
   // Connection to remote chromedriver
   hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
   port: process.env.CHROMEDRIVER_PORT || 4444,
@@ -96,7 +102,7 @@ export const config = {
   // See the full list at http://mochajs.org/
   mochaOpts: {
     ui: 'bdd',
-    timeout: oneMinute
+    timeout: 10 * oneMinute
   },
   //
   // =====
