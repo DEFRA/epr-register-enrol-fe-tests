@@ -45,6 +45,20 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  // Org 50013 ("Interim Site Test Exports Ltd", Plastic) exists specifically
+  // for interim-site.e2e.js. It used to share org 50005 with
+  // exporter-accreditation.e2e.js — under wdio's parallel workers, both
+  // specs' first visit could race AccreditationApplicationEndpoints.Seed's
+  // read-then-create existence check (no transaction, no unique index) and
+  // each create a separate live application for the same
+  // org/registrationId/materialType/year, so a later visit could land on
+  // either one. Interim-site.e2e.js owning its own org removes that race.
+  async navigateToInterimSiteTestOrg() {
+    const link = $('a[href*="/operator-accreditation/50013/"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
   async navigateToReaccreditationPlastic() {
     const link = $('a[href*="/operator-accreditation/50003/"]')
     await link.waitForDisplayed()

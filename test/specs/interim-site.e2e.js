@@ -30,13 +30,19 @@ describe('RA-297: isNewSite flag on overseas sites', () => {
   })
 
   it('marks a pre-existing overseas site from a prior-year ReEx registry as isNewSite === false', async function () {
-    // The Plastic exporter fixture (org 50005) already has an overseas site
-    // present before any wizard has touched it in this run — the ORS/
-    // interim-site wizards under test elsewhere in this suite only ever add
-    // sites, they never remove the seeded one, so it remains a reliable
-    // stand-in for "a site carried forward from a prior-year ReEx
-    // registration" regardless of test execution order.
-    await OperatorPage.navigateToExporterAccreditationPlastic()
+    // Org 50013 is this spec's own dedicated fixture (RA-297 regression
+    // guard) — it used to share org 50005 with exporter-accreditation.e2e.js,
+    // relying on the ORS/interim-site wizards under test elsewhere in this
+    // suite only ever adding sites, never removing the seeded one. That
+    // assumption held for wizard behaviour, but not for the first-visit seed
+    // itself: under wdio's parallel workers, both specs' first request could
+    // race AccreditationApplicationEndpoints.Seed's read-then-create
+    // existence check and each create a separate live application for the
+    // same org/registrationId/materialType/year, so a later visit could land
+    // on whichever one Mongo's ObjectId tiebreak favoured — not necessarily
+    // the one either spec had actually progressed. See
+    // FakeOrganisationPersistence's org 50013 entry for the full writeup.
+    await OperatorPage.navigateToInterimSiteTestOrg()
     const landingUrl = await browser.getUrl()
     const [, organisationId] = new URL(landingUrl).pathname
       .split('/')
