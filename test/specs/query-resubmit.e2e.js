@@ -101,10 +101,8 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       // Stub data seeds this application as Submitted without going through
       // the real CM integration flow, so caseManagementWorkItemId is null.
       // Navigate to a fresh run-unique year to get a real submission.
-      year = String(3000 + (Date.now() % 1000))
-      await browser.url(
-        `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
-      )
+      year = String(4000 + (Date.now() % 1000))
+      await browser.url(landingUrl())
       await OperatorAccreditationPage.clickContinue()
       await browser.waitUntil(
         async () =>
