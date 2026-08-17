@@ -24,7 +24,7 @@ export const config = {
   specs: ['./test/specs/**/*.js'],
   // Tests to exclude
   exclude: [],
-  maxInstances: 1,
+  maxInstances: 3,
 
   capabilities: [
     {
