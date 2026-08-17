@@ -21,17 +21,20 @@ class OperatorPage extends Page {
     await link.click()
   }
 
-  // RA-374: isExporter is now derived from the application record, not a
-  // /exporter URL suffix, so these stub links are indistinguishable from
-  // reprocessor links by href alone — match on their link text instead.
+  // Pinned to org 50005's own href rather than link text: the earlier
+  // `a*=Exporter accreditation — Plastic` text match happened to resolve to
+  // 50005 only because it's first in index.njk's document order — org
+  // 50013 ("… (Interim site test)") and 50008 ("… (with overseas sites)")
+  // both also contain that substring, so a reorder of the list would have
+  // silently repointed this at the wrong org.
   async navigateToExporterAccreditationPlastic() {
-    const link = $('a*=Exporter accreditation — Plastic')
+    const link = $('a[href*="/operator-accreditation/50005/"]')
     await link.waitForDisplayed()
     await link.click()
   }
 
   async navigateToExporterAccreditationGlass() {
-    const link = $('a*=Exporter accreditation — Glass')
+    const link = $('a[href*="/operator-accreditation/50006/"]')
     await link.waitForDisplayed()
     await link.click()
   }
