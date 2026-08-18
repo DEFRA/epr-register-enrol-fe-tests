@@ -5,6 +5,10 @@ class SubmitApplicationPage extends Page {
     return $('h1')
   }
 
+  get eligiblePersonBullet() {
+    return $('[data-testid="declaration-bullet-0"]')
+  }
+
   get fullNameInput() {
     return $('[name="fullName"]')
   }
