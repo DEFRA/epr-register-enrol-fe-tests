@@ -202,6 +202,13 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/submit-declaration/')
     )
     await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
+    // RA-447: declaration wording moved from "an approved person or
+    // delegated person" to "a person with delegated authority"
+    await expect(SubmitApplicationPage.eligiblePersonBullet).toHaveText(
+      expect.stringContaining(
+        'you are a person with delegated authority who is eligible to submit this application'
+      )
+    )
     await SubmitApplicationPage.submitApplication()
 
     // Confirmation
@@ -367,6 +374,13 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/submit-declaration/')
     )
     await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
+    // RA-447: declaration wording moved from "an approved person or
+    // delegated person" to "a person with delegated authority"
+    await expect(SubmitApplicationPage.eligiblePersonBullet).toHaveText(
+      expect.stringContaining(
+        'you are a person with delegated authority who is eligible to submit this application'
+      )
+    )
     await SubmitApplicationPage.submitApplication()
 
     // Confirmation
