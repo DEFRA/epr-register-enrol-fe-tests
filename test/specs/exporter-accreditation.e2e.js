@@ -32,6 +32,7 @@ import {
   expectedMaterialDisplay,
   expectedSiteName
 } from '../helpers/applicationHeader.js'
+import { assertEligiblePersonWording } from '../helpers/declaration.js'
 
 // RA-424: the four PRN tonnage bands, in display order, as they must now read.
 const EXPECTED_TONNAGE_LABELS = [
@@ -202,6 +203,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/submit-declaration/')
     )
     await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
+    await assertEligiblePersonWording(SubmitApplicationPage)
     await SubmitApplicationPage.submitApplication()
 
     // Confirmation
@@ -367,6 +369,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/submit-declaration/')
     )
     await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
+    await assertEligiblePersonWording(SubmitApplicationPage)
     await SubmitApplicationPage.submitApplication()
 
     // Confirmation
