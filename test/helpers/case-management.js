@@ -1,13 +1,23 @@
 import { request } from 'undici'
-import { backendUrl } from '../config.js'
+import { backendUrl, frontendSharedSecret } from '../config.js'
 
 function apiUrl(path) {
   return `${backendUrl}/api/v1/accreditation-applications${path}`
 }
 
+// Every route in this file except raiseQuery/pushStatusChanged (below) sits behind
+// FrontendAuthenticationHandler — impersonate epr-register-enrol-frontend's own outbound
+// header. See config.js's frontendSharedSecret for why this is a no-op locally.
+function frontendAuthHeaders() {
+  return frontendSharedSecret
+    ? { authorization: `Bearer ${frontendSharedSecret}` }
+    : {}
+}
+
 export async function getApplication(organisationId, applicationId) {
   const { statusCode, body } = await request(
-    apiUrl(`/${organisationId}/${applicationId}`)
+    apiUrl(`/${organisationId}/${applicationId}`),
+    { headers: frontendAuthHeaders() }
   )
   if (statusCode !== 200) {
     throw new Error(
@@ -22,7 +32,9 @@ export async function getApplication(organisationId, applicationId) {
 // journey needs to prove what a year now holds rather than just what the
 // landing page chose to render.
 export async function listApplications(organisationId) {
-  const { statusCode, body } = await request(apiUrl(`/${organisationId}`))
+  const { statusCode, body } = await request(apiUrl(`/${organisationId}`), {
+    headers: frontendAuthHeaders()
+  })
   if (statusCode !== 200) {
     throw new Error(
       `Failed to list applications for organisation ${organisationId}: HTTP ${statusCode}`
@@ -59,6 +71,12 @@ export async function getOverseasSites(organisationId, applicationId) {
 
 // Simulates case-management-backend raising a query against an application,
 // bypassing the management-fe UI (out of scope for this repo, see RA-311).
+//
+// case-management/* routes sit behind CaseManagementAuthenticationHandler (HMAC
+// signature + timestamp + nonce, not the Bearer scheme frontendAuthHeaders() sends),
+// same as before FrontendAuthenticationHandler existed — this call has never carried
+// that signature and relies entirely on the backend's Development-mode bypass, same
+// as it always has. Out of scope here; flagging rather than silently leaving unnoted.
 export async function raiseQuery(
   organisationId,
   applicationId,
@@ -144,7 +162,7 @@ export async function withdrawApplication(
     apiUrl(`/${organisationId}/${applicationId}/withdraw`),
     {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...frontendAuthHeaders() },
       body: JSON.stringify({ reason })
     }
   )
@@ -164,7 +182,7 @@ export async function patchSection(
     apiUrl(`/${organisationId}/${applicationId}/${sectionPath}`),
     {
       method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...frontendAuthHeaders() },
       body: JSON.stringify(payload)
     }
   )
