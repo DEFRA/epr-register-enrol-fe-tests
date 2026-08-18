@@ -17,6 +17,7 @@ import {
   expectedMaterialDisplay,
   expectedSiteName
 } from '../helpers/applicationHeader.js'
+import { assertEligiblePersonWording } from '../helpers/declaration.js'
 
 describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
   beforeEach(async () => {
@@ -330,13 +331,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await TaskListPage.continueToSubmit()
 
     await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
-    // RA-447: declaration wording moved from "an approved person or
-    // delegated person" to "a person with delegated authority"
-    await expect(SubmitApplicationPage.eligiblePersonBullet).toHaveText(
-      expect.stringContaining(
-        'you are a person with delegated authority who is eligible to submit this application'
-      )
-    )
+    await assertEligiblePersonWording(SubmitApplicationPage)
     await SubmitApplicationPage.submitApplication()
 
     await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
