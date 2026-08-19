@@ -355,9 +355,12 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await expect(ApplicationSubmittedPage.bankCompanyName).toHaveText(
       'Environment Agency'
     )
+    // RA-426: the bank payment reference is a regulator-tailored format,
+    // no longer the application reference. This is an England Reprocessor
+    // journey (see the bank details asserted above), so PR/PK/REP/{orgId}.
     const paymentRef =
       await ApplicationSubmittedPage.bankPaymentReference.getText()
-    await expect(paymentRef).toBe(ref)
+    await expect(paymentRef).toBe(`PR/PK/REP/${organisationId}`)
   })
 
   // ── RA-374 regression ────────────────────────────────────────────────────
