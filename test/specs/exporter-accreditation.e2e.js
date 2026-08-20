@@ -739,7 +739,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/basel-convention-and-oecd-code')
     )
-    await AddOrsBaselCodesPage.enterCodes(['A1181', 'GC010', 'B3011'])
+    await AddOrsBaselCodesPage.enterCodes(['A1181', 'GC030', 'B3011'])
     await AddOrsBaselCodesPage.continue()
 
     await expect(browser).toHaveUrl(
@@ -759,7 +759,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('A1181')
     )
     await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
-      expect.stringContaining('GC010')
+      expect.stringContaining('GC030')
     )
     await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
       expect.stringContaining('B3011')
@@ -777,7 +777,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('B3011')
     )
     await expect(AddOrsCyaPage.baselCodesRow).not.toHaveText(
-      expect.stringContaining('GC010')
+      expect.stringContaining('GC030')
     )
 
     await AddOrsCyaPage.submit()
