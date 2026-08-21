@@ -175,6 +175,11 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await expect(
       await OperatorAccreditationPage.firstContinueLink.isExisting()
     ).toBe(false)
+    // RA-423: once CM is terminal there is no further SLA to count down to,
+    // so the due-date cell shows COMPLETED instead of a date/fallback.
+    await expect(OperatorAccreditationPage.applicationDueDate).toHaveText(
+      expect.stringContaining('COMPLETED')
+    )
 
     // RA-415: Approved is now a terminal status server-side too - the
     // ordinary write endpoints must reject an edit, not just the withdraw
@@ -208,12 +213,18 @@ describe('RA-368: Push CM status changes to OJ', () => {
       occurredAt: new Date().toISOString()
     })
     await browser.url(landingUrl(year))
+    // RA-423: OJ's own label for CM's rejected state must read REFUSED, not
+    // REJECTED - CM already displays this outcome as "Refused".
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
-      expect.stringContaining('REJECTED')
+      expect.stringContaining('REFUSED')
     )
     await expect(
       await OperatorAccreditationPage.firstContinueLink.isExisting()
     ).toBe(false)
+    // RA-423: terminal status shows COMPLETED for the due date too.
+    await expect(OperatorAccreditationPage.applicationDueDate).toHaveText(
+      expect.stringContaining('COMPLETED')
+    )
 
     // RA-415: Rejected is terminal too - same server-side guard as Approved.
     const rejectedPatch = await patchSection(
@@ -258,6 +269,11 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await browser.url(landingUrl(year))
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('WITHDRAWN')
+    )
+    // RA-423: Withdrawn is terminal too, reached here via the withdraw
+    // endpoint rather than a CM push - due date still shows COMPLETED.
+    await expect(OperatorAccreditationPage.applicationDueDate).toHaveText(
+      expect.stringContaining('COMPLETED')
     )
   })
 })
