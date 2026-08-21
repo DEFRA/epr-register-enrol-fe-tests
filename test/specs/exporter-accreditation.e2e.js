@@ -739,7 +739,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/basel-convention-and-oecd-code')
     )
-    await AddOrsBaselCodesPage.enterCodes(['A1181', 'GC010', 'B3011'])
+    await AddOrsBaselCodesPage.enterCodes(['A1181', 'GC030', 'B3011'])
     await AddOrsBaselCodesPage.continue()
 
     await expect(browser).toHaveUrl(
@@ -759,7 +759,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('A1181')
     )
     await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
-      expect.stringContaining('GC010')
+      expect.stringContaining('GC030')
     )
     await expect(AddOrsCyaPage.baselCodesRow).toHaveText(
       expect.stringContaining('B3011')
@@ -777,7 +777,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('B3011')
     )
     await expect(AddOrsCyaPage.baselCodesRow).not.toHaveText(
-      expect.stringContaining('GC010')
+      expect.stringContaining('GC030')
     )
 
     await AddOrsCyaPage.submit()
@@ -785,6 +785,188 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/select-overseas-sites')
     )
     await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+  })
+
+  // RA-377: Basel/OECD codes moved from free-text (validated only by shape)
+  // to a type-ahead sourced from a closed, approved list. The three cases
+  // below had no coverage before this change.
+  it('Should show a validation error and disable Continue for a non-matching Basel/OECD code (RA-377 AC05)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('Ungueltiger Code GmbH')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Fehlerstrasse 1',
+      townOrCity: 'Munich',
+      country: 'Germany',
+      coordinates: '48.1351, 11.5820'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Test Contact',
+      email: 'test@ungueltigercode.de',
+      phone: '+49 89 123456'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    // The code field is a type-ahead sourced from a fixed, approved list —
+    // a value with no matching suggestion is invalid, not just an
+    // unconventional shape (this closes the Y-code shape-regex bug the
+    // free-text field had). Continue's validity is recomputed on every
+    // keystroke, so it disables immediately without a submit round-trip.
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCode(1, 'ZZZZZ')
+    await expect(AddOrsBaselCodesPage.errorSummary).toBeDisplayed()
+    await expect(AddOrsBaselCodesPage.errorSummary).toHaveText(
+      expect.stringContaining('No matches found')
+    )
+    await expect(AddOrsBaselCodesPage.continueButton).toBeDisabled()
+  })
+
+  it('Should reject a Basel/OECD code duplicated across two rows (RA-377)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('Doublon de Code SARL')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Rue du Doublon 1',
+      townOrCity: 'Lille',
+      country: 'France',
+      coordinates: '50.6292, 3.0573'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Test Contact',
+      email: 'test@doublondecode.fr',
+      phone: '+33 3 12 34 56 78'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    // Entering the same approved code in two rows isn't a shape problem, so
+    // the type-ahead itself can't block it purely by typing (the dropdown
+    // only *excludes* already-picked codes from suggestions in other rows —
+    // it doesn't stop a value being confirmed directly). The duplicate is
+    // caught server-side on submit, same per-index error plumbing as every
+    // other validation failure in this wizard (full page reload, still on
+    // this step).
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes(['A1181', 'A1181'])
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await expect(AddOrsBaselCodesPage.errorSummary).toBeDisplayed()
+  })
+
+  it('Should reject leaving all Basel/OECD code rows blank (RA-377, code now required)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('Aucun Code SARL')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Rue Vide 1',
+      townOrCity: 'Nantes',
+      country: 'France',
+      coordinates: '47.2184, -1.5536'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Test Contact',
+      email: 'test@aucuncode.fr',
+      phone: '+33 2 12 34 56 78'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    // At least one code is now required client/server-side (previously
+    // nothing caught an all-blank submission until the backend rejected the
+    // mandatory Code1 later in the journey). Leave the single default row
+    // untouched and try to continue.
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await expect(AddOrsBaselCodesPage.errorSummary).toBeDisplayed()
   })
 
   it('Should remove a newly added overseas site from accreditation, deleting it entirely (Plastic)', async () => {
