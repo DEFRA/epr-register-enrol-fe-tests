@@ -12,6 +12,7 @@ import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answe
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import {
+  waitForCaseManagementWorkItemId,
   pushStatusChanged,
   withdrawApplication,
   patchSection
@@ -103,6 +104,8 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await TaskListPage.assertAllTasksCompleted()
     await TaskListPage.continueToSubmit()
     await SubmitApplicationPage.submitApplication()
+
+    await waitForCaseManagementWorkItemId(organisationId, applicationId)
 
     return applicationId
   }

@@ -16,6 +16,7 @@ export const config = {
   // gets prepended directly.
   baseUrl: `https://${process.env.TEST_USERNAME}:${process.env.TEST_PASSWORD}@epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
 
+  // OJ operator-journey backend (accreditation API)
   apiBaseUrl: `https://epr-register-enrol-backend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
   // Connection to remote chromedriver
   hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
