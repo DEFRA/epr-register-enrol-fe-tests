@@ -86,6 +86,10 @@ class OperatorAccreditationPage extends Page {
     return $('[data-testid="application-status"]')
   }
 
+  get applicationDueDate() {
+    return $('[data-testid="application-due-date"]')
+  }
+
   // The accreditation year the rendered application belongs to — the direct
   // on-page check that a restart stays in the same year rather than jumping to
   // the next one.
