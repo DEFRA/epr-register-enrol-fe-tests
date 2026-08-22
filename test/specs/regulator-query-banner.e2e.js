@@ -102,7 +102,7 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
         (await browser.getUrl()).includes('/accreditation/business-plan'),
       { timeout: 10000 }
     )
-    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
     await BusinessPlanDetailPage.fillDescriptions()
     await BusinessPlanDetailPage.saveAndContinue()

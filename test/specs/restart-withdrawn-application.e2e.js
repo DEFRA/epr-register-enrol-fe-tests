@@ -118,7 +118,7 @@ describe('RA-357: Start a new application after withdrawing one', () => {
         (await browser.getUrl()).includes('/accreditation/business-plan'),
       { timeout: 10000, timeoutMsg: 'Did not reach business plan page' }
     )
-    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
