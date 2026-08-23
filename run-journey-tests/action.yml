@@ -38,8 +38,10 @@ runs:
       if: inputs.journey-test-pr != 'false' || inputs.epr-register-enrol-fe == ''
       id: operator-fe-branch
       shell: bash
+      env:
+        HEAD_REF: ${{ github.head_ref }}
       run: |
-        BRANCH="${{ github.head_ref }}"
+        BRANCH="$HEAD_REF"
         if git ls-remote --heads https://github.com/DEFRA/epr-register-enrol-frontend.git "$BRANCH" | grep -q .; then
           echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
         else
@@ -70,8 +72,10 @@ runs:
       if: inputs.journey-test-pr != 'false' || inputs.epr-register-enrol-be == ''
       id: operator-be-branch
       shell: bash
+      env:
+        HEAD_REF: ${{ github.head_ref }}
       run: |
-        BRANCH="${{ github.head_ref }}"
+        BRANCH="$HEAD_REF"
         if git ls-remote --heads https://github.com/DEFRA/epr-register-enrol-backend.git "$BRANCH" | grep -q .; then
           echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
         else
@@ -101,10 +105,17 @@ runs:
       with:
         node-version-file: .nvmrc
         cache: npm
-    - run: npm install -g npm@11.12.1
+    - run: npm install -g npm@11.12.1 --ignore-scripts
       shell: bash
     - name: Install test dependencies
-      run: npm ci
+      # --ignore-scripts blocks dependency lifecycle scripts (supply-chain
+      # hardening), matching the `npm ci --ignore-scripts` already used by
+      # check-pull-request.yml. Safe here: the install scripts in this tree
+      # are the browser-driver downloaders (chromedriver/edgedriver/
+      # geckodriver), unused because the suite drives the compose stack's
+      # selenium-chrome container via CHROMEDRIVER_URL, and esbuild's, whose
+      # binary ships in the @esbuild/<platform> package npm ci installs.
+      run: npm ci --ignore-scripts
       shell: bash
 
     - name: Start docker compose
