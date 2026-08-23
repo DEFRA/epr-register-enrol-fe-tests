@@ -83,7 +83,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   it('Should show error when percentages are left blank and do not sum to 100', async () => {
     await goToBusinessPlanForm()
-    await BusinessPlanPage.fillPercentages([10, 10, 10, 10, 10, 10])
+    await BusinessPlanPage.fillPercentages([10, 10, 10, 10, 10, 10, 10])
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanPage.pageHeading).toHaveText('Business plan')
@@ -98,7 +98,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   it('Should show error when a non-numeric percentage value is entered', async () => {
     await goToBusinessPlanForm()
-    await BusinessPlanPage.fillPercentages(['abc', 0, 0, 0, 0, 0])
+    await BusinessPlanPage.fillPercentages(['abc', 0, 0, 0, 0, 0, 0])
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanPage.errorSummary).toBeDisplayed()
@@ -114,7 +114,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   it('Should show error when a percentage value is out of range', async () => {
     await goToBusinessPlanForm()
-    await BusinessPlanPage.fillPercentages([150, 0, 0, 0, 0, 0])
+    await BusinessPlanPage.fillPercentages([150, 0, 0, 0, 0, 0, 0])
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanPage.errorSummary).toBeDisplayed()
@@ -130,7 +130,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   it('Should show error when percentages are valid but do not sum to 100', async () => {
     await goToBusinessPlanForm()
-    await BusinessPlanPage.fillPercentages([10, 10, 10, 10, 10, 10])
+    await BusinessPlanPage.fillPercentages([10, 10, 10, 10, 10, 10, 10])
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanPage.errorSummary).toBeDisplayed()
@@ -146,7 +146,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   it('Should show error on detail page when descriptions are missing for filled percentages', async () => {
     await goToBusinessPlanForm()
-    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
     // Stub may go straight to CYA if percentages were already saved — Back navigates to detail
@@ -177,7 +177,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   it('Should show error on detail page when a description exceeds 500 characters', async () => {
     await goToBusinessPlanForm()
-    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
     // Stub may go straight to CYA if percentages were already saved — Back navigates to detail
@@ -285,7 +285,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     if (bpHeading === 'Check your answers before continuing') {
       await $('[data-testid="change-percent-newInfrastructurePercent"]').click()
     }
-    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
     // Stub may go straight to CYA if percentages were already saved — Back navigates to detail
