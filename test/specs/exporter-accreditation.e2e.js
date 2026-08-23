@@ -147,7 +147,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/business-plan')
     )
-    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
     // More detail — required when percentages are filled
@@ -314,7 +314,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/business-plan')
     )
-    await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
 
     await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
