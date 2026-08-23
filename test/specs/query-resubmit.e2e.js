@@ -113,7 +113,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
           (await browser.getUrl()).includes('/accreditation/business-plan'),
         { timeout: 10000 }
       )
-      await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+      await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
       await BusinessPlanPage.saveAndContinue()
       await BusinessPlanDetailPage.fillDescriptions()
       await BusinessPlanDetailPage.saveAndContinue()
@@ -241,7 +241,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       expect.stringContaining('/accreditation/business-plan/')
     )
     await assertApplicationHeader(BusinessPlanPage, submittedApplication)
-    await BusinessPlanPage.fillPercentages([25, 25, 20, 10, 10, 10])
+    await BusinessPlanPage.fillPercentages([25, 25, 20, 10, 10, 5, 5])
     await BusinessPlanPage.saveAndContinue()
 
     let heading = await $('h1').getText()

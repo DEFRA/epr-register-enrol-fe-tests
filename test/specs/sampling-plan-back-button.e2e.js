@@ -77,7 +77,7 @@ describe('RA-436: S&I plan upload page vs the browser back button', () => {
           (await browser.getUrl()).includes('/accreditation/business-plan'),
         { timeout: 10000 }
       )
-      await BusinessPlanPage.fillPercentages([20, 20, 20, 15, 15, 10])
+      await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
       await BusinessPlanPage.saveAndContinue()
       // Stub may go straight to CYA if percentages were already saved
       if (
