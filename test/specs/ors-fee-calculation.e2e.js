@@ -6,6 +6,10 @@ import TaskListPage from 'page-objects/tasklist.page'
 import PrnTonnagePage from 'page-objects/prn-tonnage.page'
 import PrnAuthorityPage from 'page-objects/prn-authority.page'
 import PrnCheckAnswersPage from 'page-objects/prn-check-answers.page'
+import BusinessPlanPage from 'page-objects/business-plan.page'
+import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
+import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
+import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
 import AddOrsSiteNamePage from 'page-objects/add-ors-site-name.page'
 import AddOrsSiteLocationPage from 'page-objects/add-ors-site-location.page'
@@ -93,6 +97,39 @@ describe('RA-477: ORS fee counting with an interim site attached', () => {
       )
       await PrnCheckAnswersPage.confirmAndContinue()
     }
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // Overseas sites is locked on the task list until business plan and
+    // sampling plan are both complete (task-list/controller.js:
+    // osLocked = !spComplete) — tonnage alone isn't enough to reach it,
+    // even though it's all buildPaymentDetails itself needs.
+    await TaskListPage.businessPlanLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/business-plan')
+    )
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "Add more details about how you'll spend the PERN income"
+    )
+    await BusinessPlanDetailPage.fillDescriptions()
+    await BusinessPlanDetailPage.saveAndContinue()
+
+    await BusinessPlanCheckAnswersPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.SIPlanLink.click()
+    await expect(SamplingPlanPage.pageHeading).toHaveText(
+      'Upload sampling and inspection plan - part 2 - Plastic'
+    )
+    await SamplingPlanPage.uploadFile('business-plan.pdf')
+    await SamplingPlanPage.saveAndContinue()
 
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
