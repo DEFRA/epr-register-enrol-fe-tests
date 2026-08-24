@@ -35,9 +35,15 @@ class AddInterimSiteSiteContactPage extends Page {
 
   async enterContactDetails({ name, email, phone }) {
     await this.contactNameInput.waitForDisplayed()
-    if (name) await this.contactNameInput.setValue(name)
-    if (email) await this.contactEmailInput.setValue(email)
-    if (phone) await this.contactPhoneInput.setValue(phone)
+    if (name) {
+      await this.contactNameInput.setValue(name)
+    }
+    if (email) {
+      await this.contactEmailInput.setValue(email)
+    }
+    if (phone) {
+      await this.contactPhoneInput.setValue(phone)
+    }
   }
 
   async continue() {
