@@ -5,10 +5,6 @@ class OperatorPage extends Page {
     return super.open('/operator')
   }
 
-  async navigateToOperatorRegistration() {
-    await $('a[href="/operator-registration"]').click()
-  }
-
   async navigateToOperatorAccreditationPlastic() {
     const link = $('a[href*="Plastic"]')
     await link.waitForDisplayed()
@@ -74,10 +70,6 @@ class OperatorPage extends Page {
 
   async navigateToOperatorAccreditation() {
     await $('a[href="/operator-accreditation"]').click()
-  }
-
-  async navigateToOperatorDetails() {
-    await $('a[href="/operator-details"]').click()
   }
 }
 
