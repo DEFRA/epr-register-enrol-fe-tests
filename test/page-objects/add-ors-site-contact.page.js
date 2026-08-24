@@ -37,7 +37,9 @@ class AddOrsSiteContactPage extends Page {
     await this.contactNameInput.waitForDisplayed()
     await this.contactNameInput.setValue(name)
     await this.contactEmailInput.setValue(email)
-    if (phone) await this.contactPhoneInput.setValue(phone)
+    if (phone) {
+      await this.contactPhoneInput.setValue(phone)
+    }
   }
 
   async continue() {
