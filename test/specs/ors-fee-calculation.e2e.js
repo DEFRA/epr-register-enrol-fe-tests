@@ -46,7 +46,11 @@ describe('RA-477: ORS fee counting with an interim site attached', () => {
   })
 
   it('charges for 2 Overseas Sites, not 3, when 2 ORS are added and 1 has a linked interim site', async () => {
-    await OperatorPage.navigateToExporterAccreditationPlastic()
+    // Uses its own dedicated org (50014) rather than the shared org 50005 —
+    // see navigateToOrsFeeTestOrg's comment for why: this spec adds ORS/
+    // interim sites and asserts an exact count, the exact shape of
+    // assertion the org-50005 Seed race corrupts under concurrent workers.
+    await OperatorPage.navigateToOrsFeeTestOrg()
     const landingUrl = await browser.getUrl()
     const [, organisationId] = new URL(landingUrl).pathname
       .split('/')

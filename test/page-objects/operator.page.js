@@ -58,6 +58,17 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  // Org 50014 ("ORS Fee Test Exports Ltd", Plastic) exists specifically for
+  // ors-fee-calculation.e2e.js, for the same reason org 50013 above exists
+  // for interim-site.e2e.js — it also adds ORS/interim sites and asserts an
+  // exact site count, which the org-50005 Seed race would corrupt under
+  // concurrent wdio workers.
+  async navigateToOrsFeeTestOrg() {
+    const link = $('a[href*="/operator-accreditation/50014/"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
   async navigateToReaccreditationPlastic() {
     const link = $('a[href*="/operator-accreditation/50003/"]')
     await link.waitForDisplayed()
