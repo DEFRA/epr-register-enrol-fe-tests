@@ -2,12 +2,14 @@ FROM node:22.13.1-slim
 
 ENV TZ="Europe/London"
 
-USER root
-
+# --no-install-recommends keeps the image to what is actually needed.
+# `unzip` is listed explicitly because it was previously pulled in only as a
+# Recommends of `zip`, and the AWS CLI install step below depends on it.
 RUN apt-get update -qq \
-    && apt-get install -qqy \
+    && apt-get install -qqy --no-install-recommends \
     curl \
     zip \
+    unzip \
     openjdk-17-jre-headless
 
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
@@ -16,8 +18,31 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 
 WORKDIR /app
 
-COPY . .
-RUN npm install
+# Copy only what the suite needs at runtime rather than the whole build
+# context: `COPY . .` also baked in docker/config/*.env (local-sandbox
+# credentials and a placeholder trust-store cert), compose.yml, the CI
+# workflows and the composite action, none of which the container runs.
+COPY package.json package-lock.json .npmrc ./
+
+# npm ci installs the exact resolved versions from package-lock.json;
+# --ignore-scripts blocks dependency lifecycle scripts. The install scripts in
+# this tree are the browser-driver downloaders (chromedriver/edgedriver/
+# geckodriver), unused because wdio.conf.js connects to a remote driver via
+# CHROMEDRIVER_URL, and esbuild's, whose binary ships in the
+# @esbuild/<platform> package npm ci installs.
+RUN npm ci --ignore-scripts
+
+COPY bin ./bin
+COPY test ./test
+COPY entrypoint.sh loader.mjs ./
+COPY wdio.conf.js wdio.local.conf.js wdio.github.conf.js ./
+COPY wdio.browserstack.conf.js wdio.github.browserstack.conf.js ./
+
+# The suite writes allure-results/, allure-report/ and FAILED into /app, so
+# the non-root user needs to own it.
+RUN chown -R node:node /app
+
+USER node
 
 ENTRYPOINT [ "./entrypoint.sh" ]
 
