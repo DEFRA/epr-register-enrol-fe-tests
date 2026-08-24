@@ -10,10 +10,14 @@ const GLASS_RECYCLING_PROCESS_LABELS = {
 
 export function expectedMaterialDisplay(application) {
   const { materialType, glassRecyclingProcess } = application
-  if (!materialType) return ''
+  if (!materialType) {
+    return ''
+  }
 
   const glassLabel = GLASS_RECYCLING_PROCESS_LABELS[glassRecyclingProcess]
-  if (materialType === 'Glass' && glassLabel) return glassLabel
+  if (materialType === 'Glass' && glassLabel) {
+    return glassLabel
+  }
 
   return materialType
 }

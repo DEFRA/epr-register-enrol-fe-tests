@@ -50,10 +50,14 @@ class AddOrsSiteLocationPage extends Page {
   }) {
     await this.addressLine1Input.waitForDisplayed()
     await this.addressLine1Input.setValue(addressLine1)
-    if (addressLine2) await this.addressLine2Input.setValue(addressLine2)
+    if (addressLine2) {
+      await this.addressLine2Input.setValue(addressLine2)
+    }
     await this.townOrCityInput.setValue(townOrCity)
     await this.countryInput.setValue(country)
-    if (coordinates) await this.coordinatesInput.setValue(coordinates)
+    if (coordinates) {
+      await this.coordinatesInput.setValue(coordinates)
+    }
   }
 
   async continue() {
