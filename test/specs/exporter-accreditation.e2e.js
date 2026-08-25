@@ -97,6 +97,87 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     )
   })
 
+  // RA-481: "Should complete the full exporter accreditation journey and
+  // submit the application" (below, at the end of this file) used to run
+  // FIRST, so its PRN/business-plan/sampling-plan progression was already in
+  // place by the time every other test here reused org 50015's application.
+  // RA-481 locks a Submitted application read-only, so that test had to move
+  // to run LAST (0abfb48) — but nothing replaced the early progression it
+  // used to provide as a side effect. Every other test in this file goes
+  // straight from clickContinue() to TaskListPage.overseasSitesLink, and
+  // task-list/controller.js only renders that task's link once PRN, business
+  // plan and sampling plan are all sectionStatus 'Completed' (osLocked =
+  // !spComplete) — on a freshly-seeded application none of them are, so
+  // overseasSitesLink.click() fails with "element wasn't found" regardless
+  // of what any other test (including the unrelated Glass org below) does in
+  // between. This test restores that missing progression, without
+  // submitting, so the overseas-sites/BES tasks are unlocked for every
+  // subsequent test that expects them to be.
+  it('Should complete PRN, business plan and sampling plan for the own-org application', async () => {
+    await OperatorPage.navigateToExporterAccreditationOwnOrg()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // Task list — PRN tonnage
+    await TaskListPage.PRNTonnageLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/tonnage')
+    )
+    await assertTonnageBandLabels()
+    await PrnTonnagePage.selectRandomOption()
+    await PrnTonnagePage.saveAndContinue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/tonnage-authority')
+    )
+    await PrnAuthorityPage.addAuthoriser()
+    await PrnAuthorityPage.saveAndContinue()
+
+    await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
+      'Check your answers before you continue'
+    )
+    await PrnCheckAnswersPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // Business plan
+    await TaskListPage.businessPlanLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/business-plan')
+    )
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "Add more details about how you'll spend the PERN income"
+    )
+    await BusinessPlanDetailPage.fillDescriptions()
+    await BusinessPlanDetailPage.saveAndContinue()
+
+    await BusinessPlanCheckAnswersPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // Sampling and inspection plan
+    await TaskListPage.SIPlanLink.click()
+    await expect(SamplingPlanPage.pageHeading).toHaveText(
+      'Upload sampling and inspection plan - part 2 - Plastic'
+    )
+    await SamplingPlanPage.uploadFile('business-plan.pdf')
+    await SamplingPlanPage.saveAndContinue()
+
+    // Back on the task list, with overseas sites (and BES evidence once
+    // overseas sites is completed) now unlocked for every subsequent test.
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    await expect(TaskListPage.overseasSitesLink).toBeDisplayed()
+  })
+
   it('Should complete the full exporter accreditation journey for Glass and submit the application', async () => {
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
       'Operator Testing Flows Landing Page'
