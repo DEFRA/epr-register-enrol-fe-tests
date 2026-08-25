@@ -12,6 +12,10 @@ const withPaymentDetails = (Base) =>
       return $('[data-testid="description-heading"]')
     }
 
+    get descriptionBody() {
+      return $('[data-testid="description-body"]')
+    }
+
     get bankAmount() {
       return $('[data-testid="bank-amount"]')
     }
