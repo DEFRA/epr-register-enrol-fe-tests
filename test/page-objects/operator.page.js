@@ -17,18 +17,6 @@ class OperatorPage extends Page {
     await link.click()
   }
 
-  // Pinned to org 50005's own href rather than link text: the earlier
-  // `a*=Exporter accreditation — Plastic` text match happened to resolve to
-  // 50005 only because it's first in index.njk's document order — org
-  // 50013 ("… (Interim site test)") and 50008 ("… (with overseas sites)")
-  // both also contain that substring, so a reorder of the list would have
-  // silently repointed this at the wrong org.
-  async navigateToExporterAccreditationPlastic() {
-    const link = $('a[href*="/operator-accreditation/50005/"]')
-    await link.waitForDisplayed()
-    await link.click()
-  }
-
   async navigateToExporterAccreditationGlass() {
     const link = $('a[href*="/operator-accreditation/50006/"]')
     await link.waitForDisplayed()
@@ -65,6 +53,26 @@ class OperatorPage extends Page {
   // concurrent wdio workers.
   async navigateToOrsFeeTestOrg() {
     const link = $('a[href*="/operator-accreditation/50014/"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
+  // Org 50015 ("Exporter Accreditation Test Exports Ltd", Plastic) exists
+  // specifically for exporter-accreditation.e2e.js's "Exporter Accreditation
+  // - Full Journey (Plastic 2027)" describe block, for the same reason orgs
+  // 50013 and 50014 above exist for interim-site.e2e.js and
+  // ors-fee-calculation.e2e.js — that describe block used to share org 50005
+  // across its whole suite of tests (adding ORS/interim sites, submitting
+  // the application, navigating back and forth), which is exactly the shape
+  // of repeated, cross-test reuse the org-50005 Seed race corrupts under
+  // concurrent wdio workers. RA-481 made this newly observable: a test
+  // landing on the "wrong" duplicate now visibly renders without the
+  // exporter-only overseas-sites task (missing task-overseas-sites-link)
+  // instead of just silently tolerating two equally-editable copies as
+  // before. Giving the whole describe block its own org removes the race
+  // entirely, rather than depending on which test happens to run first.
+  async navigateToExporterAccreditationOwnOrg() {
+    const link = $('a[href*="/operator-accreditation/50015/"]')
     await link.waitForDisplayed()
     await link.click()
   }
