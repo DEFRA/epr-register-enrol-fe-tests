@@ -70,150 +70,6 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await LoginPage.signOut()
   })
 
-  it('Should complete the full exporter accreditation journey and submit the application', async () => {
-    // Accreditation landing
-    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
-      'Operator Testing Flows Landing Page'
-    )
-    await OperatorPage.navigateToExporterAccreditationPlastic()
-    const landingUrl = await browser.getUrl()
-    const [, organisationId] = new URL(landingUrl).pathname
-      .split('/')
-      .filter(Boolean)
-    await OperatorAccreditationPage.clickContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // RA-309 AC03 / RA-424: persistent header on an exporter journey — site
-    // name must show the operator's UK registered address, not the overseas
-    // reprocessing site address (and not the literal word "Exporter")
-    const applicationId = (await browser.getUrl())
-      .split('/accreditation/task-list/')[1]
-      .split('?')[0]
-    const application = await getApplication(organisationId, applicationId)
-    await expect(TaskListPage.applicationHeader).toBeDisplayed()
-    await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
-      application.organisationName
-    )
-    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
-      expectedMaterialDisplay(application)
-    )
-    await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
-      expectedSiteName(application)
-    )
-    expect(application.isExporter).toBe(true)
-
-    // Task list — PRN tonnage
-    await TaskListPage.PRNTonnageLink.click()
-
-    const headingText = await $('h1')
-      .getText()
-      .catch(() => '')
-    const alreadyOnCheckAnswers =
-      headingText === 'Check your answers before you continue'
-
-    if (alreadyOnCheckAnswers) {
-      // Tonnage + authority already selected — just confirm
-      await PrnCheckAnswersPage.confirmAndContinue()
-    } else {
-      // Fresh — select tonnage, add authoriser, confirm check answers
-      await expect(browser).toHaveUrl(
-        expect.stringContaining('/accreditation/tonnage')
-      )
-      await assertTonnageBandLabels()
-      await PrnTonnagePage.selectRandomOption()
-      await PrnTonnagePage.saveAndContinue()
-
-      await expect(browser).toHaveUrl(
-        expect.stringContaining('/accreditation/tonnage-authority')
-      )
-      await PrnAuthorityPage.addAuthoriser()
-      await PrnAuthorityPage.saveAndContinue()
-
-      await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-        'Check your answers before you continue'
-      )
-      await PrnCheckAnswersPage.confirmAndContinue()
-    }
-
-    // Back to task list
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // Task list — business plan
-    await TaskListPage.businessPlanLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/business-plan')
-    )
-    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
-    await BusinessPlanPage.saveAndContinue()
-
-    // More detail — required when percentages are filled
-    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "Add more details about how you'll spend the PERN income"
-    )
-    await BusinessPlanDetailPage.fillDescriptions()
-    await BusinessPlanDetailPage.saveAndContinue()
-
-    // Business plan check your answers
-    await BusinessPlanCheckAnswersPage.confirmAndContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // Task list — sampling and inspection plan
-    await TaskListPage.SIPlanLink.click()
-    await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload sampling and inspection plan - part 2 - Plastic'
-    )
-    await SamplingPlanPage.uploadFile('business-plan.pdf')
-    await SamplingPlanPage.saveAndContinue()
-
-    // Task list — overseas reprocessing sites
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-    await TaskListPage.overseasSitesLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/select-overseas-sites')
-    )
-    await OverseasReprocessingSitesPage.continue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/confirm-overseas-sites')
-    )
-    await ConfirmOverseasSitesPage.confirmAndContinue()
-
-    // Task list — BES evidence
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-    await TaskListPage.besLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining(
-        '/accreditation/upload-evidence-for-overseas-site/'
-      )
-    )
-    await BesEvidencePage.uploadAllEvidence('business-plan.pdf')
-
-    await TaskListPage.continueToSubmit()
-    // Declaration
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/submit-declaration/')
-    )
-    await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
-    await assertEligiblePersonWording(SubmitApplicationPage)
-    await SubmitApplicationPage.submitApplication()
-
-    // Confirmation
-    await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
-      'Now pay the application charge'
-    )
-    const ref = await ApplicationSubmittedPage.referenceNumber.getText()
-    await expect(ref).toMatch(/AP\d{2}[A-Z]{2}/)
-  })
-
   // RA-374 regression: the task list's back link is built from the
   // application record via the shared landingUrl() helper. It previously
   // omitted registrationId for exporter applications, producing a 404 (e.g.
@@ -1150,5 +1006,158 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/select-overseas-sites')
     )
+  })
+
+  // RA-481: moved to run last in this file. Every other test above keeps
+  // editing org 50005's Plastic/2027 application after it's created — adding
+  // overseas sites, changing answers, and so on — and RA-481 now locks that
+  // application read-only once it's Submitted. Running the one test that
+  // submits it first (as this used to) locked the application for every
+  // later test in the file, since they all reuse the same org/year via
+  // navigateToExporterAccreditationPlastic() + clickContinue(). Running it
+  // last instead means every test that still needs the application editable
+  // gets to run first.
+  it('Should complete the full exporter accreditation journey and submit the application', async () => {
+    // Accreditation landing
+    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
+      'Operator Testing Flows Landing Page'
+    )
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // RA-309 AC03 / RA-424: persistent header on an exporter journey — site
+    // name must show the operator's UK registered address, not the overseas
+    // reprocessing site address (and not the literal word "Exporter")
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+    const application = await getApplication(organisationId, applicationId)
+    await expect(TaskListPage.applicationHeader).toBeDisplayed()
+    await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
+      application.organisationName
+    )
+    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
+      expectedMaterialDisplay(application)
+    )
+    await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
+      expectedSiteName(application)
+    )
+    expect(application.isExporter).toBe(true)
+
+    // Task list — PRN tonnage
+    await TaskListPage.PRNTonnageLink.click()
+
+    const headingText = await $('h1')
+      .getText()
+      .catch(() => '')
+    const alreadyOnCheckAnswers =
+      headingText === 'Check your answers before you continue'
+
+    if (alreadyOnCheckAnswers) {
+      // Tonnage + authority already selected — just confirm
+      await PrnCheckAnswersPage.confirmAndContinue()
+    } else {
+      // Fresh — select tonnage, add authoriser, confirm check answers
+      await expect(browser).toHaveUrl(
+        expect.stringContaining('/accreditation/tonnage')
+      )
+      await assertTonnageBandLabels()
+      await PrnTonnagePage.selectRandomOption()
+      await PrnTonnagePage.saveAndContinue()
+
+      await expect(browser).toHaveUrl(
+        expect.stringContaining('/accreditation/tonnage-authority')
+      )
+      await PrnAuthorityPage.addAuthoriser()
+      await PrnAuthorityPage.saveAndContinue()
+
+      await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
+        'Check your answers before you continue'
+      )
+      await PrnCheckAnswersPage.confirmAndContinue()
+    }
+
+    // Back to task list
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // Task list — business plan
+    await TaskListPage.businessPlanLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/business-plan')
+    )
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    // More detail — required when percentages are filled
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "Add more details about how you'll spend the PERN income"
+    )
+    await BusinessPlanDetailPage.fillDescriptions()
+    await BusinessPlanDetailPage.saveAndContinue()
+
+    // Business plan check your answers
+    await BusinessPlanCheckAnswersPage.confirmAndContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    // Task list — sampling and inspection plan
+    await TaskListPage.SIPlanLink.click()
+    await expect(SamplingPlanPage.pageHeading).toHaveText(
+      'Upload sampling and inspection plan - part 2 - Plastic'
+    )
+    await SamplingPlanPage.uploadFile('business-plan.pdf')
+    await SamplingPlanPage.saveAndContinue()
+
+    // Task list — overseas reprocessing sites
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/confirm-overseas-sites')
+    )
+    await ConfirmOverseasSitesPage.confirmAndContinue()
+
+    // Task list — BES evidence
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    await TaskListPage.besLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(
+        '/accreditation/upload-evidence-for-overseas-site/'
+      )
+    )
+    await BesEvidencePage.uploadAllEvidence('business-plan.pdf')
+
+    await TaskListPage.continueToSubmit()
+    // Declaration
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/submit-declaration/')
+    )
+    await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
+    await assertEligiblePersonWording(SubmitApplicationPage)
+    await SubmitApplicationPage.submitApplication()
+
+    // Confirmation
+    await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
+      'Now pay the application charge'
+    )
+    const ref = await ApplicationSubmittedPage.referenceNumber.getText()
+    await expect(ref).toMatch(/AP\d{2}[A-Z]{2}/)
   })
 })
