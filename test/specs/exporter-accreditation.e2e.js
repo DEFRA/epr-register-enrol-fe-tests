@@ -70,33 +70,6 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await LoginPage.signOut()
   })
 
-  // RA-374 regression: the task list's back link is built from the
-  // application record via the shared landingUrl() helper. It previously
-  // omitted registrationId for exporter applications, producing a 404 (e.g.
-  // /operator-accreditation/50005/Plastic/2027 instead of the real 4-segment
-  // route with registrationId included).
-  it('Should navigate back from the task list to the operator-accreditation landing page', async () => {
-    await OperatorPage.navigateToExporterAccreditationPlastic()
-    const landingUrl = await browser.getUrl()
-    const [, organisationId, registrationId] = new URL(landingUrl).pathname
-      .split('/')
-      .filter(Boolean)
-    await OperatorAccreditationPage.clickContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    await TaskListPage.backLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining(
-        `/operator-accreditation/${organisationId}/${registrationId}/Plastic/`
-      )
-    )
-    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
-      'Reapply for accreditation'
-    )
-  })
-
   it('Should complete the full exporter accreditation journey for Glass and submit the application', async () => {
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
       'Operator Testing Flows Landing Page'
@@ -1005,6 +978,55 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await ConfirmOverseasSitesPage.changeSite(siteId)
     await expect(browser).toHaveUrl(
       expect.stringContaining('/select-overseas-sites')
+    )
+  })
+
+  // RA-481: moved off the very front of this file (see below) — its own
+  // flow visits the operator-accreditation landing page for org 50005 a
+  // SECOND time (via the back link) right after the first visit that seeds
+  // it. AccreditationApplicationEndpoints.Seed is a read-then-create with
+  // no transaction and no unique index (see FakeOrganisationPersistence.cs
+  // for the fullest account of this — it's the same class of bug that
+  // pushed interim-site.e2e.js and ors-fee-calculation.e2e.js onto their
+  // own dedicated orgs): when this test is the very first to touch a
+  // not-yet-seeded org/registrationId/materialType/year, its second
+  // (back-link) landing visit can race its own first visit's seed call,
+  // both pass the "no existing application" check, and both create a live
+  // application — leaving a duplicate for later tests' fresh
+  // resolveLandingApplication() calls to land on unpredictably instead of
+  // the one earlier tests actually progressed. Reproduced locally: firing
+  // two near-simultaneous seed requests for a fresh org/year created two
+  // documents in roughly 1 in 5 attempts. Running this test only after
+  // "Should add a new overseas reprocessing site..." below has already
+  // done one single, uncontested landing visit for org 50005 (seeding it
+  // safely) means this test's own double-visit can no longer be the first
+  // ever touch of that org/year, so it can no longer race a first-time
+  // seed — there's nothing left to seed.
+  //
+  // RA-374 regression (the test itself): the task list's back link is
+  // built from the application record via the shared landingUrl() helper.
+  // It previously omitted registrationId for exporter applications,
+  // producing a 404 (e.g. /operator-accreditation/50005/Plastic/2027
+  // instead of the real 4-segment route with registrationId included).
+  it('Should navigate back from the task list to the operator-accreditation landing page', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId, registrationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.backLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(
+        `/operator-accreditation/${organisationId}/${registrationId}/Plastic/`
+      )
+    )
+    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
+      'Reapply for accreditation'
     )
   })
 
