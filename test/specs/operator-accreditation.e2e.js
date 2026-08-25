@@ -142,6 +142,23 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await expect(errorLinks[0]).toHaveText('The percentages must add up to 100')
   })
 
+  // ── RA-496: task-list save buttons set the correct section status ─────────
+
+  it('Should accept incomplete percentages on save-and-come-later and mark the section IN PROGRESS', async () => {
+    await goToBusinessPlanForm()
+    // Deliberately doesn't sum to 100 — save-and-come-later must skip the
+    // sum-to-100 check (unlike save-and-continue, asserted above) and still
+    // succeed, with the section explicitly left IN PROGRESS rather than
+    // whatever data completeness alone would otherwise compute.
+    await BusinessPlanPage.fillPercentages([10, 0, 0, 0, 0, 0, 0])
+    await BusinessPlanPage.saveAndComeLater()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    await expect(TaskListPage.businessPlanStatus).toHaveText('IN PROGRESS')
+  })
+
   // ── Business Plan Detail Page Validation ──────────────────────────────────
 
   it('Should show error on detail page when descriptions are missing for filled percentages', async () => {
