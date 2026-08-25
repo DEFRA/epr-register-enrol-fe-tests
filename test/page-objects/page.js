@@ -27,12 +27,20 @@ class Page {
     return $('[data-testid="application-header-site-name"]')
   }
 
-  // RA-408: the service-navigation "Home" link. Its href now varies per
-  // page (the operator's landing status page once an application has been
-  // visited, otherwise a bare /operator-accreditation/ fallback), so it's
-  // matched by its fixed link text rather than a fixed href.
+  // RA-487: the service-navigation "Home" link now always points at the
+  // Re-Ex frontend (unreachable from this e2e env) — no in-app deep-linking
+  // to assert on any more, so this just confirms the item renders.
   get homeNavLink() {
-    return $('a=Home')
+    return $('[data-testid="nav-home-link"]')
+  }
+
+  // RA-487: operator-only — regulators have no Defra ID account to manage.
+  get manageAccountNavLink() {
+    return $('[data-testid="nav-manage-account-link"]')
+  }
+
+  get signOutNavLink() {
+    return $('[data-testid="nav-sign-out-link"]')
   }
 
   // Footer support links, rendered on every page via the shared layout.

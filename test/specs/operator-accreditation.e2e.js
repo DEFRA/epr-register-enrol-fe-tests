@@ -403,47 +403,24 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
   // Re/Ex frontend to navigate to and assert against — coverage lives in
   // the frontend's own unit tests (operator-accreditation/controller.test.js).
 
-  // ── RA-408: "Home" nav link ──────────────────────────────────────────────
-  // Home no longer points at the fixed /operator testing page. Until an
-  // application has been visited it falls back to the bare
-  // /operator-accreditation/ path; once one has, it points at — and is
-  // marked current on — that application's landing status page, and links
-  // back to it from anywhere deeper in the journey.
+  // ── RA-487: top nav matches Re-Ex's own ──────────────────────────────────
+  // Home and Manage account now both leave this app for Re-Ex/Defra ID
+  // (unreachable from this e2e env, and no longer varying per page or
+  // application context — see RA-408 history above for what this replaced),
+  // so this only confirms the operator top nav renders all three items.
 
-  it('Should fall back to /operator-accreditation/ on /operator, then track the landing status page once an application is visited', async () => {
-    await expect(OperatorPage.homeNavLink).toHaveText('Home')
-    await expect(OperatorPage.homeNavLink).not.toHaveAttribute(
-      'aria-current',
-      'page'
-    )
-
+  it('Should show Home, Manage account and Sign out in the operator top nav', async () => {
     await OperatorPage.navigateToOperatorAccreditationPlastic()
-    const landingUrl = await browser.getUrl()
 
-    // Current on the landing status page itself...
     await expect(OperatorAccreditationPage.homeNavLink).toBeDisplayed()
-    await expect(OperatorAccreditationPage.homeNavLink).toHaveAttribute(
-      'aria-current',
-      'page'
+    await expect(OperatorAccreditationPage.homeNavLink).toHaveText('Home')
+    await expect(OperatorAccreditationPage.manageAccountNavLink).toBeDisplayed()
+    await expect(OperatorAccreditationPage.manageAccountNavLink).toHaveText(
+      'Manage account'
     )
-
-    await OperatorAccreditationPage.clickContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // ...not current from a deeper accreditation page, and clicking it from
-    // there goes back to that same landing status page.
-    await expect(TaskListPage.homeNavLink).toBeDisplayed()
-    await expect(TaskListPage.homeNavLink).not.toHaveAttribute(
-      'aria-current',
-      'page'
-    )
-
-    await TaskListPage.homeNavLink.click()
-    await expect(browser).toHaveUrl(landingUrl)
-    await expect(OperatorAccreditationPage.pageHeading).toHaveText(
-      'Reapply for accreditation'
+    await expect(OperatorAccreditationPage.signOutNavLink).toBeDisplayed()
+    await expect(OperatorAccreditationPage.signOutNavLink).toHaveText(
+      'Sign out'
     )
   })
 })
