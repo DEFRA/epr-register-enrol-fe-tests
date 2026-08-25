@@ -21,17 +21,9 @@ describe('Operator Journey', () => {
     await LoginPage.signOut()
   })
 
-  it('Should be able to apply for a new registration', async () => {
-    await OperatorPage.navigateToOperatorRegistration()
-    const headerText = await OperatorPage.pageHeading.getText()
-    await expect(headerText).toEqual('Operator Registration')
-  })
-
-  it('Should be able to renew registration', async () => {
-    await OperatorPage.navigateToOperatorRegistration()
-    const headerText = await OperatorPage.pageHeading.getText()
-    await expect(headerText).toEqual('Operator Registration')
-  })
+  // RA-485: /operator-registration and /operator-details (epr-register-enrol-frontend)
+  // were redundant, never-built stub pages, removed entirely — nothing left
+  // here to navigate to or assert against.
 
   it('Should render the footer support links with the correct hrefs', async () => {
     await expect(OperatorPage.footerContactLink).toHaveAttribute(
