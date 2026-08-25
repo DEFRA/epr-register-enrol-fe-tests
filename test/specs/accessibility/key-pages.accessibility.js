@@ -3,7 +3,6 @@ import { browser } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import RegulatorPage from 'page-objects/regulator.page'
-import AboutPage from 'page-objects/about.page'
 import { expectNoAccessibilityViolations } from '../../helpers/accessibility.js'
 
 // RA-437: `npm run test:accessibility` referenced this directory before any
@@ -21,10 +20,8 @@ describe('Accessibility — key pages', () => {
     await expectNoAccessibilityViolations()
   })
 
-  it('About page should have no WCAG 2.1 A/AA violations', async () => {
-    await AboutPage.open()
-    await expectNoAccessibilityViolations()
-  })
+  // /about was removed (epr-register-enrol-frontend) — a redundant,
+  // never-built scaffold page — so there's nothing left here to check.
 
   it('Operator home page should have no WCAG 2.1 A/AA violations', async () => {
     await LoginPage.switchToOperator()
