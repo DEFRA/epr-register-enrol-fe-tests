@@ -83,6 +83,22 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  // Org 50016 ("Section Lock Test Recycling Ltd", Plastic) exists specifically
+  // for ra-481-section-lock.e2e.js, for the same reason orgs 50013-50015
+  // above exist for their own specs: that spec drives an application to
+  // Submitted and then keeps re-visiting its sections directly by URL across
+  // more than one `it()` block, which is exactly the shape of repeated,
+  // cross-test reuse the org-50005 Seed race (see orgs 50013-50015's comments)
+  // would corrupt under concurrent wdio workers. It's a plain reprocessor
+  // (not an exporter) so the fastest path to Submitted is just PRN tonnage +
+  // business plan + sampling plan, with no overseas-sites/BES steps in the
+  // way of the read-only assertions the spec actually cares about.
+  async navigateToSectionLockTestOrg() {
+    const link = $('a[href*="/operator-accreditation/50016/"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
   get accreditationLinks() {
     return $$('a[href*="accreditation"]')
   }
