@@ -4,13 +4,11 @@ import OperatorPage from 'page-objects/operator.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import TaskListPage from 'page-objects/tasklist.page'
 import PrnTonnagePage from 'page-objects/prn-tonnage.page'
-import PrnAuthorityPage from 'page-objects/prn-authority.page'
-import PrnCheckAnswersPage from 'page-objects/prn-check-answers.page'
+import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import BusinessPlanPage from 'page-objects/business-plan.page'
 import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
-import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
-import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
+import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 import {
   getApplication,
   raiseQuery,
@@ -84,34 +82,10 @@ describe('RA-481: locked accreditation sections stay read-only except the querie
       return
     }
 
-    if (await TaskListPage.PRNTonnageLink.isExisting()) {
-      await TaskListPage.PRNTonnageLink.click()
-      await PrnTonnagePage.selectRandomOption()
-      await PrnTonnagePage.saveAndContinue()
-      await PrnAuthorityPage.addAuthoriser()
-      await PrnAuthorityPage.saveAndContinue()
-      await PrnCheckAnswersPage.confirmAndContinue()
-    }
-
-    if (await TaskListPage.businessPlanLink.isExisting()) {
-      await TaskListPage.businessPlanLink.click()
-      await browser.waitUntil(
-        async () =>
-          (await browser.getUrl()).includes('/accreditation/business-plan'),
-        { timeout: 10000 }
-      )
-      await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
-      await BusinessPlanPage.saveAndContinue()
-      await BusinessPlanDetailPage.fillDescriptions()
-      await BusinessPlanDetailPage.saveAndContinue()
-      await BusinessPlanCheckAnswersPage.confirmAndContinue()
-    }
-
-    if (await TaskListPage.SIPlanLink.isExisting()) {
-      await TaskListPage.SIPlanLink.click()
-      await SamplingPlanPage.uploadFile('business-plan.pdf')
-      await SamplingPlanPage.saveAndContinue()
-    }
+    await completePrnBusinessPlanSamplingPlan({
+      assert: false,
+      skipCompletedTasks: true
+    })
 
     await TaskListPage.assertAllTasksCompleted()
     await TaskListPage.continueToSubmit()

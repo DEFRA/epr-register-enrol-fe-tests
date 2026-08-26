@@ -3,13 +3,6 @@ import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import TaskListPage from 'page-objects/tasklist.page'
-import PrnTonnagePage from 'page-objects/prn-tonnage.page'
-import PrnAuthorityPage from 'page-objects/prn-authority.page'
-import PrnCheckAnswersPage from 'page-objects/prn-check-answers.page'
-import BusinessPlanPage from 'page-objects/business-plan.page'
-import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
-import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
-import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
 import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
@@ -33,23 +26,7 @@ import {
   expectedSiteName
 } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
-
-// RA-424: the four PRN tonnage bands, in display order, as they must now read.
-const EXPECTED_TONNAGE_LABELS = [
-  'Up to 500 tonnes',
-  'Up to 5,000 tonnes',
-  'Up to 10,000 tonnes',
-  'More than 10,000 tonnes'
-]
-
-async function assertTonnageBandLabels() {
-  const labels = await PrnTonnagePage.radioLabels
-  await labels[0].waitForDisplayed()
-  const labelText = await Promise.all(
-    [...labels].map((label) => label.getText())
-  )
-  expect(labelText).toEqual(EXPECTED_TONNAGE_LABELS)
-}
+import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 
 describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
   beforeEach(async () => {
@@ -120,55 +97,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/task-list/')
     )
 
-    // Task list — PRN tonnage
-    await TaskListPage.PRNTonnageLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/tonnage')
-    )
-    await assertTonnageBandLabels()
-    await PrnTonnagePage.selectRandomOption()
-    await PrnTonnagePage.saveAndContinue()
-
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/tonnage-authority')
-    )
-    await PrnAuthorityPage.addAuthoriser()
-    await PrnAuthorityPage.saveAndContinue()
-
-    await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-      'Check your answers before you continue'
-    )
-    await PrnCheckAnswersPage.confirmAndContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // Business plan
-    await TaskListPage.businessPlanLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/business-plan')
-    )
-    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
-    await BusinessPlanPage.saveAndContinue()
-
-    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "Add more details about how you'll spend the PERN income"
-    )
-    await BusinessPlanDetailPage.fillDescriptions()
-    await BusinessPlanDetailPage.saveAndContinue()
-
-    await BusinessPlanCheckAnswersPage.confirmAndContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // Sampling and inspection plan
-    await TaskListPage.SIPlanLink.click()
-    await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload sampling and inspection plan - part 2 - Plastic'
-    )
-    await SamplingPlanPage.uploadFile('business-plan.pdf')
-    await SamplingPlanPage.saveAndContinue()
+    await completePrnBusinessPlanSamplingPlan()
 
     // Back on the task list, with overseas sites (and BES evidence once
     // overseas sites is completed) now unlocked for every subsequent test.
@@ -211,67 +140,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     )
     expect(application.isExporter).toBe(true)
 
-    // Task list — PRN tonnage
-    await TaskListPage.PRNTonnageLink.click()
-
-    const headingText = await $('h1')
-      .getText()
-      .catch(() => '')
-    const alreadyOnCheckAnswers =
-      headingText === 'Check your answers before you continue'
-
-    if (alreadyOnCheckAnswers) {
-      await PrnCheckAnswersPage.confirmAndContinue()
-    } else {
-      await expect(browser).toHaveUrl(
-        expect.stringContaining('/accreditation/tonnage')
-      )
-      await assertTonnageBandLabels()
-      await PrnTonnagePage.selectRandomOption()
-      await PrnTonnagePage.saveAndContinue()
-
-      await expect(browser).toHaveUrl(
-        expect.stringContaining('/accreditation/tonnage-authority')
-      )
-      await PrnAuthorityPage.addAuthoriser()
-      await PrnAuthorityPage.saveAndContinue()
-
-      await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-        'Check your answers before you continue'
-      )
-      await PrnCheckAnswersPage.confirmAndContinue()
-    }
-
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // Business plan
-    await TaskListPage.businessPlanLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/business-plan')
-    )
-    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
-    await BusinessPlanPage.saveAndContinue()
-
-    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "Add more details about how you'll spend the PERN income"
-    )
-    await BusinessPlanDetailPage.fillDescriptions()
-    await BusinessPlanDetailPage.saveAndContinue()
-
-    await BusinessPlanCheckAnswersPage.confirmAndContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // Sampling and inspection plan
-    await TaskListPage.SIPlanLink.click()
-    await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload sampling and inspection plan - part 2 - Glass'
-    )
-    await SamplingPlanPage.uploadFile('business-plan.pdf')
-    await SamplingPlanPage.saveAndContinue()
+    await completePrnBusinessPlanSamplingPlan({ material: 'Glass' })
 
     // Overseas reprocessing sites
     await expect(browser).toHaveUrl(
@@ -1134,72 +1003,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     )
     expect(application.isExporter).toBe(true)
 
-    // Task list — PRN tonnage
-    await TaskListPage.PRNTonnageLink.click()
-
-    const headingText = await $('h1')
-      .getText()
-      .catch(() => '')
-    const alreadyOnCheckAnswers =
-      headingText === 'Check your answers before you continue'
-
-    if (alreadyOnCheckAnswers) {
-      // Tonnage + authority already selected — just confirm
-      await PrnCheckAnswersPage.confirmAndContinue()
-    } else {
-      // Fresh — select tonnage, add authoriser, confirm check answers
-      await expect(browser).toHaveUrl(
-        expect.stringContaining('/accreditation/tonnage')
-      )
-      await assertTonnageBandLabels()
-      await PrnTonnagePage.selectRandomOption()
-      await PrnTonnagePage.saveAndContinue()
-
-      await expect(browser).toHaveUrl(
-        expect.stringContaining('/accreditation/tonnage-authority')
-      )
-      await PrnAuthorityPage.addAuthoriser()
-      await PrnAuthorityPage.saveAndContinue()
-
-      await expect(PrnCheckAnswersPage.pageHeading).toHaveText(
-        'Check your answers before you continue'
-      )
-      await PrnCheckAnswersPage.confirmAndContinue()
-    }
-
-    // Back to task list
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // Task list — business plan
-    await TaskListPage.businessPlanLink.click()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/business-plan')
-    )
-    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
-    await BusinessPlanPage.saveAndContinue()
-
-    // More detail — required when percentages are filled
-    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
-      "Add more details about how you'll spend the PERN income"
-    )
-    await BusinessPlanDetailPage.fillDescriptions()
-    await BusinessPlanDetailPage.saveAndContinue()
-
-    // Business plan check your answers
-    await BusinessPlanCheckAnswersPage.confirmAndContinue()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
-
-    // Task list — sampling and inspection plan
-    await TaskListPage.SIPlanLink.click()
-    await expect(SamplingPlanPage.pageHeading).toHaveText(
-      'Upload sampling and inspection plan - part 2 - Plastic'
-    )
-    await SamplingPlanPage.uploadFile('business-plan.pdf')
-    await SamplingPlanPage.saveAndContinue()
+    await completePrnBusinessPlanSamplingPlan()
 
     // Task list — overseas reprocessing sites
     await expect(browser).toHaveUrl(
