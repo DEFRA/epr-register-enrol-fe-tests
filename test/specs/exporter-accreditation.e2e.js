@@ -51,6 +51,75 @@ async function assertTonnageBandLabels() {
   expect(labelText).toEqual(EXPECTED_TONNAGE_LABELS)
 }
 
+// RA-470: shared "add a new overseas site via the wizard, submit, land back on
+// select-overseas-sites with the success banner" walk, for tests that only
+// need a freshly-added site to act on (e.g. as setup for a subsequent Remove
+// or Change). Assumes the caller has already navigated to select-overseas-sites.
+async function addOverseasSiteViaWizard({
+  siteName,
+  addressLine1,
+  townOrCity,
+  country,
+  coordinates,
+  contactName,
+  contactEmail,
+  contactPhone,
+  operationCode = 'R3',
+  baselCodes = ['A1181'],
+  repatriatedLoadsDescription
+}) {
+  await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+  await OverseasReprocessingSitesPage.addNewOrsButton.click()
+  await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+  await AddOrsSiteNamePage.enterSiteName(siteName)
+  await AddOrsSiteNamePage.continue()
+
+  await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+  await AddOrsSiteLocationPage.enterLocation({
+    addressLine1,
+    townOrCity,
+    country,
+    coordinates
+  })
+  await AddOrsSiteLocationPage.continue()
+
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/site-contact-details')
+  )
+  await AddOrsSiteContactPage.enterContactDetails({
+    name: contactName,
+    email: contactEmail,
+    phone: contactPhone
+  })
+  await AddOrsSiteContactPage.continue()
+
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/recycling-operation-details')
+  )
+  await AddOrsRecyclingOperationPage.selectOperationCode(operationCode)
+  await AddOrsRecyclingOperationPage.continue()
+
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/basel-convention-and-oecd-code')
+  )
+  await AddOrsBaselCodesPage.enterCodes(baselCodes)
+  await AddOrsBaselCodesPage.continue()
+
+  await expect(browser).toHaveUrl(expect.stringContaining('/repatriated-loads'))
+  await AddOrsRepatriatedLoadsPage.enterDescription(repatriatedLoadsDescription)
+  await AddOrsRepatriatedLoadsPage.continue()
+
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/check-your-answers')
+  )
+  await AddOrsCyaPage.submit()
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/select-overseas-sites')
+  )
+  await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+}
+
 describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
   beforeEach(async () => {
     await browser.deleteCookies()
@@ -1102,60 +1171,18 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
-    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
-    await OverseasReprocessingSitesPage.addNewOrsButton.click()
-    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
-
-    await AddOrsSiteNamePage.enterSiteName('RA-470 Change Test Ltd')
-    await AddOrsSiteNamePage.continue()
-
-    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
-    await AddOrsSiteLocationPage.enterLocation({
+    await addOverseasSiteViaWizard({
+      siteName: 'RA-470 Change Test Ltd',
       addressLine1: 'Original Strasse 1',
       townOrCity: 'Berlin',
       country: 'Germany',
-      coordinates: '52.5200, 13.4050'
+      coordinates: '52.5200, 13.4050',
+      contactName: 'Original Contact',
+      contactEmail: 'original@ra470changetest.de',
+      contactPhone: '+49 30 123456',
+      repatriatedLoadsDescription:
+        'Rejected loads are returned within 30 days at our expense via licensed courier.'
     })
-    await AddOrsSiteLocationPage.continue()
-
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/site-contact-details')
-    )
-    await AddOrsSiteContactPage.enterContactDetails({
-      name: 'Original Contact',
-      email: 'original@ra470changetest.de',
-      phone: '+49 30 123456'
-    })
-    await AddOrsSiteContactPage.continue()
-
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/recycling-operation-details')
-    )
-    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
-    await AddOrsRecyclingOperationPage.continue()
-
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/basel-convention-and-oecd-code')
-    )
-    await AddOrsBaselCodesPage.enterCodes(['A1181'])
-    await AddOrsBaselCodesPage.continue()
-
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/repatriated-loads')
-    )
-    await AddOrsRepatriatedLoadsPage.enterDescription(
-      'Rejected loads are returned within 30 days at our expense via licensed courier.'
-    )
-    await AddOrsRepatriatedLoadsPage.continue()
-
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/check-your-answers')
-    )
-    await AddOrsCyaPage.submit()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/select-overseas-sites')
-    )
-    await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
 
     const sitesAfterAdd = await getOverseasSites(organisationId, applicationId)
     const site = sitesAfterAdd.find(
