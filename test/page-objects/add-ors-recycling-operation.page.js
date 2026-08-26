@@ -22,10 +22,14 @@ class AddOrsRecyclingOperationPage extends Page {
   }
 
   async selectOperationCode(code) {
+    const operationInput = $(`#recycling-operation-code-${code.toLowerCase()}`)
     const operationLabel = $(
       `label[for="recycling-operation-code-${code.toLowerCase()}"]`
     )
     await operationLabel.waitForDisplayed()
+    if (await operationInput.isSelected()) {
+      return
+    }
     await operationLabel.click()
   }
 

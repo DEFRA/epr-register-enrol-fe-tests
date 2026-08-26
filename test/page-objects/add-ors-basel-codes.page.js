@@ -48,6 +48,19 @@ class AddOrsBaselCodesPage extends Page {
   // Wait for the enhancement to land before typing, since the raw <select>
   // doesn't accept typed text the way the enhanced widget does, then type
   // and select the matching suggestion instead of a raw setValue.
+  //
+  // RA-470: an edit-mode replay can reach this step with the field already
+  // enhanced-and-confirmed to the target value (server-rendered from the
+  // site's existing code1/code2/code3, via the <option selected> the
+  // widget's defaultValue reads on init). accessible-autocomplete's input is
+  // a Preact-controlled element -- re-typing the same value via setValue's
+  // clear-then-type still fires real input events the widget's own state
+  // has to reconcile, and a component re-render mid-sequence can race with
+  // WebdriverIO's direct DOM writes in a way retyping into a field that
+  // starts genuinely empty never exercises. Skip the interaction entirely
+  // when the field already shows the target value -- exactly what a real
+  // user replaying their own unchanged data would do -- rather than
+  // fighting the widget's controlled-input reconciliation for no reason.
   async enterCode(index, value) {
     const input = this.codeInput(index)
     await input.waitForDisplayed()
@@ -58,6 +71,12 @@ class AddOrsBaselCodesPage extends Page {
         timeoutMsg: `Basel/OECD code field ${index} did not enhance into an autocomplete input`
       }
     )
+
+    const currentValue = await input.getValue()
+    if (currentValue.trim().toUpperCase() === value.trim().toUpperCase()) {
+      return
+    }
+
     await input.setValue(value)
 
     // accessible-autocomplete only writes the typed value back into the
