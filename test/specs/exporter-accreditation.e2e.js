@@ -956,7 +956,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
   // route, the Change link, and the PATCH endpoint don't exist until those
   // land, so this test cannot pass until then.
   it('Should change a newly added overseas site via the Change link, submitting an update (Plastic)', async () => {
-    await OperatorPage.navigateToExporterAccreditationPlastic()
+    await OperatorPage.navigateToExporterAccreditationOwnOrg()
     const landingUrl = await browser.getUrl()
     const [, organisationId] = new URL(landingUrl).pathname
       .split('/')
