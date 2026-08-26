@@ -26,6 +26,10 @@ class BusinessPlanDetailPage extends Page {
     return $('button=Save and continue')
   }
 
+  get saveAndComeLaterButton() {
+    return $('[data-testid="save-come-back-button"]')
+  }
+
   async fillDescriptions(
     text = 'Investment in reprocessing infrastructure and equipment to improve capacity and quality.'
   ) {
@@ -49,6 +53,12 @@ class BusinessPlanDetailPage extends Page {
     await this.saveAndContinueButton.waitForDisplayed()
     await this.saveAndContinueButton.scrollIntoView()
     await this.saveAndContinueButton.click()
+  }
+
+  async saveAndComeLater() {
+    await this.saveAndComeLaterButton.waitForDisplayed()
+    await this.saveAndComeLaterButton.scrollIntoView()
+    await this.saveAndComeLaterButton.click()
   }
 }
 

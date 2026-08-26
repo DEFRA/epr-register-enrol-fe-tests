@@ -24,6 +24,16 @@ class BesEvidencePage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
+  get saveAndComeLaterButton() {
+    return $('[data-testid="save-come-back-button"]')
+  }
+
+  async saveAndComeLater() {
+    await this.saveAndComeLaterButton.waitForDisplayed()
+    await this.saveAndComeLaterButton.scrollIntoView()
+    await this.saveAndComeLaterButton.click()
+  }
+
   // Upload form page (/upload-bes-evidence/)
   get fileInput() {
     return $('[data-testid="file-input"]')

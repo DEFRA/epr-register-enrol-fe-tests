@@ -212,6 +212,24 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       expect.stringContaining('section is not editable')
     )
 
+    // RA-496: the queried section itself *is* editable (unlike tonnage
+    // above), but a client-supplied SectionStatus must still be ignored —
+    // the operator's task-list buttons have no concept of Queried and would
+    // otherwise be able to clear an open regulator query before an officer
+    // has reviewed the response, by simply saving the section again.
+    const queriedSectionPatch = await patchSection(
+      organisationId,
+      applicationId,
+      'business-plan',
+      { sectionStatus: 'Completed' }
+    )
+    expect(queriedSectionPatch.statusCode).toBe(200)
+    const afterQueriedPatch = await getApplication(
+      organisationId,
+      applicationId
+    )
+    expect(afterQueriedPatch.businessPlan.sectionStatus).toBe('Queried')
+
     // AC02: direct navigation to prns/tonnage — Completed, not the queried
     // section — no longer redirects (RA-415 follow-up, matching the query
     // task list's own task-prns-link above): it's already-answered data,
