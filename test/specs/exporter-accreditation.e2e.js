@@ -1068,6 +1068,191 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     ).toBeUndefined()
   })
 
+  // RA-470: optional coverage for the new "Change" action on an overseas
+  // site row — a second entry point into the add-overseas-site wizard,
+  // alongside the existing "Add To Accreditation"/promote entry point
+  // exercised implicitly by the add/remove tests above. Clicking Change
+  // navigates to .../select-overseas-sites/{applicationId}/edit/{siteId}
+  // (mirroring .../promote/{siteId}), replays the wizard pre-seeded with the
+  // site's existing data, and on submit issues a PATCH (updateOverseasSite)
+  // instead of a create, landing back on select-overseas-sites with the
+  // edit-success banner rather than the normal add-success banner. This
+  // depends on the paired RA-470 frontend and backend changes — the edit
+  // route, the Change link, and the PATCH endpoint don't exist until those
+  // land, so this test cannot pass until then.
+  it('Should change a newly added overseas site via the Change link, submitting an update (Plastic)', async () => {
+    await OperatorPage.navigateToExporterAccreditationPlastic()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+
+    // Add a site via the normal wizard first, so there's a New sites row
+    // with a Change link to exercise — New sites carry the same
+    // "Remove from accreditation" + "Change" pairing as the Accredited
+    // section, without needing pre-seeded accredited/registered fixture data.
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('RA-470 Change Test Ltd')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Original Strasse 1',
+      townOrCity: 'Berlin',
+      country: 'Germany',
+      coordinates: '52.5200, 13.4050'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Original Contact',
+      email: 'original@ra470changetest.de',
+      phone: '+49 30 123456'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes(['A1181'])
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await AddOrsRepatriatedLoadsPage.enterDescription(
+      'Rejected loads are returned within 30 days at our expense via licensed courier.'
+    )
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await AddOrsCyaPage.submit()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+
+    const sitesAfterAdd = await getOverseasSites(organisationId, applicationId)
+    const site = sitesAfterAdd.find(
+      (s) => s.siteName === 'RA-470 Change Test Ltd'
+    )
+    expect(site).toBeDefined()
+    const siteId = site.siteId
+
+    // Click Change on the new site's row — routes through
+    // .../edit/{siteId}, straight back into the wizard's first step.
+    await expect(
+      OverseasReprocessingSitesPage.newSiteRow(siteId)
+    ).toBeDisplayed()
+    await OverseasReprocessingSitesPage.editNewSite(siteId)
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(`/add-overseas-site/${applicationId}/`)
+    )
+
+    // Replay the wizard, updating the details to prove this is an edit of
+    // the existing site rather than a second, separate one.
+    await AddOrsSiteNamePage.enterSiteName('RA-470 Change Test Ltd (Updated)')
+    await AddOrsSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Geanderte Strasse 2',
+      townOrCity: 'Munich',
+      country: 'Germany',
+      coordinates: '48.1351, 11.5820'
+    })
+    await AddOrsSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Updated Contact',
+      email: 'updated@ra470changetest.de',
+      phone: '+49 89 654321'
+    })
+    await AddOrsSiteContactPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes(['A1181'])
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await AddOrsRepatriatedLoadsPage.enterDescription(
+      'Rejected loads are returned within 30 days at our expense via licensed courier, updated.'
+    )
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await expect(AddOrsCyaPage.summaryList).toBeDisplayed()
+    await expect(AddOrsCyaPage.siteNameRow).toHaveText(
+      expect.stringContaining('RA-470 Change Test Ltd (Updated)')
+    )
+
+    // Same submit button/action as the create and promote flows — the
+    // server, not the client, decides create vs promote vs update from
+    // whichever of editingSiteId/promotingSiteId is set in the wizard
+    // session.
+    await AddOrsCyaPage.submit()
+
+    // Back on select-overseas-sites with the edit-success banner — distinct
+    // from both the plain add-success banner and the promote-success
+    // banner used by the other two entry points into this same wizard.
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(
+      OverseasReprocessingSitesPage.editSuccessBanner
+    ).toBeDisplayed()
+
+    // The update must have PATCHed the existing site record — same siteId,
+    // still exactly one site with this name, not a second one created
+    // alongside the original.
+    const sitesAfterEdit = await getOverseasSites(organisationId, applicationId)
+    const updatedSite = sitesAfterEdit.find((s) => s.siteId === siteId)
+    expect(updatedSite).toBeDefined()
+    expect(updatedSite.siteName).toBe('RA-470 Change Test Ltd (Updated)')
+    expect(sitesAfterEdit.filter((s) => s.siteId === siteId)).toHaveLength(1)
+  })
+
   it('Should navigate back to select-overseas-sites via the confirm-overseas-sites Change link (Plastic)', async () => {
     await OperatorPage.navigateToExporterAccreditationPlastic()
     await OperatorAccreditationPage.clickContinue()
