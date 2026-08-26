@@ -25,10 +25,20 @@ class OverseasReprocessingSitesPage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
+  get saveAndComeLaterButton() {
+    return $('[data-testid="save-come-back-button"]')
+  }
+
   async continue() {
     await this.continueButton.waitForDisplayed()
     await this.continueButton.scrollIntoView()
     await this.continueButton.click()
+  }
+
+  async saveAndComeLater() {
+    await this.saveAndComeLaterButton.waitForDisplayed()
+    await this.saveAndComeLaterButton.scrollIntoView()
+    await this.saveAndComeLaterButton.click()
   }
 
   accreditedSiteRow(siteId) {
