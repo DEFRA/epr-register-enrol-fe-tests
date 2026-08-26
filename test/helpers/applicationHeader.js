@@ -33,3 +33,21 @@ export function expectedSiteName(application) {
     ? (application.companyRegisteredAddress ?? 'Not set')
     : (application.siteAddress ?? 'Not set')
 }
+
+// RA-506: mirrors composeApplicationCaption in
+// epr-register-enrol-frontend's applicationHeader.js — every present part
+// is comma-joined, and siteName is the RAW (pre-"Not set"-fallback) value,
+// omitted entirely when the application has none.
+export function expectedCaptionText(application) {
+  const rawSiteName = application.isExporter
+    ? application.companyRegisteredAddress
+    : application.siteAddress
+
+  const parts = [
+    application.year,
+    expectedMaterialDisplay(application),
+    rawSiteName
+  ].filter((part) => part !== null && part !== undefined && part !== '')
+
+  return `${application.organisationName} (${parts.join(', ')})`
+}
