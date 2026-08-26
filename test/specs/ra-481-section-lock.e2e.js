@@ -211,7 +211,17 @@ describe('RA-481: locked accreditation sections stay read-only except the querie
 
   it('keeps the queried section fully editable while every other locked section stays read-only', async () => {
     // Continues the same org/application from the test above: still
-    // Submitted, business-plan still not queried.
+    // Submitted, business-plan still not queried. beforeEach deletes cookies
+    // and logs in fresh for every test, which wipes the server-side yar
+    // session (ACCREDITATION_SESSION_KEYS) the previous test's UI navigation
+    // populated — accreditationSessionGuard.js redirects any accreditation
+    // route to the real Re-Ex frontend (operatorHomeUrl()) whenever that
+    // session is missing, treating it as an expired session. Re-running
+    // reachSubmittedApplication() re-establishes it the same way the first
+    // test did; it's a no-op beyond that since the application is already
+    // Submitted (see its early return).
+    await reachSubmittedApplication()
+
     const queryNote = 'Please review the business plan spending breakdown.'
     await raiseQuery(organisationId, applicationId, {
       queryNote,
