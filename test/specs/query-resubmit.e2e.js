@@ -351,6 +351,33 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       'Queried'
     )
 
+    // RA-481 regression guard: resubmitting must flip the just-queried
+    // section (business-plan) back OUT of its "queried, therefore editable"
+    // exemption and INTO the same plain-locked read-only state as every
+    // other section — not leave it editable, and not leave it showing the
+    // queried-application copy ("not part of the regulator's query") now
+    // that the application itself has moved past Queried to Updated. And the
+    // section that was never touched by any query (sampling plan) must have
+    // stayed read-only the entire time, through both the Queried and the
+    // post-resubmit Updated state.
+    await browser.url(`/accreditation/business-plan/${applicationId}`)
+    await expect($('[data-testid="read-only-notice"]')).toBeDisplayed()
+    await expect($('[data-testid="read-only-notice"]')).toHaveText(
+      expect.stringContaining('This application has already been submitted')
+    )
+    await expect($('[data-testid="read-only-notice"]')).not.toHaveText(
+      expect.stringContaining("not part of the regulator's query")
+    )
+    await expect(await $('[data-testid="continue-button"]').isExisting()).toBe(
+      false
+    )
+
+    await browser.url(`/accreditation/sampling-plan/${applicationId}`)
+    await expect($('[data-testid="read-only-notice"]')).toBeDisplayed()
+    await expect(await $('[data-testid="upload-form"]').isExisting()).toBe(
+      false
+    )
+
     // AC03: the application is genuinely locked again — the classic task
     // list shows its read-only view, no continue button
     await TaskListPage.open(applicationId)
