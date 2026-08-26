@@ -60,8 +60,29 @@ class Page {
     return $('.govuk-footer__link[href*="accessibility-statement"]')
   }
 
-  open(path) {
-    return browser.url(path)
+  // CI's docker-compose network occasionally drops the Docker embedded DNS
+  // lookup of the frontend/backend service names under the concurrent load
+  // of multiple wdio workers sharing one selenium-chrome container, surfacing
+  // as `net::ERR_NAME_NOT_RESOLVED` on an otherwise-correct relative-path
+  // navigation (seen twice in a row on ra-481-section-lock.e2e.js's second
+  // test, both times on the first browser.url() call after an in-between
+  // Node-side API call with no intervening WebDriver command). Retrying is
+  // the same tolerance-of-known-CI-flakiness approach already used by
+  // clickReliably below, rather than a real navigation failure to fix.
+  async open(path) {
+    const maxAttempts = 3
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await browser.url(path)
+      } catch (error) {
+        if (
+          attempt >= maxAttempts ||
+          !/ERR_NAME_NOT_RESOLVED/.test(error.message)
+        ) {
+          throw error
+        }
+      }
+    }
   }
 
   // Headless Chrome in CI intermittently reports "move target out of bounds"
