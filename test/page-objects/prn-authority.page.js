@@ -37,6 +37,10 @@ class PrnAuthorityPage extends Page {
     return $('button=Save and continue')
   }
 
+  get saveAndComeLaterButton() {
+    return $('[data-testid="save-come-back-button"]')
+  }
+
   randomName() {
     const names = [
       'Alice Smith',
@@ -84,6 +88,11 @@ class PrnAuthorityPage extends Page {
   async saveAndContinue() {
     await this.saveAndContinueButton.waitForDisplayed()
     await this.saveAndContinueButton.click()
+  }
+
+  async saveAndComeLater() {
+    await this.saveAndComeLaterButton.waitForDisplayed()
+    await this.saveAndComeLaterButton.click()
   }
 }
 

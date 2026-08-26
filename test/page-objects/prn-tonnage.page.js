@@ -25,6 +25,10 @@ class PrnTonnagePage extends Page {
     return $('button=Save and continue')
   }
 
+  get saveAndComeLaterButton() {
+    return $('[data-testid="save-come-back-button"]')
+  }
+
   async selectRandomOption() {
     const labels = await this.radioLabels
     const inputs = await this.radioInputs
@@ -53,6 +57,11 @@ class PrnTonnagePage extends Page {
   async saveAndContinue() {
     await this.saveAndContinueButton.scrollIntoView()
     await this.saveAndContinueButton.click()
+  }
+
+  async saveAndComeLater() {
+    await this.saveAndComeLaterButton.scrollIntoView()
+    await this.saveAndComeLaterButton.click()
   }
 }
 

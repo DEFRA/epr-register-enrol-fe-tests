@@ -25,6 +25,10 @@ class SamplingPlanPage extends Page {
     return $('button=Save and continue')
   }
 
+  get saveAndComeLaterButton() {
+    return $('[data-testid="save-come-back-button"]')
+  }
+
   get uploadAnotherFileLink() {
     return $('[data-testid="upload-another-file-link"]')
   }
@@ -66,6 +70,12 @@ class SamplingPlanPage extends Page {
     await this.saveAndContinueButton.waitForDisplayed()
     await this.saveAndContinueButton.scrollIntoView()
     await this.saveAndContinueButton.click()
+  }
+
+  async saveAndComeLater() {
+    await this.saveAndComeLaterButton.waitForDisplayed()
+    await this.saveAndComeLaterButton.scrollIntoView()
+    await this.saveAndComeLaterButton.click()
   }
 }
 
