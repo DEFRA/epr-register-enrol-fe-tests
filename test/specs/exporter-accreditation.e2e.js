@@ -19,6 +19,7 @@ import AddInterimSiteCountryPage from 'page-objects/add-interim-site-country.pag
 import AddInterimSiteSiteNamePage from 'page-objects/add-interim-site-site-name.page'
 import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-location.page'
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
+import AddInterimSiteRecyclingOperationPage from 'page-objects/add-interim-site-recycling-operation.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import { getApplication, getOverseasSites } from '../helpers/case-management.js'
 import { expectedCaptionText } from '../helpers/applicationHeader.js'
@@ -471,7 +472,14 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     })
     await AddInterimSiteSiteContactPage.continue()
 
-    // Step 5: Check your answers
+    // Step 5 (RA-486): recycling-operation-details, mandatory R12/R13 here
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddInterimSiteRecyclingOperationPage.selectOperationCode('R12')
+    await AddInterimSiteRecyclingOperationPage.continue()
+
+    // Step 6: Check your answers
     await expect(browser).toHaveUrl(
       expect.stringContaining('/check-your-answers')
     )
@@ -526,6 +534,8 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       contactName: 'Camille Dubois',
       contactEmail: 'camille@ac0204validation.fr',
       contactPhone: '+33 4 12 34 56 80',
+      repatriatedLoadsDescription:
+        'Rejected loads are returned within 30 days at our expense via licensed courier.',
       submitViaAddInterimSite: true
     })
 

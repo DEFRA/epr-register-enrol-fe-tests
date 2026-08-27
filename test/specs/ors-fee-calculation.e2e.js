@@ -22,6 +22,7 @@ import AddInterimSiteCountryPage from 'page-objects/add-interim-site-country.pag
 import AddInterimSiteSiteNamePage from 'page-objects/add-interim-site-site-name.page'
 import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-location.page'
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
+import AddInterimSiteRecyclingOperationPage from 'page-objects/add-interim-site-recycling-operation.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import ViewPaymentDetailsPage from 'page-objects/view-payment-details.page'
 import { getOverseasSites } from '../helpers/case-management.js'
@@ -225,6 +226,13 @@ describe('RA-477: ORS fee counting with an interim site attached', () => {
       phone: '+49 40 12345679'
     })
     await AddInterimSiteSiteContactPage.continue()
+
+    // RA-486: recycling-operation-details, mandatory R12/R13 here
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddInterimSiteRecyclingOperationPage.selectOperationCode('R12')
+    await AddInterimSiteRecyclingOperationPage.continue()
 
     await expect(browser).toHaveUrl(
       expect.stringContaining('/check-your-answers')
