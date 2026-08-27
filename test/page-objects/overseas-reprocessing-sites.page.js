@@ -146,6 +146,39 @@ class OverseasReprocessingSitesPage extends Page {
     await link.scrollIntoView()
     await link.click()
   }
+
+  // RA-486: interim sites become visible/changeable/removable directly from
+  // this page — nested under their linked ORS row, keyed by the ORS's own
+  // siteId (the model is 1 ORS : 0-or-1 interim site, so no separate interim
+  // siteId/index is needed).
+  interimSiteRow(siteId) {
+    return $(`[data-testid="interim-site-row-${siteId}"]`)
+  }
+
+  changeInterimSiteButton(siteId) {
+    return $(`[data-testid="change-interim-site-${siteId}"]`)
+  }
+
+  async changeInterimSite(siteId) {
+    const link = this.changeInterimSiteButton(siteId)
+    await link.waitForDisplayed()
+    await link.scrollIntoView()
+    await link.click()
+  }
+
+  removeInterimSiteButton(siteId) {
+    return $(`[data-testid="remove-interim-site-${siteId}"]`)
+  }
+
+  // RA-486: goes through the existing bulk-patch endpoint on the frontend
+  // side (submitAction=removeInterimSite + siteId) — no confirmation step,
+  // matching removeAccredited/removeNewSite above.
+  async removeInterimSite(siteId) {
+    const button = this.removeInterimSiteButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
 }
 
 export default new OverseasReprocessingSitesPage()

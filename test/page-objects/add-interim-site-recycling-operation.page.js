@@ -1,6 +1,12 @@
 import { Page } from 'page-objects/page'
 
-class AddOrsRecyclingOperationPage extends Page {
+// RA-486: new step in the add-interim-site wizard, slotted between
+// site-contact-details and check-your-answers. Modelled directly on
+// add-ors-recycling-operation.page.js (same njk structure, same testids/id
+// pattern) but with mandatory/optional inverted — here R12/R13 is the
+// mandatory "core" pair and R3/R4/R5 is optional. The material itself is
+// inherited from the parent ORS, not asked again on this page.
+class AddInterimSiteRecyclingOperationPage extends Page {
   get pageHeading() {
     return $('[data-testid="page-heading"]')
   }
@@ -21,11 +27,9 @@ class AddOrsRecyclingOperationPage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
-  // RA-486: new inset text explaining that R3/R4/R5 are the mandatory
-  // "core" recycling codes for an ORS, with R12/R13 optional (previously
-  // R12/R13 forced the user down the add-interim-site path — RA-486 decouples
-  // that). Shared testid with the equivalent inset on the interim-site
-  // recycling-operation-details page.
+  // Shared testid with the ORS recycling-operation-details page's inset —
+  // here it explains R12/R13 are mandatory for an interim site, R3/R4/R5
+  // optional.
   get insetText() {
     return $('[data-testid="recycling-operation-inset"]')
   }
@@ -54,4 +58,4 @@ class AddOrsRecyclingOperationPage extends Page {
   }
 }
 
-export default new AddOrsRecyclingOperationPage()
+export default new AddInterimSiteRecyclingOperationPage()

@@ -33,8 +33,28 @@ class AddInterimSiteCyaPage extends Page {
     return $('[data-testid="row-contact-phone"]')
   }
 
+  // RA-486: new row for the recycling-operation-details step added to this
+  // wizard, mirroring the ORS CYA's equivalent row.
+  get recyclingOperationRow() {
+    return $('[data-testid="row-recycling-operation"]')
+  }
+
+  get recyclingOperationValue() {
+    return $('[data-testid="value-recycling-operation"]')
+  }
+
+  get changeRecyclingOperationLink() {
+    return $('[data-testid="change-recycling-operation"]')
+  }
+
   get errorSummary() {
     return $('[data-testid="error-summary"]')
+  }
+
+  // RA-486: this page now gets a real back link (previously missing),
+  // pointing at the new recycling-operation-details step.
+  get backLink() {
+    return $('[data-testid="back-link"]')
   }
 
   get cancelLink() {

@@ -40,7 +40,12 @@ async function addOverseasSiteViaWizard({
   contactPhone,
   operationCode = 'R3',
   baselCodes = ['A1181'],
-  repatriatedLoadsDescription
+  repatriatedLoadsDescription,
+  // RA-486: "Save and add interim site" is now always available on the CYA
+  // page, independent of which recycling-operation codes were selected —
+  // callers that need to reach the interim-site wizard set this instead of
+  // taking the normal "Add this site" submit path.
+  submitViaAddInterimSite = false
 }) {
   await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
   await OverseasReprocessingSitesPage.addNewOrsButton.click()
@@ -87,6 +92,12 @@ async function addOverseasSiteViaWizard({
   await expect(browser).toHaveUrl(
     expect.stringContaining('/check-your-answers')
   )
+
+  if (submitViaAddInterimSite) {
+    await AddOrsCyaPage.saveAndAddInterimSite()
+    return
+  }
+
   await AddOrsCyaPage.submit()
   await expect(browser).toHaveUrl(
     expect.stringContaining('/select-overseas-sites')
@@ -496,16 +507,33 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
     )
-    const applicationId = (await browser.getUrl())
-      .split('/accreditation/task-list/')[1]
-      .split('?')[0]
 
-    // Drive the interim-site wizard's own steps directly — reaching this
-    // point via the ORS CYA button is covered by the happy-path test above,
-    // and the wizard's earlier steps don't gate on a linked ORS site.
-    await browser.url(
-      `/accreditation/add-interim-site/${applicationId}/country`
+    // RA-486: the interim-site wizard's GET controllers now redirect back to
+    // select-overseas-sites unless there's a linked ORS (no more driving the
+    // wizard's steps directly by URL with nothing behind them) — so reach it
+    // for real via "Save and add interim site" on a freshly-added ORS's CYA
+    // page, same as the happy-path test above.
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
     )
+    await addOverseasSiteViaWizard({
+      siteName: 'AC02/AC04 Validation Recyclage SARL',
+      addressLine1: 'Rue de la Validation 1',
+      townOrCity: 'Lyon',
+      country: 'France',
+      coordinates: '45.7640, 4.8357',
+      contactName: 'Camille Dubois',
+      contactEmail: 'camille@ac0204validation.fr',
+      contactPhone: '+33 4 12 34 56 80',
+      submitViaAddInterimSite: true
+    })
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/add-interim-site/')
+    )
+    await expect(browser).toHaveUrl(expect.stringContaining('/country'))
+
     await AddInterimSiteCountryPage.enterCountry('France')
     await AddInterimSiteCountryPage.continue()
     await AddInterimSiteSiteNamePage.enterSiteName('Le Relais Interim Depot')

@@ -16,6 +16,26 @@ class ConfirmOverseasSitesPage extends Page {
     await link.click()
   }
 
+  // RA-486: interim sites are now shown on this review page too, nested
+  // under their linked ORS row (keyed by the ORS's own siteId — 1 ORS :
+  // 0-or-1 interim site, no separate index needed). Only a Change link here
+  // (this is the final read-through-and-confirm page); Remove stays on
+  // select-overseas-sites, same as for ORS rows themselves.
+  interimSiteRow(siteId) {
+    return $(`[data-testid="interim-site-row-${siteId}"]`)
+  }
+
+  changeInterimSiteLink(siteId) {
+    return $(`[data-testid="change-interim-site-${siteId}"]`)
+  }
+
+  async changeInterimSite(siteId) {
+    const link = this.changeInterimSiteLink(siteId)
+    await link.waitForDisplayed()
+    await link.scrollIntoView()
+    await link.click()
+  }
+
   get confirmAndContinueButton() {
     return $('[data-testid="confirm-button"]')
   }
