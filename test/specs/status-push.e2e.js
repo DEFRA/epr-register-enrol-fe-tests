@@ -17,6 +17,7 @@ import {
   patchSection
 } from '../helpers/case-management.js'
 
+// eslint-disable-next-line local-rules/no-undocumented-service-acronyms -- verbatim Jira ticket title, predates this guard
 describe('RA-368: Push CM status changes to OJ', () => {
   let organisationId
   let registrationId
