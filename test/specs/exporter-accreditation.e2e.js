@@ -21,10 +21,7 @@ import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-l
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import { getApplication, getOverseasSites } from '../helpers/case-management.js'
-import {
-  expectedMaterialDisplay,
-  expectedSiteName
-} from '../helpers/applicationHeader.js'
+import { expectedCaptionText } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 
@@ -190,22 +187,15 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/task-list/')
     )
 
-    // RA-309 AC03 / RA-424: persistent header on an exporter journey — site
-    // name must show the operator's UK registered address, not the overseas
-    // reprocessing site address (and not the literal word "Exporter")
+    // RA-506: on an exporter journey, the task-list caption must show the
+    // operator's UK registered address, not the overseas reprocessing site
+    // address (and not the literal word "Exporter")
     const applicationId = (await browser.getUrl())
       .split('/accreditation/task-list/')[1]
       .split('?')[0]
     const application = await getApplication(organisationId, applicationId)
-    await expect(TaskListPage.applicationHeader).toBeDisplayed()
-    await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
-      application.organisationName
-    )
-    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
-      expectedMaterialDisplay(application)
-    )
-    await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
-      expectedSiteName(application)
+    await expect(TaskListPage.pageCaption).toHaveText(
+      expectedCaptionText(application)
     )
     expect(application.isExporter).toBe(true)
 
@@ -1196,22 +1186,15 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       expect.stringContaining('/accreditation/task-list/')
     )
 
-    // RA-309 AC03 / RA-424: persistent header on an exporter journey — site
-    // name must show the operator's UK registered address, not the overseas
-    // reprocessing site address (and not the literal word "Exporter")
+    // RA-506: on an exporter journey, the task-list caption must show the
+    // operator's UK registered address, not the overseas reprocessing site
+    // address (and not the literal word "Exporter")
     const applicationId = (await browser.getUrl())
       .split('/accreditation/task-list/')[1]
       .split('?')[0]
     const application = await getApplication(organisationId, applicationId)
-    await expect(TaskListPage.applicationHeader).toBeDisplayed()
-    await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
-      application.organisationName
-    )
-    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
-      expectedMaterialDisplay(application)
-    )
-    await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
-      expectedSiteName(application)
+    await expect(TaskListPage.pageCaption).toHaveText(
+      expectedCaptionText(application)
     )
     expect(application.isExporter).toBe(true)
 

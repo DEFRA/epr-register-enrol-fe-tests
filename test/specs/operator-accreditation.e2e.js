@@ -13,10 +13,7 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import { getApplication } from '../helpers/case-management.js'
-import {
-  expectedMaterialDisplay,
-  expectedSiteName
-} from '../helpers/applicationHeader.js'
+import { expectedCaptionText } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
 
 describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
@@ -252,21 +249,14 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
       expect.stringContaining('/accreditation/task-list')
     )
 
-    // RA-309 AC03: the header persists onto the task list, showing the
-    // real operator/material/site data behind the application
+    // RA-506: the task list, like every journey page but the landing
+    // page, shows a govuk-caption-l instead of the persistent header
     const applicationId = (await browser.getUrl())
       .split('/accreditation/task-list/')[1]
       .split('?')[0]
     const application = await getApplication(organisationId, applicationId)
-    await expect(TaskListPage.applicationHeader).toBeDisplayed()
-    await expect(TaskListPage.applicationHeaderOperatorName).toHaveText(
-      application.organisationName
-    )
-    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
-      expectedMaterialDisplay(application)
-    )
-    await expect(TaskListPage.applicationHeaderSiteName).toHaveText(
-      expectedSiteName(application)
+    await expect(TaskListPage.pageCaption).toHaveText(
+      expectedCaptionText(application)
     )
 
     // PRN tonnage

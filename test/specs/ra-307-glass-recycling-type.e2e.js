@@ -55,14 +55,14 @@ describe('RA-307: Glass recycling type shown on the application header', () => {
 
     // Data-driven assertion (mirrors the real display logic against live
     // application data, so it can't drift out of sync with the fixture) ...
-    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
-      expectedMaterialDisplay(application)
+    await expect(TaskListPage.pageCaption).toHaveText(
+      expect.stringContaining(expectedMaterialDisplay(application))
     )
     // ... plus an explicit assertion on the exact wording, so a helper-level
     // regression (e.g. expectedMaterialDisplay itself losing the array/string
     // handling this ticket fixed) would still be caught.
-    await expect(TaskListPage.applicationHeaderMaterialType).toHaveText(
-      'Glass - Remelt'
+    await expect(TaskListPage.pageCaption).toHaveText(
+      expect.stringContaining('Glass - Remelt')
     )
   })
 })

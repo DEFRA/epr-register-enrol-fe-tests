@@ -9,8 +9,16 @@ class Page {
     return $('span.govuk-caption-m')
   }
 
+  // RA-506: govuk-caption-l shown immediately before the page heading on
+  // every journey page except operator-accreditation, which keeps the
+  // legacy applicationHeader strip below instead.
+  get pageCaption() {
+    return $('[data-testid="page-caption"]')
+  }
+
   // RA-309 AC03: persistent application-header strip (operator/material/site),
-  // rendered below the back link on every accreditation page.
+  // rendered below the back link on the operator-accreditation landing page
+  // only (RA-506 — every other journey page uses pageCaption above instead).
   get applicationHeader() {
     return $('[data-testid="application-header"]')
   }
