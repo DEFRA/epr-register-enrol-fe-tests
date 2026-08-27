@@ -349,11 +349,12 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     expect(orsSite.interimSite).toBeDefined()
   })
 
-  it('changes and removes an interim site directly from select-overseas-sites', async () => {
-    // Reuses the interim site the previous test attached to "RA-486
+  it('changes an interim site via the Change link, replaying the wizard pre-filled and submitting an update', async () => {
+    // Reuses the interim site the earlier test attached to "RA-486
     // Decoupling Proof GmbH" — org 50013's application accumulates state
     // across this describe block's tests, same convention as
-    // exporter-accreditation.e2e.js's org 50015.
+    // exporter-accreditation.e2e.js's org 50015 (see e.g. its own RA-470
+    // Change-link test, which this one mirrors).
     await OperatorPage.navigateToInterimSiteTestOrg()
     const landingUrl = await browser.getUrl()
     const [, organisationId] = new URL(landingUrl).pathname
@@ -386,20 +387,127 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     ).toHaveText(expect.stringContaining('RA-486 Interim Depot'))
 
     // Change re-enters the add-interim-site wizard pre-filled, on the
-    // .../interim-site/edit/{siteId} route.
+    // .../interim-site/edit/{siteId} route — mirrors editNewSite's
+    // .../add-overseas-site/{applicationId}/edit/{siteId} for the parent ORS.
     await OverseasReprocessingSitesPage.changeInterimSite(siteId)
     await expect(browser).toHaveUrl(
       expect.stringContaining(`/interim-site/edit/${siteId}`)
     )
+    await expect(browser).toHaveUrl(expect.stringContaining('/country'))
     await expect(AddInterimSiteCountryPage.pageHeading).toBeDisplayed()
 
-    // Back to select-overseas-sites without changing anything, to exercise
-    // Remove independently of the edit wizard's own submit path.
-    await browser.url(`/accreditation/select-overseas-sites/${applicationId}`)
+    // Replay the whole wizard, checking pre-fill at each step against the
+    // values the decoupling-proof test entered, then changing them to prove
+    // this really is an edit of the existing interim site rather than a
+    // fresh one created alongside it.
+    await AddInterimSiteCountryPage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+    await expect(AddInterimSiteSiteNamePage.siteNameInput).toHaveValue(
+      'RA-486 Interim Depot'
+    )
+    await AddInterimSiteSiteNamePage.enterSiteName(
+      'RA-486 Interim Depot (Updated)'
+    )
+    await AddInterimSiteSiteNamePage.continue()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await expect(AddInterimSiteSiteLocationPage.addressLine1Input).toHaveValue(
+      'Entkopplungsweg 2'
+    )
+    await expect(AddInterimSiteSiteLocationPage.townOrCityInput).toHaveValue(
+      'Munich'
+    )
+    await AddInterimSiteSiteLocationPage.enterLocation({
+      addressLine1: 'Geanderter Entkopplungsweg 3',
+      townOrCity: 'Munich',
+      stateOrRegion: 'Bavaria',
+      postcode: '80331'
+    })
+    await AddInterimSiteSiteLocationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await expect(AddInterimSiteSiteContactPage.contactNameInput).toHaveValue(
+      'Test Contact'
+    )
+    await expect(AddInterimSiteSiteContactPage.contactEmailInput).toHaveValue(
+      'test@ra486decoupling.de'
+    )
+    await AddInterimSiteSiteContactPage.enterContactDetails({
+      name: 'Updated Contact',
+      email: 'updated@ra486decoupling.de',
+      phone: '+49 89 7654323'
+    })
+    await AddInterimSiteSiteContactPage.continue()
+
+    // Recycling-operation-details: pre-filled with R12 (selected earlier),
+    // left as-is here — only proving the earlier fields' edits round-trip,
+    // not re-testing this step's own validation (covered above).
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddInterimSiteRecyclingOperationPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await expect(AddInterimSiteCyaPage.summaryList).toBeDisplayed()
+    await expect(AddInterimSiteCyaPage.siteNameRow).toHaveText(
+      expect.stringContaining('RA-486 Interim Depot (Updated)')
+    )
+
+    // Same submit as the create path — the server decides update vs create
+    // from linkedSiteId/editingSiteId in the wizard session, same pattern as
+    // the ORS wizard's create/promote/update split.
+    await AddInterimSiteCyaPage.submit()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+
+    // The update must have PATCHed the existing interim site — same parent
+    // ORS, updated interim-site fields, not a second interim site created
+    // alongside the original (the model is 1 ORS : 0-or-1 interim site, so
+    // there's no separate id to assert uniqueness on beyond the object
+    // itself still being singular).
+    const sites = await getOverseasSites(organisationId, applicationId)
+    const orsSite = sites.find(
+      (s) => s.siteName === 'RA-486 Decoupling Proof GmbH'
+    )
+    expect(orsSite).toBeDefined()
+    expect(orsSite.interimSite).toBeDefined()
+    expect(orsSite.interimSite.siteName).toBe('RA-486 Interim Depot (Updated)')
+  })
+
+  it('removes an interim site directly from select-overseas-sites', async () => {
+    // Reuses the interim site updated by the previous test.
+    await OperatorPage.navigateToInterimSiteTestOrg()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+
+    const interimSiteRow = await $('[data-testid^="interim-site-row-"]')
+    await interimSiteRow.waitForDisplayed()
+    const testId = await interimSiteRow.getAttribute('data-testid')
+    const siteId = testId.replace('interim-site-row-', '')
+
     await expect(
       OverseasReprocessingSitesPage.interimSiteRow(siteId)
     ).toBeDisplayed()
-
     await OverseasReprocessingSitesPage.removeInterimSite(siteId)
     await expect(browser).toHaveUrl(
       expect.stringContaining('/select-overseas-sites')
