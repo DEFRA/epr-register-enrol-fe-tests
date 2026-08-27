@@ -150,15 +150,25 @@ class OverseasReprocessingSitesPage extends Page {
   // RA-486: interim sites become visible/changeable/removable directly from
   // this page — nested under their linked ORS row, keyed by the ORS's own
   // siteId (the model is 1 ORS : 0-or-1 interim site, so no separate interim
-  // siteId/index is needed).
+  // siteId/index is needed). Rendered wherever site.interimSite is present,
+  // across all four site sections (accredited, registered, newSites,
+  // registeredSitesAdded).
   interimSiteRow(siteId) {
     return $(`[data-testid="interim-site-row-${siteId}"]`)
+  }
+
+  interimSiteNameValue(siteId) {
+    return $(`[data-testid="interim-site-name-${siteId}"]`)
   }
 
   changeInterimSiteButton(siteId) {
     return $(`[data-testid="change-interim-site-${siteId}"]`)
   }
 
+  // Re-enters the add-interim-site wizard pre-filled from the existing
+  // interim site (.../select-overseas-sites/{applicationId}/interim-site/edit/{siteId});
+  // its CYA submit calls the bulk PATCH with the edited interimSite (same
+  // siteId) instead of creating a new one.
   async changeInterimSite(siteId) {
     const link = this.changeInterimSiteButton(siteId)
     await link.waitForDisplayed()
@@ -167,11 +177,12 @@ class OverseasReprocessingSitesPage extends Page {
   }
 
   removeInterimSiteButton(siteId) {
-    return $(`[data-testid="remove-interim-site-${siteId}"]`)
+    return $(`[data-testid="remove-button-interim-site-${siteId}"]`)
   }
 
   // RA-486: goes through the existing bulk-patch endpoint on the frontend
-  // side (submitAction=removeInterimSite + siteId) — no confirmation step,
+  // side (form data-testid="remove-form-interim-site-{siteId}",
+  // name="submitAction" value="removeInterimSite") — no confirmation step,
   // matching removeAccredited/removeNewSite above.
   async removeInterimSite(siteId) {
     const button = this.removeInterimSiteButton(siteId)

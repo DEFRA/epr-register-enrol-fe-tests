@@ -348,6 +348,75 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     expect(orsSite).toBeDefined()
     expect(orsSite.interimSite).toBeDefined()
   })
+
+  it('changes and removes an interim site directly from select-overseas-sites', async () => {
+    // Reuses the interim site the previous test attached to "RA-486
+    // Decoupling Proof GmbH" — org 50013's application accumulates state
+    // across this describe block's tests, same convention as
+    // exporter-accreditation.e2e.js's org 50015.
+    await OperatorPage.navigateToInterimSiteTestOrg()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+
+    // Derive the parent ORS's siteId from the rendered interim-site row,
+    // same convention as the confirm-overseas-sites siteId lookup elsewhere
+    // in this suite (site-row-{siteId}) rather than assuming a field name on
+    // the API response.
+    const interimSiteRow = await $('[data-testid^="interim-site-row-"]')
+    await interimSiteRow.waitForDisplayed()
+    const testId = await interimSiteRow.getAttribute('data-testid')
+    const siteId = testId.replace('interim-site-row-', '')
+
+    await expect(
+      OverseasReprocessingSitesPage.interimSiteNameValue(siteId)
+    ).toHaveText(expect.stringContaining('RA-486 Interim Depot'))
+
+    // Change re-enters the add-interim-site wizard pre-filled, on the
+    // .../interim-site/edit/{siteId} route.
+    await OverseasReprocessingSitesPage.changeInterimSite(siteId)
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(`/interim-site/edit/${siteId}`)
+    )
+    await expect(AddInterimSiteCountryPage.pageHeading).toBeDisplayed()
+
+    // Back to select-overseas-sites without changing anything, to exercise
+    // Remove independently of the edit wizard's own submit path.
+    await browser.url(`/accreditation/select-overseas-sites/${applicationId}`)
+    await expect(
+      OverseasReprocessingSitesPage.interimSiteRow(siteId)
+    ).toBeDisplayed()
+
+    await OverseasReprocessingSitesPage.removeInterimSite(siteId)
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(
+      OverseasReprocessingSitesPage.interimSiteRow(siteId)
+    ).not.toBeDisplayed()
+
+    // Confirm via the API too: the parent ORS still exists, but its nested
+    // interim site is gone.
+    const sites = await getOverseasSites(organisationId, applicationId)
+    const orsSite = sites.find(
+      (s) => s.siteName === 'RA-486 Decoupling Proof GmbH'
+    )
+    expect(orsSite).toBeDefined()
+    expect(orsSite.interimSite).toBeFalsy()
+  })
 })
 
 // RA-486 AC7: the interim-site wizard's own steps must not be reachable by
