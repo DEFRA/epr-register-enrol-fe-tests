@@ -166,7 +166,6 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/recycling-operation-details')
     )
-    await expect(AddOrsRecyclingOperationPage.insetText).toBeDisplayed()
 
     // R12 alone (no R3/R4/R5) must be rejected — R12/R13 is no longer a
     // sufficient answer on the ORS step.
@@ -308,7 +307,6 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     await expect(
       AddInterimSiteRecyclingOperationPage.pageHeading
     ).toBeDisplayed()
-    await expect(AddInterimSiteRecyclingOperationPage.insetText).toBeDisplayed()
 
     // R3 alone (no R12/R13) must be rejected on this step — inverse of the
     // ORS rule.

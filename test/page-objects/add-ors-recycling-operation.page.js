@@ -21,15 +21,6 @@ class AddOrsRecyclingOperationPage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
-  // RA-486: new inset text explaining that R3/R4/R5 are the mandatory
-  // "core" recycling codes for an ORS, with R12/R13 optional (previously
-  // R12/R13 forced the user down the add-interim-site path — RA-486 decouples
-  // that). Shared testid with the equivalent inset on the interim-site
-  // recycling-operation-details page.
-  get insetText() {
-    return $('[data-testid="recycling-operation-inset"]')
-  }
-
   async selectOperationCode(code) {
     const operationInput = $(`#recycling-operation-code-${code.toLowerCase()}`)
     const operationLabel = $(

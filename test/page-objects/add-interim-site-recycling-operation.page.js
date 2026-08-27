@@ -27,13 +27,6 @@ class AddInterimSiteRecyclingOperationPage extends Page {
     return $('[data-testid="continue-button"]')
   }
 
-  // Shared testid with the ORS recycling-operation-details page's inset —
-  // here it explains R12/R13 are mandatory for an interim site, R3/R4/R5
-  // optional.
-  get insetText() {
-    return $('[data-testid="recycling-operation-inset"]')
-  }
-
   async selectOperationCode(code) {
     const operationInput = $(`#recycling-operation-code-${code.toLowerCase()}`)
     const operationLabel = $(
