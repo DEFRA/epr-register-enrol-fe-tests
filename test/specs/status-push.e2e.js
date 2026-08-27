@@ -123,10 +123,12 @@ describe('RA-368: Push CM status changes to OJ', () => {
       expect.stringContaining('DULY MADE')
     )
 
-    // RA-368: assessment-in-progress is CM's "payment received" action. CM
-    // itself displays this state as "Updated" (label collision with its own
-    // updated state), so OJ mirrors that rather than inventing a new tag -
-    // this was the gap that originally left OJ pinned at DULY MADE.
+    // RA-368: assessment-in-progress is Case Management service's "payment
+    // received" action. Case Management service itself displays this state
+    // as "Updated" (label collision with its own updated state), so the
+    // Registration & Accreditation service mirrors that rather than
+    // inventing a new tag - this was the gap that originally left the
+    // Registration & Accreditation service pinned at DULY MADE.
     await pushStatusChanged(organisationId, applicationId, {
       toStateId: 'assessment-in-progress',
       toStateDisplayName: 'Assessment in progress',
@@ -139,9 +141,10 @@ describe('RA-368: Push CM status changes to OJ', () => {
       expect.stringContaining('UPDATED')
     )
 
-    // RA-368: awaiting-decision is CM's "submit for decision" action, and
-    // unlike assessment-in-progress it gets its own distinct OJ status
-    // rather than reusing an existing one.
+    // RA-368: awaiting-decision is Case Management service's "submit for
+    // decision" action, and unlike assessment-in-progress it gets its own
+    // distinct Registration & Accreditation service status rather than
+    // reusing an existing one.
     await pushStatusChanged(organisationId, applicationId, {
       toStateId: 'awaiting-decision',
       toStateDisplayName: 'Awaiting decision',
@@ -165,8 +168,9 @@ describe('RA-368: Push CM status changes to OJ', () => {
       occurredAt: new Date(Date.now() + 3000).toISOString()
     })
     await browser.url(landingUrl(year))
-    // RA-415: CM renamed its "Approved" label to "Granted" - OJ's own status
-    // tag now mirrors that instead of still showing "APPROVED".
+    // RA-415: Case Management service renamed its "Approved" label to
+    // "Granted" - the Registration & Accreditation service's own status tag
+    // now mirrors that instead of still showing "APPROVED".
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('GRANTED')
     )
@@ -175,7 +179,7 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await expect(
       await OperatorAccreditationPage.firstContinueLink.isExisting()
     ).toBe(false)
-    // RA-423: once CM is terminal there is no further SLA to count down to,
+    // RA-423: once Case Management service is terminal there is no further SLA to count down to,
     // so the due-date cell shows COMPLETED instead of a date/fallback.
     await expect(OperatorAccreditationPage.applicationDueDate).toHaveText(
       expect.stringContaining('COMPLETED')
@@ -213,8 +217,9 @@ describe('RA-368: Push CM status changes to OJ', () => {
       occurredAt: new Date().toISOString()
     })
     await browser.url(landingUrl(year))
-    // RA-423: OJ's own label for CM's rejected state must read REFUSED, not
-    // REJECTED - CM already displays this outcome as "Refused".
+    // RA-423: the Registration & Accreditation service's own label for Case
+    // Management service's rejected state must read REFUSED, not REJECTED -
+    // Case Management service already displays this outcome as "Refused".
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       expect.stringContaining('REFUSED')
     )
@@ -245,8 +250,9 @@ describe('RA-368: Push CM status changes to OJ', () => {
   // stayed mapped to whatever status preceded it, so the withdraw guard's
   // AwaitingDecision arm was never exercised. Calling the withdraw endpoint
   // directly (bypassing withdraw-application.e2e.js's UI journey) proves the
-  // backend guard itself - the authoritative check behind OJ's own withdraw
-  // link - now accepts the request instead of wrongly returning 409.
+  // backend guard itself - the authoritative check behind the Registration &
+  // Accreditation service's own withdraw link - now accepts the request
+  // instead of wrongly returning 409.
   it('accepts a withdrawal of an application awaiting decision, pushed directly to the withdraw endpoint', async () => {
     const year = String(3000 + ((Date.now() + 1500) % 1000))
     const applicationId = await reachSubmittedApplication(year)
@@ -271,7 +277,7 @@ describe('RA-368: Push CM status changes to OJ', () => {
       expect.stringContaining('WITHDRAWN')
     )
     // RA-423: Withdrawn is terminal too, reached here via the withdraw
-    // endpoint rather than a CM push - due date still shows COMPLETED.
+    // endpoint rather than a Case Management service push - due date still shows COMPLETED.
     await expect(OperatorAccreditationPage.applicationDueDate).toHaveText(
       expect.stringContaining('COMPLETED')
     )
