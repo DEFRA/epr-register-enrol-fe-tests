@@ -29,9 +29,7 @@ class BesEvidencePage extends Page {
   }
 
   async saveAndComeLater() {
-    await this.saveAndComeLaterButton.waitForDisplayed()
-    await this.saveAndComeLaterButton.scrollIntoView()
-    await this.saveAndComeLaterButton.click()
+    await this.clickReliably(this.saveAndComeLaterButton)
   }
 
   // Upload form page (/upload-bes-evidence/)
@@ -101,8 +99,7 @@ class BesEvidencePage extends Page {
     await this.validToMonth.setValue('12')
     await this.validToYear.setValue('2030')
 
-    await this.uploadButton.waitForDisplayed()
-    await this.uploadButton.click()
+    await this.clickReliably(this.uploadButton)
 
     // Status page auto-refreshes every 2s; wait for redirect to Upload More Evidence page
     await this.moreEvidenceForm.waitForDisplayed({ timeout: 30000 })
@@ -115,14 +112,12 @@ class BesEvidencePage extends Page {
     await browser.execute(() =>
       document.querySelector('[data-testid="answer-no"]').click()
     )
-    await this.continueButton.waitForClickable()
-    await this.continueButton.click()
+    await this.clickReliably(this.continueButton)
     await this.confirmButton.waitForDisplayed({ timeout: 10000 })
   }
 
   async confirmEvidence() {
-    await this.confirmButton.waitForDisplayed()
-    await this.confirmButton.click()
+    await this.clickReliably(this.confirmButton)
   }
 
   async uploadAllEvidence(filename) {
@@ -152,8 +147,7 @@ class BesEvidencePage extends Page {
       pending = await $$('.govuk-tag--grey')
     }
     // All required sites are Uploaded — click Continue to complete the section
-    await this.continueButton.waitForDisplayed()
-    await this.continueButton.click()
+    await this.clickReliably(this.continueButton)
   }
 }
 

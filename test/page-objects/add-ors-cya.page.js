@@ -84,15 +84,11 @@ class AddOrsCyaPage extends Page {
   }
 
   async submit() {
-    await this.submitButton.waitForDisplayed()
-    await this.submitButton.scrollIntoView()
-    await this.submitButton.click()
+    await this.clickReliably(this.submitButton)
   }
 
   async saveAndAddInterimSite() {
-    await this.saveAndAddInterimSiteButton.waitForDisplayed()
-    await this.saveAndAddInterimSiteButton.scrollIntoView()
-    await this.saveAndAddInterimSiteButton.click()
+    await this.clickReliably(this.saveAndAddInterimSiteButton)
   }
 }
 

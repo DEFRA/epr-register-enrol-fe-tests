@@ -106,9 +106,7 @@ class OperatorAccreditationPage extends Page {
   }
 
   async clickContinue() {
-    await this.firstContinueLink.waitForDisplayed()
-    await this.firstContinueLink.scrollIntoView()
-    await this.firstContinueLink.click()
+    await this.clickReliably(this.firstContinueLink)
   }
 
   get viewLinks() {

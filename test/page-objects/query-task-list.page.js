@@ -42,9 +42,7 @@ class QueryTaskListPage extends Page {
   }
 
   async continueToDeclaration() {
-    await this.continueButton.waitForDisplayed()
-    await this.continueButton.scrollIntoView()
-    await this.continueButton.click()
+    await this.clickReliably(this.continueButton)
   }
 }
 

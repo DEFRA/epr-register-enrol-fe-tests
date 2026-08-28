@@ -82,17 +82,15 @@ class PrnAuthorityPage extends Page {
     await this.authoriserNameInput.waitForDisplayed()
     await this.authoriserNameInput.setValue(name)
     await this.authoriserEmailInput.setValue(email)
-    await this.addAuthoriserSubmitButton.click()
+    await this.clickReliably(this.addAuthoriserSubmitButton)
   }
 
   async saveAndContinue() {
-    await this.saveAndContinueButton.waitForDisplayed()
-    await this.saveAndContinueButton.click()
+    await this.clickReliably(this.saveAndContinueButton)
   }
 
   async saveAndComeLater() {
-    await this.saveAndComeLaterButton.waitForDisplayed()
-    await this.saveAndComeLaterButton.click()
+    await this.clickReliably(this.saveAndComeLaterButton)
   }
 }
 

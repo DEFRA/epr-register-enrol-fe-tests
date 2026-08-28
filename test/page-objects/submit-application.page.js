@@ -53,8 +53,7 @@ class SubmitApplicationPage extends Page {
     await this.fullNameInput.waitForDisplayed()
     await this.fullNameInput.setValue(name)
     await this.jobTitleInput.setValue(title)
-    await this.submitApplicationButton.scrollIntoView()
-    await this.submitApplicationButton.click()
+    await this.clickReliably(this.submitApplicationButton)
   }
 }
 

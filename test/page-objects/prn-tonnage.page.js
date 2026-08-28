@@ -55,13 +55,11 @@ class PrnTonnagePage extends Page {
   }
 
   async saveAndContinue() {
-    await this.saveAndContinueButton.scrollIntoView()
-    await this.saveAndContinueButton.click()
+    await this.clickReliably(this.saveAndContinueButton)
   }
 
   async saveAndComeLater() {
-    await this.saveAndComeLaterButton.scrollIntoView()
-    await this.saveAndComeLaterButton.click()
+    await this.clickReliably(this.saveAndComeLaterButton)
   }
 }
 

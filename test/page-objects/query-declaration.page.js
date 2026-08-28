@@ -66,14 +66,11 @@ class QueryDeclarationPage extends Page {
     await this.fullNameInput.setValue(name)
     await this.emailInput.setValue(emailAddress)
     await this.roleInput.setValue(jobRole)
-    await this.resubmitButton.scrollIntoView()
-    await this.resubmitButton.click()
+    await this.clickReliably(this.resubmitButton)
   }
 
   async clickResubmit() {
-    await this.resubmitButton.waitForDisplayed()
-    await this.resubmitButton.scrollIntoView()
-    await this.resubmitButton.click()
+    await this.clickReliably(this.resubmitButton)
   }
 }
 

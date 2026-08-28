@@ -11,6 +11,7 @@ import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
+import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import {
   pushStatusChanged,
   withdrawApplication,
@@ -103,6 +104,12 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await TaskListPage.assertAllTasksCompleted()
     await TaskListPage.continueToSubmit()
     await SubmitApplicationPage.submitApplication()
+
+    // Confirms the submit POST actually landed server-side (and with it, CM
+    // work-item creation) before returning — without this, pushStatusChanged
+    // below can race ahead of the backend and find caseManagementWorkItemId
+    // still unset.
+    await ApplicationSubmittedPage.panelTitle.waitForDisplayed()
 
     return applicationId
   }
