@@ -64,10 +64,21 @@ class AddOrsCyaPage extends Page {
     return $('[data-testid="cancel-link"]')
   }
 
+  // RA-486: this page now always gets a real back link (pointing at
+  // site-contact-details, the last wizard step before CYA) — previously
+  // absent.
+  get backLink() {
+    return $('[data-testid="back-link"]')
+  }
+
   get submitButton() {
     return $('[data-testid="submit-button"]')
   }
 
+  // RA-486: "Save and add interim site" is now always rendered here,
+  // independent of whether R12/R13 was selected on this ORS's recycling
+  // operations — adding an interim site is a standalone action, not gated on
+  // those codes any more.
   get saveAndAddInterimSiteButton() {
     return $('[data-testid="save-and-add-interim-site-button"]')
   }
