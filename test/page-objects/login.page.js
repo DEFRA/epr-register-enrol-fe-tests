@@ -32,8 +32,7 @@ class LoginPage extends Page {
       document.querySelector('input[type="radio"]').click()
     })
     const submitBtn = await $('button.govuk-button')
-    await submitBtn.waitForClickable()
-    await submitBtn.click()
+    await this.clickReliably(submitBtn)
   }
 
   async loginAsOperator() {
@@ -43,8 +42,7 @@ class LoginPage extends Page {
       document.querySelector('input[type="radio"]').click()
     })
     const submitBtn = await $('button.govuk-button')
-    await submitBtn.waitForClickable()
-    await submitBtn.click()
+    await this.clickReliably(submitBtn)
     await browser.waitUntil(
       async () => !(await browser.getUrl()).includes('/stub/login'),
       { timeout: 15000, timeoutMsg: 'Stub login did not redirect after login' }
