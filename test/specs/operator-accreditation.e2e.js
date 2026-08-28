@@ -368,6 +368,19 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     const paymentRef =
       await ApplicationSubmittedPage.bankPaymentReference.getText()
     await expect(paymentRef).toBe(`PR/PK/REP/${organisationId}`)
+
+    // RA-426: "Contact your regulator" (name + email, nation-specific) sits
+    // below the payment reference and above the return-home link — it was
+    // missing entirely until this fix.
+    await expect(ApplicationSubmittedPage.contactRegulatorHeading).toHaveText(
+      'Contact your regulator'
+    )
+    const contactRegulatorDetails =
+      await ApplicationSubmittedPage.contactRegulatorDetails.getText()
+    await expect(contactRegulatorDetails).toContain('Environment Agency')
+    await expect(contactRegulatorDetails).toContain(
+      'packagingnotifications@environment-agency.gov.uk'
+    )
   })
 
   // ── RA-374 regression ────────────────────────────────────────────────────

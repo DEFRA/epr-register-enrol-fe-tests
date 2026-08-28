@@ -39,6 +39,14 @@ const withPaymentDetails = (Base) =>
     get bankPaymentReference() {
       return $('[data-testid="bank-payment-reference"]')
     }
+
+    get contactRegulatorHeading() {
+      return $('[data-testid="contact-regulator-heading"]')
+    }
+
+    get contactRegulatorDetails() {
+      return $('[data-testid="contact-regulator-details"]')
+    }
   }
 
 export { withPaymentDetails }
