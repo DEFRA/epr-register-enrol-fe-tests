@@ -53,8 +53,7 @@ class SamplingPlanPage extends Page {
     await this.documentTypeSelect.selectByAttribute('value', documentType)
     await this.fileInput.waitForExist()
     await this.fileInput.setValue(uploadPath)
-    await this.uploadFileButton.waitForDisplayed()
-    await this.uploadFileButton.click()
+    await this.clickReliably(this.uploadFileButton)
     // RA-290 AC04: upload -> checking -> results is now three separate pages.
     // The browser follows the checking page's meta-refresh redirects on its
     // own. Wait for a positive success signal (a listed file, no error
@@ -67,15 +66,11 @@ class SamplingPlanPage extends Page {
   }
 
   async saveAndContinue() {
-    await this.saveAndContinueButton.waitForDisplayed()
-    await this.saveAndContinueButton.scrollIntoView()
-    await this.saveAndContinueButton.click()
+    await this.clickReliably(this.saveAndContinueButton)
   }
 
   async saveAndComeLater() {
-    await this.saveAndComeLaterButton.waitForDisplayed()
-    await this.saveAndComeLaterButton.scrollIntoView()
-    await this.saveAndComeLaterButton.click()
+    await this.clickReliably(this.saveAndComeLaterButton)
   }
 }
 

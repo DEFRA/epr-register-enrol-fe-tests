@@ -36,15 +36,11 @@ class OverseasReprocessingSitesPage extends Page {
   }
 
   async continue() {
-    await this.continueButton.waitForDisplayed()
-    await this.continueButton.scrollIntoView()
-    await this.continueButton.click()
+    await this.clickReliably(this.continueButton)
   }
 
   async saveAndComeLater() {
-    await this.saveAndComeLaterButton.waitForDisplayed()
-    await this.saveAndComeLaterButton.scrollIntoView()
-    await this.saveAndComeLaterButton.click()
+    await this.clickReliably(this.saveAndComeLaterButton)
   }
 
   accreditedSiteRow(siteId) {

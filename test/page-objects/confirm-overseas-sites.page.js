@@ -52,9 +52,7 @@ class ConfirmOverseasSitesPage extends Page {
   }
 
   async confirmAndContinue() {
-    await this.confirmAndContinueButton.waitForDisplayed()
-    await this.confirmAndContinueButton.scrollIntoView()
-    await this.confirmAndContinueButton.click()
+    await this.clickReliably(this.confirmAndContinueButton)
   }
 }
 

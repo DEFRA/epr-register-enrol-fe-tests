@@ -64,9 +64,7 @@ class TaskListPage extends Page {
   }
 
   async continueToSubmit() {
-    await this.continueButton.waitForDisplayed()
-    await this.continueButton.scrollIntoView()
-    await this.continueButton.click()
+    await this.clickReliably(this.continueButton)
   }
 }
 

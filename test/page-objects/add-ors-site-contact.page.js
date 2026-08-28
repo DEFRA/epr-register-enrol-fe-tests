@@ -43,8 +43,7 @@ class AddOrsSiteContactPage extends Page {
   }
 
   async continue() {
-    await this.continueButton.waitForDisplayed()
-    await this.continueButton.click()
+    await this.clickReliably(this.continueButton)
   }
 }
 

@@ -101,9 +101,7 @@ class AddOrsBaselCodesPage extends Page {
   }
 
   async continue() {
-    await this.continueButton.waitForDisplayed()
-    await this.continueButton.scrollIntoView()
-    await this.continueButton.click()
+    await this.clickReliably(this.continueButton)
   }
 }
 
