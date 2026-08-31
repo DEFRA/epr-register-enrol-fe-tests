@@ -143,7 +143,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
   it('lets an operator respond to a regulator query and resubmit the application', async () => {
     await reachSubmittedApplication()
 
-    // CM BE's idempotent-submit fix (RA-311) keys off operatorApplicationId —
+    // Case Management service BE's idempotent-submit fix (RA-311) keys off operatorApplicationId —
     // this is the E2E-level analogue of its unit tests, proving a normal
     // single submit still results in exactly one case-management work item.
     const submittedApplication = await getApplication(
@@ -408,9 +408,10 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
 
     // Fix 4 (RA-311): tonnage and tonnage-authority gained the same
     // queryNote banner guard as every other queried section, but it had no
-    // black-box coverage. Raise a second query — CM allows this from
-    // 'Updated', the status this application is now in — against prn-tonnage
-    // (the CM key both PRN pages share) and confirm the shared banner
+    // black-box coverage. Raise a second query — Case Management service
+    // allows this from 'Updated', the status this application is now in —
+    // against prn-tonnage (the Case Management service key both PRN pages
+    // share) and confirm the shared banner
     // renders on both.
     const tonnageQueryNote = 'Please confirm the planned tonnage band.'
     await raiseQuery(organisationId, applicationId, {
