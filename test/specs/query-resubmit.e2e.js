@@ -152,6 +152,17 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     )
     expect(submittedApplication.caseManagementWorkItemId).toBeTruthy()
 
+    // RA-481: back-navigating to submit-declaration after the application
+    // has already been submitted must not re-show the actionable
+    // declaration form — the classic browser-back-button-after-submit
+    // scenario this ticket closes. Covered here rather than in a dedicated
+    // spec since this test already drives an application to Submitted
+    // without needing its own org (see reachSubmittedApplication's org-50003
+    // comment above); POST-after-back is covered at the unit level in
+    // epr-register-enrol-frontend's submit-declaration controller tests.
+    await browser.url(`/accreditation/submit-declaration/${applicationId}`)
+    await expect(browser).toHaveUrl(expect.stringContaining(landingUrl()))
+
     // Simulate case-management raising a query against a single section —
     // management-fe is out of scope for this ticket (RA-311 §1), so this
     // calls the operator-backend's inbound endpoint directly.
