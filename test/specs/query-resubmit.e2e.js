@@ -152,17 +152,6 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     )
     expect(submittedApplication.caseManagementWorkItemId).toBeTruthy()
 
-    // RA-481: back-navigating to submit-declaration after the application
-    // has already been submitted must not re-show the actionable
-    // declaration form — the classic browser-back-button-after-submit
-    // scenario this ticket closes. Covered here rather than in a dedicated
-    // spec since this test already drives an application to Submitted
-    // without needing its own org (see reachSubmittedApplication's org-50003
-    // comment above); POST-after-back is covered at the unit level in
-    // epr-register-enrol-frontend's submit-declaration controller tests.
-    await browser.url(`/accreditation/submit-declaration/${applicationId}`)
-    await expect(browser).toHaveUrl(expect.stringContaining(landingUrl()))
-
     // Simulate case-management raising a query against a single section —
     // management-fe is out of scope for this ticket (RA-311 §1), so this
     // calls the operator-backend's inbound endpoint directly.
@@ -438,5 +427,27 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await expect(PrnAuthorityPage.queryNote).toHaveText(
       expect.stringContaining(tonnageQueryNote)
     )
+  })
+
+  // RA-481: back-navigating to submit-declaration after the application has
+  // already been submitted must not re-show the actionable declaration
+  // form — the classic browser-back-button-after-submit scenario this
+  // ticket closes. A standalone test (not folded into the large RA-311
+  // journey above) so a failure here is attributed to RA-481, not
+  // misread as an RA-311 regression, and isn't silently lost if an
+  // earlier step in that longer journey flakes or is skipped. Reuses
+  // reachSubmittedApplication() and org 50003 rather than seeding its own
+  // application. Depends on epr-register-enrol-frontend#315's
+  // applicationStatus guard on submit-declaration's GET handler being
+  // deployed to the environment under test — that guard redirects any
+  // application whose status isn't 'Started' to landingUrl(application)
+  // (not the task list), which is what this asserts. POST-after-back is
+  // covered at the unit level in that PR's submit-declaration controller
+  // tests.
+  it('redirects away from submit-declaration instead of re-showing the form once the application is submitted', async () => {
+    await reachSubmittedApplication()
+
+    await browser.url(`/accreditation/submit-declaration/${applicationId}`)
+    await expect(browser).toHaveUrl(expect.stringContaining(landingUrl()))
   })
 })
