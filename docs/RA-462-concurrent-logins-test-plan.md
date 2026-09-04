@@ -13,7 +13,7 @@ sign-out). See
   ("a new sign-in was detected …").
 - The session that just logged in shows an **info** toast ("you were already
   signed in elsewhere").
-- Dismissing a toast keeps it dismissed until a *newer* sign-in occurs.
+- Dismissing a toast keeps it dismissed until a _newer_ sign-in occurs.
 - Without JavaScript the toast renders as an in-flow GOV.UK notification banner
   whose "Hide" link dismisses it via a full-page POST.
 
@@ -36,7 +36,7 @@ jars in one run:
 6. **Assert (alert):** session A shows the alert toast
    (`[data-testid="session-notice"][data-variant="alert"]`), it contains a
    sign-in time and a "sign out" link, **and** the page content itself rendered
-   (status 200, heading visible) — i.e. A was *not* redirected to login.
+   (status 200, heading visible) — i.e. A was _not_ redirected to login.
 7. **Assert (dismiss):** click the toast close control → toast gone; reload →
    still gone.
 8. **Assert (re-raise):** `browser.reloadSession()` → third login as the same
