@@ -1,82 +1,47 @@
-# RA-462 — Concurrent logins: E2E test plan (frontend journey tests)
+# RA-462 — Concurrent-login notification: E2E (frontend journey tests)
 
-**Status:** Plan only — the spec is not written yet. Policy chosen by product on
-2026-09-02: **allow concurrent sessions, show a dismissible toast** (no forced
-sign-out). See
-`epr-register-enrol-frontend/docs/RA-462-concurrent-logins-design.md`.
-**Branch:** `feature/RA-462-ConcurrentLogins`
+**Status:** Implemented — `test/specs/ra-462-concurrent-logins.e2e.js`, live
+(not `describe.skip`). It runs against a frontend built from a branch matching
+this PR's head ref: `run-journey-tests` resolves
+`DEFRA/epr-register-enrol-frontend` by exact branch name, and both branches are
+`feature/RA-462-ConcurrentLogins`, so the built frontend carries the feature.
 
-## What is being verified
+## What the spec asserts
 
-- A second login for the same identity leaves **both** sessions usable.
-- The session already active before the second login shows an **alert** toast
-  ("a new sign-in was detected …").
-- The session that just logged in shows an **info** toast ("you were already
-  signed in elsewhere").
-- Dismissing a toast keeps it dismissed until a _newer_ sign-in occurs.
-- Without JavaScript the toast renders as an in-flow GOV.UK notification banner
-  whose "Hide" link dismisses it via a full-page POST.
+Single Chrome instance, two cookie jars in one run: stub-login (jar A),
+`browser.getCookies()`, `browser.reloadSession()` for a clean jar B,
+stub-login again as the same regulator.
 
-## Approach in this WDIO suite
+1. **the just-signed-in session (B) sees a session-notice** —
+   `[data-testid="session-notice"]` is displayed.
+2. **the already-active session (A) is not signed out** — restore jar A,
+   navigate, assert the URL is not an `/auth/*` login page and the sign-out
+   link still renders.
+3. **the notice dismisses** — on session B (whose notice is a stable
+   session-flag render), click `[data-testid="session-notice-dismiss"]` and
+   assert the notice is gone.
 
-`wdio.conf.js` runs a single Chrome instance (`maxInstances: 1`); two cookie
-jars in one run:
+## Deliberately not asserted here
 
-1. `browser.deleteCookies()`; stub-login as the regulator user
-   (`LoginPage.openRegulatorLogin()` → `LoginPage.loginAsUser()`); wait for the
-   redirect off `/stub/login`.
-2. `const sessionA = await browser.getCookies(['session'])`.
-3. `browser.reloadSession()` (fresh jar) → stub-login again as the **same**
-   user. Session B.
-4. **Assert (info):** session B's first authenticated page shows the info toast
-   (`[data-testid="session-notice"][data-variant="info"]` — testid + variant
-   attribute per repo convention).
-5. `browser.deleteCookies(); browser.setCookies(sessionA)`; navigate to a
-   protected page.
-6. **Assert (alert):** session A shows the alert toast
-   (`[data-testid="session-notice"][data-variant="alert"]`), it contains a
-   sign-in time and a "sign out" link, **and** the page content itself rendered
-   (status 200, heading visible) — i.e. A was _not_ redirected to login.
-7. **Assert (dismiss):** click the toast close control → toast gone; reload →
-   still gone.
-8. **Assert (re-raise):** `browser.reloadSession()` → third login as the same
-   user; restore `sessionA`; navigate → alert toast is back.
+The `alert` vs `info` variant, the "a new sign-in was detected at HH:MM"
+wording, dismissal persistence across navigations, and the third-login
+re-raise are **covered by `concurrent-login.test.js` in
+`epr-register-enrol-frontend`**, not re-checked here. Reason: the journey grid
+runs many parallel browsers as the **same** stub user, so the per-identity
+registry that decides the alert variant is churned continuously by other
+specs — a single spec cannot pin it. The two assertions that do run in the
+grid target the just-signed-in session, whose notice comes from its own yar
+session flag rather than a live shared-registry read.
 
-No-JS variant: run one case with Chrome started with JavaScript disabled (or via
-CDP `Emulation.setScriptExecutionDisabled`), assert the banner renders in-flow
-and that submitting its "Hide" form removes it on the next page.
+The no-JS fallback (banner renders in flow, "Hide" posts a full-page form) is
+exercised by `concurrent-login.test.js` / the component test in the frontend
+repo; adding a JS-disabled Chrome variant here was descoped as low value
+against the grid-churn constraints above.
 
-## New spec
+## Manual verification (EXT-TEST)
 
-`test/specs/ra-462-concurrent-logins.e2e.js`
-
-```
-describe('RA-462 concurrent logins — new-sign-in notification', () => {
-  it('second login: both sessions stay usable', ...)
-  it('older session shows the alert toast with the sign-in time', ...)
-  it('newer session shows the info toast', ...)
-  it('dismissing the toast keeps it dismissed until a newer sign-in', ...)
-  it('a third login re-raises the alert', ...)
-  it('no-JS: renders an in-flow banner whose Hide link dismisses it', ...)
-  it('single-browser login is unaffected (no toast)', ...)   // regression
-})
-```
-
-Page-object additions (`test/page-objects/login.page.js` or a new
-`session-notice.page.js`): `sessionNotice(variant)`, `dismissSessionNotice()`,
-`captureSession()` / `restoreSession(cookies)` wrappers.
-
-## Environment assumptions
-
-- Runs against the stub-auth deployment (as every existing spec does).
-- The frontend under test must be built from `feature/RA-462-ConcurrentLogins`
-  with the notification implemented. Until then the spec is committed **skipped**
-  (`describe.skip`) with a comment pointing here, so CI stays green.
-- `SESSION_CONCURRENT_LOGIN_NOTICE_ENABLED` must be `true` (its default) in the
-  environment under test.
-
-## Manual verification (EXT-TEST) — cross-reference
-
-Frontend design doc §6: two real browsers, info toast on the newer, alert toast
-on the older, both usable, dismissal sticks, third login re-raises, no-JS
-fallback, screen-reader pass.
+Two real browsers as the same operator: the second shows the "signed in
+elsewhere" notice; the first, on its next page, shows "a new sign-in was
+detected" with a sign-out link and stays usable; dismiss clears it; a third
+sign-in re-raises it. Repeat for a regulator via Entra ID. Screen-reader pass
+on both variants.
