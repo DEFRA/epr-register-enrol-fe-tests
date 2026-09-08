@@ -108,8 +108,13 @@ describe('RA-368: Push CM status changes to OJ', () => {
     // Confirms the submit POST actually landed server-side (and with it, CM
     // work-item creation) before returning — without this, pushStatusChanged
     // below can race ahead of the backend and find caseManagementWorkItemId
-    // still unset.
-    await ApplicationSubmittedPage.panelTitle.waitForDisplayed()
+    // still unset. Generous timeout: this is the tail of a long multi-section
+    // journey and the submit → confirmation render is the slowest hop under a
+    // loaded parallel grid.
+    await ApplicationSubmittedPage.panelTitle.waitForDisplayed({
+      timeout: 30000,
+      timeoutMsg: 'Application submitted confirmation panel did not appear'
+    })
 
     return applicationId
   }
