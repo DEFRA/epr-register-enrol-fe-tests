@@ -27,16 +27,28 @@ import {
 // RA-309 AC03: the persistent header must survive every redirect hop of the
 // queried/resubmit journey on operator-accreditation, the one page that
 // keeps it (RA-506 — every other journey page uses the caption instead).
+// Checked as independent substrings rather than one exact string: the
+// component's exact spacing/punctuation isn't this test's concern (that's
+// covered at the frontend's own unit-test level), and per-field checks keep
+// a failure pointing at the specific piece that's wrong instead of an
+// opaque full-string mismatch.
 async function assertApplicationHeader(page, application) {
   await expect(page.applicationHeader).toBeDisplayed()
   await expect(page.applicationHeaderOperatorName).toHaveText(
-    application.organisationName
+    application.organisationName,
+    { containing: true }
   )
-  await expect(page.applicationHeaderMaterialType).toHaveText(
-    expectedMaterialDisplay(application)
+  await expect(page.applicationHeaderOperatorName).toHaveText(
+    String(application.year),
+    { containing: true }
   )
-  await expect(page.applicationHeaderSiteName).toHaveText(
-    expectedSiteName(application)
+  await expect(page.applicationHeaderOperatorName).toHaveText(
+    expectedMaterialDisplay(application),
+    { containing: true }
+  )
+  await expect(page.applicationHeaderOperatorName).toHaveText(
+    expectedSiteName(application),
+    { containing: true }
   )
 }
 

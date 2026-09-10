@@ -16,23 +16,17 @@ class Page {
     return $('[data-testid="page-caption"]')
   }
 
-  // RA-309 AC03: persistent application-header strip (operator/material/site),
-  // rendered below the back link on the operator-accreditation landing page
-  // only (RA-506 — every other journey page uses pageCaption above instead).
+  // RA-309 AC03: persistent application-header strip, rendered below the
+  // back link on the operator-accreditation landing page only (RA-506 —
+  // every other journey page uses pageCaption above instead). Operator,
+  // material, year and site are all rendered as one caption inside
+  // applicationHeaderOperatorName rather than separate elements.
   get applicationHeader() {
     return $('[data-testid="application-header"]')
   }
 
   get applicationHeaderOperatorName() {
     return $('[data-testid="application-header-operator-name"]')
-  }
-
-  get applicationHeaderMaterialType() {
-    return $('[data-testid="application-header-material-type"]')
-  }
-
-  get applicationHeaderSiteName() {
-    return $('[data-testid="application-header-site-name"]')
   }
 
   // RA-487: the service-navigation "Home" link now always points at the
