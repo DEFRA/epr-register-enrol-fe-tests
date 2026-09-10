@@ -19,8 +19,7 @@ import {
   patchSection
 } from '../helpers/case-management.js'
 import {
-  expectedMaterialDisplay,
-  expectedSiteName,
+  expectedApplicationHeaderText,
   expectedCaptionText
 } from '../helpers/applicationHeader.js'
 
@@ -30,13 +29,7 @@ import {
 async function assertApplicationHeader(page, application) {
   await expect(page.applicationHeader).toBeDisplayed()
   await expect(page.applicationHeaderOperatorName).toHaveText(
-    application.organisationName
-  )
-  await expect(page.applicationHeaderMaterialType).toHaveText(
-    expectedMaterialDisplay(application)
-  )
-  await expect(page.applicationHeaderSiteName).toHaveText(
-    expectedSiteName(application)
+    expectedApplicationHeaderText(application)
   )
 }
 

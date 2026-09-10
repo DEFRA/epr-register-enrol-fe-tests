@@ -34,6 +34,13 @@ export function expectedSiteName(application) {
     : (application.siteAddress ?? 'Not set')
 }
 
+// Mirrors the application-header component's template.njk: operator name,
+// material, year and site are rendered as a single inline caption
+// ("operatorName ( material year site )") rather than separate elements.
+export function expectedApplicationHeaderText(application) {
+  return `${application.organisationName} ( ${expectedMaterialDisplay(application)} ${application.year} ${expectedSiteName(application)} )`
+}
+
 // RA-506: mirrors composeApplicationCaption in
 // epr-register-enrol-frontend's applicationHeader.js — every present part
 // is comma-joined, and siteName is the RAW (pre-"Not set"-fallback) value,
