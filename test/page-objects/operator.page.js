@@ -99,6 +99,21 @@ class OperatorPage extends Page {
     await link.click()
   }
 
+  // Org 50017 ("Coordinate Precision Test Exports Ltd", Plastic) exists
+  // specifically for coordinate-precision.e2e.js, for the same reason orgs
+  // 50013-50016 above exist for their own specs: that spec adds an ORS site
+  // via the wizard on every `it()` block, which is exactly the shape of
+  // repeated, cross-test reuse the org-50005 Seed race (see orgs 50013-50016's
+  // comments) would corrupt under concurrent wdio workers. Confirmed live:
+  // reusing org 50015 (navigateToExporterAccreditationOwnOrg) raced
+  // exporter-accreditation.e2e.js's own use of it in CI and landed on a
+  // duplicate application missing task-overseas-sites-link.
+  async navigateToPrecisionTestOrg() {
+    const link = $('a[href*="/operator-accreditation/50017/"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
+
   get accreditationLinks() {
     return $$('a[href*="accreditation"]')
   }

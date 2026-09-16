@@ -39,8 +39,16 @@ describe('RA-580-2: coordinate decimal-place precision on Add ORS site location'
   // which needs no PRN tonnage/business-plan/sampling-plan setup first —
   // see exporter-accreditation.e2e.js's "Add ORS wizard" test for the same
   // shortcut. Site name is unique per call so each test starts a fresh ORS.
+  //
+  // Uses this spec's own dedicated org (50017), not
+  // navigateToExporterAccreditationOwnOrg's org 50015 — that org is already
+  // dedicated to exporter-accreditation.e2e.js's own describe block, and
+  // reusing it here raced that spec's concurrent wdio worker against the
+  // org-50005-style Seed race (confirmed in CI: landed on a duplicate
+  // application missing task-overseas-sites-link). See
+  // OperatorPage.navigateToPrecisionTestOrg's comment.
   async function goToAddOrsSiteLocation(siteName) {
-    await OperatorPage.navigateToExporterAccreditationOwnOrg()
+    await OperatorPage.navigateToPrecisionTestOrg()
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
