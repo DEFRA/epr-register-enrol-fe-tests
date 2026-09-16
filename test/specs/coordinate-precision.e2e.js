@@ -24,8 +24,6 @@ import AddOrsSiteLocationPage from 'page-objects/add-ors-site-location.page'
 // this suite can drive to exercise that path, so it is covered by
 // HttpReExApiAdapterTests in the backend repo instead, not here.
 describe('RA-580-2: coordinate decimal-place precision on Add ORS site location', () => {
-  let applicationId
-
   // The "Overseas sites" task-list item is locked (task-list/controller.js:
   // osLocked = !spComplete) until PRN tonnage, business plan, and sampling
   // plan are all Completed — confirmed live via CI: reusing org 50017 with
@@ -56,9 +54,6 @@ describe('RA-580-2: coordinate decimal-place precision on Add ORS site location'
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
     )
-    applicationId = (await browser.getUrl())
-      .split('/accreditation/task-list/')[1]
-      .split('?')[0]
 
     // PRN tonnage — mirrors ors-fee-calculation.e2e.js's idempotent handling:
     // a re-run against an already-completed section lands straight on its
@@ -146,12 +141,31 @@ describe('RA-580-2: coordinate decimal-place precision on Add ORS site location'
     await LoginPage.signOut()
   })
 
-  // Starts a fresh "Add ORS" wizard entry directly from select-overseas-sites
-  // (now unlocked by the `before` hook above) rather than re-navigating via
-  // /operator + Continue each time. Site name is unique per call so each
-  // test adds its own distinct site.
+  // Starts a fresh "Add ORS" wizard entry via the same click-based path every
+  // other passing spec in this suite uses (org -> Continue -> task-list ->
+  // Overseas sites), not a direct browser.url() jump to
+  // /accreditation/select-overseas-sites/<applicationId> — that raw jump hit
+  // an unexplained net::ERR_NAME_NOT_RESOLVED in CI on every test, and rather
+  // than chase a divergent local-vs-CI repro further, this sticks to the
+  // proven navigation mechanism. Revisiting Continue for an org with a live
+  // application is idempotent (AccreditationApplicationEndpoints.Seed's
+  // GetLiveByRegistrationAsync check returns the existing one), so this lands
+  // back on the SAME application the `before` hook already unlocked, every
+  // time. Site name is unique per call so each test adds its own distinct
+  // site.
   async function goToAddOrsSiteLocation(siteName) {
-    await browser.url(`/accreditation/select-overseas-sites/${applicationId}`)
+    await OperatorPage.open()
+    await OperatorPage.navigateToPrecisionTestOrg()
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+
     await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
     await OverseasReprocessingSitesPage.addNewOrsButton.click()
     await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
