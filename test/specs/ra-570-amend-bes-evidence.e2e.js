@@ -256,6 +256,13 @@ describe('RA-570: Amend BES evidence', () => {
     const remainingFileIds = await BesEvidencePage.fileRowIds()
     expect(remainingFileIds.length).toBe(1)
 
+    // Continue out of the amend flow back to the query task list — same
+    // "Continue" control the evidence list wizard already uses to complete
+    // the BES task (see uploadAllEvidence()/reachSubmittedExporterApplication
+    // above), so the resubmit wait below has something driving the
+    // navigation instead of relying on it happening on its own.
+    await BesEvidencePage.clickReliably(BesEvidencePage.continueButton)
+
     // AC02: resubmitting after amendment works, following the same
     // resubmit flow as query-resubmit.e2e.js.
     await browser.waitUntil(
