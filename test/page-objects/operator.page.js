@@ -110,7 +110,14 @@ class OperatorPage extends Page {
   // duplicate application missing task-overseas-sites-link.
   async navigateToPrecisionTestOrg() {
     const link = $('a[href*="/operator-accreditation/50017/"]')
-    await link.waitForDisplayed()
+    // Observed flaky in CI at the default 10s wait (3 of 4 runs on this
+    // spec's own originating PR) — org 50017's link rendering is just the
+    // slowest hop under a loaded parallel grid, same reasoning as the other
+    // generous waits added for RA-462/RA-468/RA-571.
+    await link.waitForDisplayed({
+      timeout: 30000,
+      timeoutMsg: 'Precision test org (50017) link did not appear'
+    })
     await link.click()
   }
 
