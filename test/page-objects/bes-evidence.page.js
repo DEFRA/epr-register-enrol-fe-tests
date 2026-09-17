@@ -74,6 +74,24 @@ class BesEvidencePage extends Page {
     return $('[data-testid="answer-no"]')
   }
 
+  // RA-570: uploading a second file for the same site, so the amend flow's
+  // negative delete-last-file case has a non-last file to delete first.
+  get answerYesRadio() {
+    return $('[data-testid="answer-yes"]')
+  }
+
+  async selectYes() {
+    // Select Yes on "Do you want to upload more evidence?" → back to the
+    // upload form for the same site, mirroring selectNo() below.
+    await this.answerYesRadio.waitForExist()
+    // eslint-disable-next-line no-undef
+    await browser.execute(() =>
+      document.querySelector('[data-testid="answer-yes"]').click()
+    )
+    await this.clickReliably(this.continueButton)
+    await this.fileInput.waitForExist()
+  }
+
   // CYA page (/cya-evidence-for-overseas-site/)
   get confirmButton() {
     return $('[data-testid="confirm-button"]')
@@ -118,6 +136,93 @@ class BesEvidencePage extends Page {
 
   async confirmEvidence() {
     await this.clickReliably(this.confirmButton)
+  }
+
+  // RA-570: Amend BES evidence. The evidence review screen gains an Amend
+  // entry point once the section is editable (pre-submission, or after a
+  // regulator query is raised on broadly-equivalent-standards — mirrors the
+  // RA-481 locked/queried pattern already covered end to end for other
+  // sections by query-resubmit.e2e.js). Per-file controls follow this
+  // codebase's established row-keyed edit/remove naming convention (see
+  // overseas-reprocessing-sites.page.js's editAccreditedButton/
+  // removeAccreditedButton and confirm-overseas-sites.page.js's changeLink,
+  // all keyed by an id suffix on the data-testid). The frontend PR for
+  // RA-570 is landing in parallel in the sibling frontend repo, so these
+  // selectors are this codebase's closest-convention best guess rather than
+  // confirmed against real markup — flagged in the PR description for a
+  // selector-accuracy check once that PR lands.
+  get amendButton() {
+    return $('[data-testid="amend-button"]')
+  }
+
+  async clickAmend() {
+    await this.clickReliably(this.amendButton)
+  }
+
+  get fileRows() {
+    return $$('[data-testid^="file-row-"]')
+  }
+
+  async fileRowIds() {
+    const rows = await this.fileRows
+    const ids = []
+    for (const row of rows) {
+      const testId = await row.getAttribute('data-testid')
+      ids.push(testId.replace('file-row-', ''))
+    }
+    return ids
+  }
+
+  editDateLink(fileId) {
+    return $(`[data-testid="edit-date-link-${fileId}"]`)
+  }
+
+  async editDate(fileId) {
+    const link = this.editDateLink(fileId)
+    await link.waitForDisplayed()
+    await link.scrollIntoView()
+    await link.click()
+  }
+
+  deleteFileLink(fileId) {
+    return $(`[data-testid="delete-file-link-${fileId}"]`)
+  }
+
+  async deleteFile(fileId) {
+    const link = this.deleteFileLink(fileId)
+    await link.waitForDisplayed()
+    await link.scrollIntoView()
+    await link.click()
+  }
+
+  // Edit-date form (/edit-bes-evidence-date/) — reuses the same
+  // validFrom/validTo day/month/year fields as the upload form above.
+  get saveDateButton() {
+    return $('[data-testid="save-date-button"]')
+  }
+
+  async updateDate({ validFrom, validTo }) {
+    if (validFrom) {
+      await this.validFromDay.setValue(validFrom.day)
+      await this.validFromMonth.setValue(validFrom.month)
+      await this.validFromYear.setValue(validFrom.year)
+    }
+    if (validTo) {
+      await this.validToDay.setValue(validTo.day)
+      await this.validToMonth.setValue(validTo.month)
+      await this.validToYear.setValue(validTo.year)
+    }
+    await this.clickReliably(this.saveDateButton)
+  }
+
+  // Surfaced inline when deleting the last remaining file is blocked (a BES
+  // evidence section can never end up with zero files).
+  get errorSummary() {
+    return $('[data-testid="error-summary"]')
+  }
+
+  get deleteFileError() {
+    return $('[data-testid="delete-file-error"]')
   }
 
   async uploadAllEvidence(filename) {
