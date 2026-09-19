@@ -11,6 +11,7 @@ import QueryTaskListPage from 'page-objects/query-task-list.page'
 import QueryDeclarationPage from 'page-objects/query-declaration.page'
 import {
   getApplication,
+  getOverseasSites,
   raiseQuery,
   patchSection
 } from '../helpers/case-management.js'
@@ -25,13 +26,6 @@ import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-jo
 // file's date or delete a file (AC02) — but never down to zero files, which
 // this spec's negative case covers directly (business rule: a BES evidence
 // section can never end up with zero files).
-//
-// NOTE: the corresponding frontend PR for RA-570 is landing in parallel in
-// the sibling epr-register-enrol-frontend repo, so the Amend/edit-date/
-// delete-file selectors this spec drives (added to bes-evidence.page.js)
-// are this codebase's closest-convention best guess — not yet confirmed
-// against the real rendered markup. Flagged in the PR description for a
-// selector-accuracy check once that frontend PR lands.
 //
 // Reuses org 50006 (Glass exporter) on a disposable, run-unique year — the
 // same pattern ra-583-bes-status-after-resubmit.e2e.js uses on the same org
@@ -70,8 +64,18 @@ describe('RA-570: Amend BES evidence', () => {
     return `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
   }
 
-  function reviewUrl() {
-    return `/accreditation/cya-evidence-for-overseas-site/${applicationId}`
+  // The one exporter site that needs (and so carries) BES evidence files.
+  async function getEvidenceSite() {
+    const sites = await getOverseasSites(organisationId, applicationId)
+    const site = sites.find(
+      (s) => (s.besEvidence?.besEvidenceUploads ?? []).length > 0
+    )
+    expect(site).toBeDefined()
+    return site
+  }
+
+  function reviewUrl(siteId) {
+    return `/accreditation/cya-evidence-for-overseas-site/${applicationId}/${siteId}`
   }
 
   async function reachSubmittedExporterApplication() {
@@ -131,20 +135,26 @@ describe('RA-570: Amend BES evidence', () => {
     // has a non-last file to delete before it ever hits the zero-files
     // guard — deleting straight down to one file would make the
     // negative (last-file) case indistinguishable from the positive one.
-    await BesEvidencePage.pendingUploadLink.click()
-    await BesEvidencePage.uploadFile('business-plan.pdf')
-    await BesEvidencePage.selectYes()
-    await BesEvidencePage.uploadFile('business-plan.pdf')
-    await BesEvidencePage.selectNo()
-    await BesEvidencePage.confirmEvidence()
-    await browser.waitUntil(
-      async () =>
-        (await browser.getUrl()).includes('/upload-evidence-for-overseas-site'),
-      {
-        timeout: 10000,
-        timeoutMsg: 'Did not return to evidence list after confirming'
-      }
-    )
+    // Skipped when a previous run of this helper already uploaded evidence
+    // (no site is still "Not uploaded"), so re-entering it is idempotent.
+    if (await BesEvidencePage.pendingUploadLink.isExisting()) {
+      await BesEvidencePage.pendingUploadLink.click()
+      await BesEvidencePage.uploadFile('business-plan.pdf')
+      await BesEvidencePage.selectYes()
+      await BesEvidencePage.uploadFile('business-plan.pdf')
+      await BesEvidencePage.selectNo()
+      await BesEvidencePage.confirmEvidence()
+      await browser.waitUntil(
+        async () =>
+          (await browser.getUrl()).includes(
+            '/upload-evidence-for-overseas-site'
+          ),
+        {
+          timeout: 10000,
+          timeoutMsg: 'Did not return to evidence list after confirming'
+        }
+      )
+    }
     await BesEvidencePage.clickReliably(BesEvidencePage.continueButton)
 
     await TaskListPage.assertAllTasksCompleted({ isExporter: true })
@@ -162,18 +172,16 @@ describe('RA-570: Amend BES evidence', () => {
     expect(submittedApplication.applicationStatus).toBe('Submitted')
     expect(submittedApplication.besEvidence.sectionStatus).not.toBe('Queried')
 
-    // The review screen renders read-only, with no Amend button — matching
-    // the read-only-notice pattern RA-481 established for every other
-    // section's CYA/review page.
-    await browser.url(reviewUrl())
+    // The review screen renders read-only, with no Amend/Delete/Add controls
+    // — matching the read-only-notice pattern RA-481 established for every
+    // other section's CYA/review page.
+    const { siteId } = await getEvidenceSite()
+    await browser.url(reviewUrl(siteId))
     await expect($('[data-testid="read-only-notice"]')).toBeDisplayed()
-    await expect(await BesEvidencePage.amendButton.isExisting()).toBe(false)
-    await expect(await $('[data-testid="edit-date-link"]').isExisting()).toBe(
-      false
-    )
-    await expect(await $('[data-testid="delete-file-link"]').isExisting()).toBe(
-      false
-    )
+    expect((await BesEvidencePage.fileRowIds()).length).toBe(2)
+    expect((await BesEvidencePage.amendFileLinks).length).toBe(0)
+    expect((await BesEvidencePage.deleteFileButtons).length).toBe(0)
+    await expect(await BesEvidencePage.addFileLink.isExisting()).toBe(false)
 
     // The backend gate — not just the frontend's read-only rendering — is
     // what actually stops a write, same as every other RA-481-gated section.
@@ -206,38 +214,49 @@ describe('RA-570: Amend BES evidence', () => {
       'QUERIED'
     )
 
-    // AC01: Amend is now available on the review screen.
+    // AC01: Amend is now available. From the query task list the BES task
+    // opens the evidence list, whose site row links to the review screen
+    // ("Amend evidence") now that files exist for it.
+    const { siteId } = await getEvidenceSite()
     await QueryTaskListPage.taskLink('task-bes-evidence').click()
-    await browser.url(reviewUrl())
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(
+        '/accreditation/upload-evidence-for-overseas-site/'
+      )
+    )
+    await BesEvidencePage.clickReliably(
+      $(`[data-testid="upload-link-${siteId}"]`)
+    )
+    await expect(browser).toHaveUrl(expect.stringContaining(reviewUrl(siteId)))
     await expect(await $('[data-testid="read-only-notice"]').isExisting()).toBe(
       false
     )
-    await expect(BesEvidencePage.amendButton).toBeDisplayed()
-    await BesEvidencePage.clickAmend()
+    await expect(BesEvidencePage.addFileLink).toBeDisplayed()
 
     const fileIds = await BesEvidencePage.fileRowIds()
     expect(fileIds.length).toBe(2)
     const [firstFileId, secondFileId] = fileIds
 
-    // AC02: editing a file's date succeeds and persists.
-    await BesEvidencePage.editDate(firstFileId)
+    // AC02: editing a file's dates succeeds and persists.
+    await BesEvidencePage.amendFile(firstFileId)
     await BesEvidencePage.updateDate({
       validFrom: { day: '01', month: '02', year: '2025' },
       validTo: { day: '31', month: '12', year: '2031' }
     })
+    await expect(browser).toHaveUrl(expect.stringContaining(reviewUrl(siteId)))
     await expect(await $('[data-testid="error-summary"]').isExisting()).toBe(
       false
     )
-    const afterDateEdit = await getApplication(organisationId, applicationId)
-    const editedFile = afterDateEdit.besEvidence.files?.find(
-      (file) => file.id === firstFileId
+    const editedSite = await getEvidenceSite()
+    const editedFile = editedSite.besEvidence.besEvidenceUploads.find(
+      (file) => file.fileId === firstFileId
     )
-    if (editedFile) {
-      expect(editedFile.validFrom).toEqual(
-        expect.stringContaining('2025-02-01')
-      )
-      expect(editedFile.validTo).toEqual(expect.stringContaining('2031-12-31'))
-    }
+    expect(editedFile.besEvidenceValidFromDate).toEqual(
+      expect.stringContaining('2025-02-01')
+    )
+    expect(editedFile.besEvidenceExpiryDate).toEqual(
+      expect.stringContaining('2031-12-31')
+    )
 
     // AC02/business rule: deleting a non-last file succeeds.
     await BesEvidencePage.deleteFile(secondFileId)
@@ -245,22 +264,32 @@ describe('RA-570: Amend BES evidence', () => {
       async () => (await BesEvidencePage.fileRowIds()).length === 1,
       { timeout: 10000, timeoutMsg: 'Second file was not removed' }
     )
+    await expect(await $('[data-testid="error-summary"]').isExisting()).toBe(
+      false
+    )
 
     // Negative case: deleting the last remaining file must be blocked — a
     // BES evidence section can never end up with zero files.
     await BesEvidencePage.deleteFile(firstFileId)
     await expect(BesEvidencePage.errorSummary).toBeDisplayed()
-    await expect(BesEvidencePage.deleteFileError).toHaveText(
-      expect.stringContaining('at least one')
+    await expect(BesEvidencePage.errorSummary).toHaveText(
+      expect.stringContaining('At least one BES evidence file is required')
     )
-    const remainingFileIds = await BesEvidencePage.fileRowIds()
-    expect(remainingFileIds.length).toBe(1)
+    expect((await BesEvidencePage.fileRowIds()).length).toBe(1)
 
-    // Continue out of the amend flow back to the query task list — same
-    // "Continue" control the evidence list wizard already uses to complete
-    // the BES task (see uploadAllEvidence()/reachSubmittedExporterApplication
-    // above), so the resubmit wait below has something driving the
-    // navigation instead of relying on it happening on its own.
+    // Confirm the (amended) evidence, then Continue on the evidence list to
+    // head back to the query task list, so the resubmit wait below has
+    // something driving the navigation instead of relying on it happening
+    // on its own.
+    await BesEvidencePage.confirmEvidence()
+    await browser.waitUntil(
+      async () =>
+        (await browser.getUrl()).includes('/upload-evidence-for-overseas-site'),
+      {
+        timeout: 10000,
+        timeoutMsg: 'Did not return to evidence list after confirming'
+      }
+    )
     await BesEvidencePage.clickReliably(BesEvidencePage.continueButton)
 
     // AC02: resubmitting after amendment works, following the same
@@ -294,8 +323,9 @@ describe('RA-570: Amend BES evidence', () => {
     // RA-481 regression guard, same as query-resubmit.e2e.js: resubmitting
     // must flip the just-queried section back into the plain-locked
     // read-only state, Amend included.
-    await browser.url(reviewUrl())
+    await browser.url(reviewUrl(siteId))
     await expect($('[data-testid="read-only-notice"]')).toBeDisplayed()
-    await expect(await BesEvidencePage.amendButton.isExisting()).toBe(false)
+    expect((await BesEvidencePage.amendFileLinks).length).toBe(0)
+    expect((await BesEvidencePage.deleteFileButtons).length).toBe(0)
   })
 })

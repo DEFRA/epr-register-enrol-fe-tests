@@ -22,7 +22,7 @@ class TaskListPage extends Page {
   }
 
   get besStatus() {
-    return $('[data-testid="task-bes-tag"]')
+    return $('[data-testid="task-bes-evidence-tag"]')
   }
 
   get PRNTonnageLink() {
