@@ -188,7 +188,7 @@ describe('RA-570: Amend BES evidence', () => {
     const lockedPatch = await patchSection(
       organisationId,
       applicationId,
-      'broadly-equivalent-standards',
+      'bes-evidence',
       {}
     )
     expect(lockedPatch.statusCode).toBe(409)
