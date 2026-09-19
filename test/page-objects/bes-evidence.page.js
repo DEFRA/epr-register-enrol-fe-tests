@@ -74,6 +74,24 @@ class BesEvidencePage extends Page {
     return $('[data-testid="answer-no"]')
   }
 
+  // RA-570: uploading a second file for the same site, so the amend flow's
+  // negative delete-last-file case has a non-last file to delete first.
+  get answerYesRadio() {
+    return $('[data-testid="answer-yes"]')
+  }
+
+  async selectYes() {
+    // Select Yes on "Do you want to upload more evidence?" → back to the
+    // upload form for the same site, mirroring selectNo() below.
+    await this.answerYesRadio.waitForExist()
+    // eslint-disable-next-line no-undef
+    await browser.execute(() =>
+      document.querySelector('[data-testid="answer-yes"]').click()
+    )
+    await this.clickReliably(this.continueButton)
+    await this.fileInput.waitForExist()
+  }
+
   // CYA page (/cya-evidence-for-overseas-site/)
   get confirmButton() {
     return $('[data-testid="confirm-button"]')
@@ -118,6 +136,90 @@ class BesEvidencePage extends Page {
 
   async confirmEvidence() {
     await this.clickReliably(this.confirmButton)
+  }
+
+  // RA-570: Amend BES evidence, on the evidence review screen
+  // (/cya-evidence-for-overseas-site/{applicationId}/{siteId}). Each file row
+  // carries an Amend link (dates) and a Delete button; both are only rendered
+  // while the section is editable (never once Submitted and locked).
+  get fileRows() {
+    return $$('[data-testid^="evidence-row-"]')
+  }
+
+  async fileRowIds() {
+    const rows = await this.fileRows
+    const ids = []
+    for (const row of rows) {
+      const testId = await row.getAttribute('data-testid')
+      ids.push(testId.replace('evidence-row-', ''))
+    }
+    return ids
+  }
+
+  get amendFileLinks() {
+    return $$('[data-testid^="amend-file-"]')
+  }
+
+  get deleteFileButtons() {
+    return $$('[data-testid^="delete-file-button-"]')
+  }
+
+  get addFileLink() {
+    return $('[data-testid="add-file-link"]')
+  }
+
+  amendFileLink(fileId) {
+    return $(`[data-testid="amend-file-${fileId}"]`)
+  }
+
+  async amendFile(fileId) {
+    const link = this.amendFileLink(fileId)
+    await link.waitForDisplayed()
+    await link.scrollIntoView()
+    await link.click()
+    await this.amendForm.waitForDisplayed({ timeout: 10000 })
+  }
+
+  deleteFileButton(fileId) {
+    return $(`[data-testid="delete-file-button-${fileId}"]`)
+  }
+
+  async deleteFile(fileId) {
+    const button = this.deleteFileButton(fileId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
+  // Amend form (/upload-bes-evidence/{applicationId}/{siteId}/amend/{fileId})
+  // — reuses the same validFrom/validTo day/month/year fields as the upload
+  // form above.
+  get amendForm() {
+    return $('[data-testid="amend-form"]')
+  }
+
+  get saveAmendButton() {
+    return $('[data-testid="save-amend-button"]')
+  }
+
+  async updateDate({ validFrom, validTo }) {
+    if (validFrom) {
+      await this.validFromDay.setValue(validFrom.day)
+      await this.validFromMonth.setValue(validFrom.month)
+      await this.validFromYear.setValue(validFrom.year)
+    }
+    if (validTo) {
+      await this.validToDay.setValue(validTo.day)
+      await this.validToMonth.setValue(validTo.month)
+      await this.validToYear.setValue(validTo.year)
+    }
+    await this.clickReliably(this.saveAmendButton)
+  }
+
+  // Surfaced when deleting the last remaining file is blocked (a BES evidence
+  // section can never end up with zero files).
+  get errorSummary() {
+    return $('[data-testid="error-summary"]')
   }
 
   async uploadAllEvidence(filename) {
