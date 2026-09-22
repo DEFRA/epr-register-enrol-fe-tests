@@ -1,8 +1,5 @@
 import { Page } from 'page-objects/page'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+import { uniqueFixtureCopy } from '../helpers/unique-fixture-file.js'
 
 class SamplingPlanPage extends Page {
   get pageHeading() {
@@ -42,7 +39,7 @@ class SamplingPlanPage extends Page {
   }
 
   async uploadFile(filename, documentType = 'SamplingPlan') {
-    const filePath = path.resolve(__dirname, '../fixtures', filename)
+    const filePath = uniqueFixtureCopy(filename)
     let uploadPath
     try {
       uploadPath = await browser.uploadFile(filePath)

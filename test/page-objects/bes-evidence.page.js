@@ -1,9 +1,6 @@
 import { browser } from '@wdio/globals'
 import { Page } from 'page-objects/page'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+import { uniqueFixtureCopy } from '../helpers/unique-fixture-file.js'
 
 class BesEvidencePage extends Page {
   // Evidence list page (/upload-evidence-for-overseas-site/)
@@ -98,7 +95,7 @@ class BesEvidencePage extends Page {
   }
 
   async uploadFile(filename) {
-    const filePath = path.resolve(__dirname, '../fixtures', filename)
+    const filePath = uniqueFixtureCopy(filename)
     let uploadPath
     try {
       uploadPath = await browser.uploadFile(filePath)
