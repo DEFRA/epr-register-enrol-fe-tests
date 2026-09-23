@@ -216,14 +216,20 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       expect.stringContaining('/accreditation/query-task-list/')
     )
 
-    // AC01: the query note is shown, and every section is now listed
-    // (RA-415) - the queried section remains a fully editable link.
-    // Completed/Submitted sections (RA-415 follow-up) are also clickable
-    // links rather than locked text - they open a read-only view of the
-    // already-answered section - instead of being hidden entirely.
-    await expect(QueryTaskListPage.queryNote).toHaveText(
-      expect.stringContaining(queryNote)
-    )
+    // AC01: every section is now listed (RA-415) - the queried section
+    // remains a fully editable link. Completed/Submitted sections (RA-415
+    // follow-up) are also clickable links rather than locked text - they
+    // open a read-only view of the already-answered section - instead of
+    // being hidden entirely.
+    //
+    // RA-590: the officer's query note is internal only, so this page shows
+    // no regulator-query banner at all and must not leak the note text.
+    // Asserted against the whole page source, not just the element, because
+    // the application record still carries the note.
+    await expect(
+      await QueryTaskListPage.regulatorQueryBanner.isExisting()
+    ).toBe(false)
+    await expect(await browser.getPageSource()).not.toContain(queryNote)
     await assertPageCaption(QueryTaskListPage, submittedApplication)
     await expect(
       QueryTaskListPage.taskLink('task-business-plan')
@@ -458,14 +464,14 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       sectionKeys: ['prn-tonnage']
     })
 
+    // RA-590: the shared banner still renders on both PRN pages to say the
+    // section is queried, but carries no officer note.
     await PrnTonnagePage.open(applicationId)
-    await expect(PrnTonnagePage.queryNote).toHaveText(
-      expect.stringContaining(tonnageQueryNote)
-    )
+    await expect(PrnTonnagePage.regulatorQueryBanner).toBeDisplayed()
+    await expect(await browser.getPageSource()).not.toContain(tonnageQueryNote)
 
     await PrnAuthorityPage.open(applicationId)
-    await expect(PrnAuthorityPage.queryNote).toHaveText(
-      expect.stringContaining(tonnageQueryNote)
-    )
+    await expect(PrnAuthorityPage.regulatorQueryBanner).toBeDisplayed()
+    await expect(await browser.getPageSource()).not.toContain(tonnageQueryNote)
   })
 })

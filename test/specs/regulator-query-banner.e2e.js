@@ -122,14 +122,27 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
     })
   }
 
-  it('shows the regulator query banner when REGULATOR_QUERY_TEXT_DISABLED is unset (regression)', async () => {
+  // RA-590 removed the officer's free-text note from the banner, and removed
+  // the banner from the query task list entirely (that page marks each
+  // queried section with a QUERIED tag instead). So this regression is now
+  // asserted on business-plan, which is the section under query here and
+  // still renders the banner with its summary sentence and Change links.
+  it('shows the regulator query banner, without the officer note, when REGULATOR_QUERY_TEXT_DISABLED is unset (regression)', async () => {
     await reachQueriedApplication()
 
     await QueryTaskListPage.open(applicationId)
-    await expect(QueryTaskListPage.queryNote).toBeDisplayed()
-    await expect(QueryTaskListPage.queryNote).toHaveText(
-      expect.stringContaining(queryNote)
+    await QueryTaskListPage.taskLink('task-business-plan').click()
+    await browser.waitUntil(
+      async () =>
+        (await browser.getUrl()).includes('/accreditation/business-plan'),
+      { timeout: 10000 }
     )
+
+    await expect(BusinessPlanPage.regulatorQueryBanner).toBeDisplayed()
+    // the note must not reach the browser anywhere in the markup - the
+    // application record still carries it, so assert on the page source
+    // rather than on the removed element alone.
+    await expect(await browser.getPageSource()).not.toContain(queryNote)
   })
 
   // Proves the flag actually hides the banner end to end, not just in the
@@ -175,10 +188,22 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
       `${regulatorQueryDisabledFrontendUrl}/accreditation/query-task-list/${applicationId}`
     )
     await expect(QueryTaskListPage.pageHeading).toBeDisplayed()
-    await expect(await QueryTaskListPage.queryNote.isExisting()).toBe(false)
+
+    // RA-590: the query task list no longer renders the banner at all, so
+    // proving the flag works has to happen on a page that still has one.
+    await browser.url(
+      `${regulatorQueryDisabledFrontendUrl}/accreditation/business-plan/${applicationId}`
+    )
+    await expect(await BusinessPlanPage.regulatorQueryBanner.isExisting()).toBe(
+      false
+    )
+    await expect(await browser.getPageSource()).not.toContain(queryNote)
 
     // Display-only: hiding the banner doesn't touch which sections are
     // still open for the query response.
+    await browser.url(
+      `${regulatorQueryDisabledFrontendUrl}/accreditation/query-task-list/${applicationId}`
+    )
     await expect(
       QueryTaskListPage.taskLink('task-business-plan')
     ).toBeDisplayed()

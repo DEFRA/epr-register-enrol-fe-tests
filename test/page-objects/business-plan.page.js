@@ -9,6 +9,10 @@ class BusinessPlanPage extends Page {
     return $('h1')
   }
 
+  get regulatorQueryBanner() {
+    return $('[data-testid="regulator-query-banner"]')
+  }
+
   get percentageInputs() {
     return $$('.govuk-input')
   }
