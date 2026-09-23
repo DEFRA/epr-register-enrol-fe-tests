@@ -13,8 +13,8 @@ class PrnAuthorityPage extends Page {
     return $('[data-testid="selected-tonnage"]')
   }
 
-  get queryNote() {
-    return $('[data-testid="query-note"]')
+  get regulatorQueryBanner() {
+    return $('[data-testid="regulator-query-banner"]')
   }
 
   get addNewAuthoriserLink() {

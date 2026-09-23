@@ -17,8 +17,8 @@ class PrnTonnagePage extends Page {
     return $$('.govuk-radios__input')
   }
 
-  get queryNote() {
-    return $('[data-testid="query-note"]')
+  get regulatorQueryBanner() {
+    return $('[data-testid="regulator-query-banner"]')
   }
 
   get saveAndContinueButton() {

@@ -9,8 +9,8 @@ class QueryTaskListPage extends Page {
     return $('[data-testid="page-heading"]')
   }
 
-  get queryNote() {
-    return $('[data-testid="query-note"]')
+  get regulatorQueryBanner() {
+    return $('[data-testid="regulator-query-banner"]')
   }
 
   get taskList() {
