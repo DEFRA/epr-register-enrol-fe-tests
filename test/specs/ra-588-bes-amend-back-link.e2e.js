@@ -7,6 +7,7 @@ import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-si
 import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
 import { getOverseasSites } from '../helpers/case-management.js'
+import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 
 // RA-588: "Amend BES back button does not work as expected - takes to the
 // upload screens". (The Jira title's "CM:" prefix is a mis-tag - every URL in
@@ -36,13 +37,23 @@ import { getOverseasSites } from '../helpers/case-management.js'
 // the NEXT screen's back link then does. Only walking the chain in a browser
 // covers that.
 //
-// This spec deliberately stops short of submitting. The bug is reachable from
-// a plain editable draft, because the site list's action link switches to the
-// CYA review screen as soon as a site has uploads (`hasUploads` in
-// upload-evidence-for-overseas-site/controller.js) - it is not gated on the
-// application being queried. So there is no need to repeat RA-570's much more
-// expensive submit-then-query setup, and the second hop is asserted against
-// the ordinary task list rather than the query task list.
+// This spec deliberately stops short of submitting. The amend entry point is
+// gated only on a site having uploads - the site list's action link switches
+// to the CYA review screen as soon as `besEvidenceUploads` is non-empty
+// (`hasUploads` in upload-evidence-for-overseas-site/controller.js), with no
+// condition on the application being queried. So RA-570's much more expensive
+// submit-then-query setup is not needed here, and because the application
+// stays a Draft the second hop is the ordinary task list rather than the
+// query task list (task-list/controller.js branches on
+// `applicationStatus === 'Queried'`, which a Draft is not).
+//
+// It does NOT stop short of the earlier tasks, though: the exporter task list
+// gates each section on the previous one, `osLocked = !spComplete` (and
+// `spLocked = !bpComplete`, `bpLocked = !tonnageComplete`). A locked task
+// renders as a plain <span ...-label> with no <a ...-link> at all, so the ORS
+// task simply cannot be clicked until PRN tonnage, business plan and sampling
+// plan are all Completed. An earlier revision of this spec skipped them and
+// died in setup on a missing `task-overseas-sites-link`.
 //
 // Org 50006 (Glass exporter) is shared with exporter-accreditation.e2e.js,
 // ra-570-amend-bes-evidence.e2e.js and ra-583-bes-status-after-resubmit.e2e.js,
@@ -92,8 +103,9 @@ describe('RA-588: back navigation out of the amend-BES evidence screen', () => {
   }
 
   // Drives a fresh draft only as far as "one overseas site has BES evidence
-  // uploaded", which is all the bug needs - no PRN / business plan / sampling
-  // plan, since the task list does not gate the ORS or BES tasks behind them.
+  // uploaded", which is all the bug needs - everything up to and including the
+  // sampling plan is setup the task list's lock chain forces on us, not
+  // coverage this spec is asserting anything about.
   async function reachEvidenceListWithUploads() {
     await OperatorPage.navigateToExporterAccreditationGlass()
     const landing = await browser.getUrl()
@@ -117,8 +129,19 @@ describe('RA-588: back navigation out of the amend-BES evidence screen', () => {
       .split('/accreditation/task-list/')[1]
       .split('?')[0]
 
+    // Unlock the ORS task: it stays locked (label only, no link) until the
+    // sampling plan is Completed, which in turn needs the business plan and
+    // PRN tonnage. Uses the same shared helper as
+    // ra-570-amend-bes-evidence.e2e.js and ra-583-bes-status-after-resubmit.e2e.js
+    // rather than re-driving those three wizards by hand.
+    await completePrnBusinessPlanSamplingPlan({ material: 'Glass' })
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+
     // BES evidence is per overseas site, so the ORS section has to be
-    // confirmed before the evidence list has any rows to act on.
+    // confirmed before the evidence list has any rows to act on. (BES is
+    // itself gated on ORS: `besLocked = !osComplete`.)
     await TaskListPage.overseasSitesLink.click()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
