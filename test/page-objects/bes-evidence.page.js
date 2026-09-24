@@ -135,6 +135,34 @@ class BesEvidencePage extends Page {
     await this.clickReliably(this.confirmButton)
   }
 
+  // RA-588: the back link rendered by the shared page layout
+  // (src/server/common/templates/layouts/page.njk) on every journey screen,
+  // the CYA evidence review screen included. It is a real server-rendered
+  // href, not a history.back() shim, so the controller's `backLink` value can
+  // be asserted directly as well as clicked - and that href was exactly the
+  // bug: the CYA controller pointed it at /accreditation/upload-more-evidence/
+  // instead of at the site list.
+  get backLink() {
+    return $('[data-testid="back-link"]')
+  }
+
+  async backLinkHref() {
+    await this.backLink.waitForDisplayed()
+    return this.backLink.getAttribute('href')
+  }
+
+  async clickBack() {
+    await this.clickReliably(this.backLink)
+  }
+
+  // The per-site action link on the evidence list
+  // (/upload-evidence-for-overseas-site/{applicationId}). Its target flips
+  // from the upload form to the CYA review screen once that site has uploads
+  // - the "Amend Evidence" entry point RA-588 was reported from.
+  siteActionLink(siteId) {
+    return $(`[data-testid="upload-link-${siteId}"]`)
+  }
+
   // RA-570: Amend BES evidence, on the evidence review screen
   // (/cya-evidence-for-overseas-site/{applicationId}/{siteId}). Each file row
   // carries an Amend link (dates) and a Delete button; both are only rendered
