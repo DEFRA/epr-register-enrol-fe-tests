@@ -375,10 +375,16 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     // same convention as the confirm-overseas-sites siteId lookup elsewhere
     // in this suite (site-row-{siteId}) rather than assuming a field name on
     // the API response.
+    // RA-603: waitForExist, not waitForDisplayed — the row is in the DOM from
+    // page load but hidden inside a collapsed disclosure until it is opened
+    // below. Attributes are readable either way, so the siteId lookup itself
+    // needs no change.
     const interimSiteRow = await $('[data-testid^="interim-site-row-"]')
-    await interimSiteRow.waitForDisplayed()
+    await interimSiteRow.waitForExist()
     const testId = await interimSiteRow.getAttribute('data-testid')
     const siteId = testId.replace('interim-site-row-', '')
+
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(siteId)
 
     await expect(
       OverseasReprocessingSitesPage.interimSiteNameValue(siteId)
@@ -499,10 +505,14 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
 
+    // RA-603: see the sibling change in the "changes an interim site" test —
+    // the row exists from page load but is hidden until the disclosure opens.
     const interimSiteRow = await $('[data-testid^="interim-site-row-"]')
-    await interimSiteRow.waitForDisplayed()
+    await interimSiteRow.waitForExist()
     const testId = await interimSiteRow.getAttribute('data-testid')
     const siteId = testId.replace('interim-site-row-', '')
+
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(siteId)
 
     await expect(
       OverseasReprocessingSitesPage.interimSiteRow(siteId)
@@ -511,9 +521,13 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/select-overseas-sites')
     )
+    // RA-603: assert absence from the DOM, not absence from the screen. The
+    // disclosure re-renders collapsed after the POST, so a row that failed to
+    // delete would still be hidden — `not.toBeDisplayed()` here would pass
+    // whether or not the removal actually worked.
     await expect(
       OverseasReprocessingSitesPage.interimSiteRow(siteId)
-    ).not.toBeDisplayed()
+    ).not.toBeExisting()
 
     // Confirm via the API too: the parent ORS still exists, but its nested
     // interim site is gone.
