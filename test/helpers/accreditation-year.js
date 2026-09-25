@@ -47,7 +47,17 @@ const YEAR_BASE = 3000
 const EVEN_RESIDUES = 50
 
 // `JOURNEY_SLOTS.length` is coprime with EVEN_RESIDUES, so a slot's lane walk
-// visits every even residue before repeating.
+// visits every even residue before repeating. A journey that seeds more than
+// one application per run (regulator-query-banner.e2e.js does - each of its
+// tests takes a fresh one) simply walks to its next lane, because the residue
+// it used first is already taken.
+//
+// Lanes only start overlapping between slots eleven lanes apart (9 * 11 = 99
+// = -1 mod 50), so a fresh stack - which every CI run gets - always hands each
+// journey a residue no other journey can reach. Locally, the lane walk is what
+// makes reruns work against the persistent `mongodb-data` volume, and it keeps
+// doing so for roughly ten reruns before neighbouring slots can start
+// competing for the same free residue.
 export async function disposableYear(journey, organisationId, materialType) {
   const slot = JOURNEY_SLOTS.indexOf(journey)
   if (slot === -1) {
