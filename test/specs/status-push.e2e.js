@@ -13,10 +13,12 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import {
+  getApplication,
   pushStatusChanged,
   withdrawApplication,
   patchSection
 } from '../helpers/case-management.js'
+import { disposableYear } from '../helpers/accreditation-year.js'
 
 describe('RA-368: Push CM status changes to OJ', () => {
   let organisationId
@@ -45,13 +47,14 @@ describe('RA-368: Push CM status changes to OJ', () => {
     return `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
   }
 
-  // Drives a fresh, run-unique reaccreditation application (org 50003 -
-  // Delta Green Ltd, Plastic) to Submitted. query-resubmit.e2e.js owns the
-  // fixed year on this same org/reg/material combination, so every call here
-  // takes its own year (same seed-on-miss reasoning as
-  // withdraw-application.e2e.js) to land its own disposable draft instead of
-  // colliding with that spec's application.
-  async function reachSubmittedApplication(year) {
+  // Drives a fresh reaccreditation application (org 50003 - Delta Green Ltd,
+  // Plastic) to Submitted. query-resubmit.e2e.js owns the fixed year on this
+  // same org/reg/material combination, so every call here takes its own
+  // disposable year (same seed-on-miss reasoning as
+  // withdraw-application.e2e.js) rather than colliding with that spec's
+  // application. Each of this spec's three journeys holds its own slot, so
+  // the years they get cannot share an application reference either.
+  async function reachSubmittedApplication(journey) {
     await OperatorPage.navigateToReaccreditationPlastic()
 
     const landing = await browser.getUrl()
@@ -60,6 +63,7 @@ describe('RA-368: Push CM status changes to OJ', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
+    const year = await disposableYear(journey, organisationId, materialType)
     await browser.url(landingUrl(year))
 
     await OperatorAccreditationPage.clickContinue()
@@ -106,22 +110,40 @@ describe('RA-368: Push CM status changes to OJ', () => {
     await SubmitApplicationPage.submitApplication()
 
     // Confirms the submit POST actually landed server-side (and with it, CM
-    // work-item creation) before returning — without this, pushStatusChanged
+    // work-item creation) before returning - without this, pushStatusChanged
     // below can race ahead of the backend and find caseManagementWorkItemId
-    // still unset. Generous timeout: this is the tail of a long multi-section
-    // journey and the submit → confirmation render is the slowest hop under a
-    // loaded parallel grid.
-    await ApplicationSubmittedPage.panelTitle.waitForDisplayed({
-      timeout: 30000,
-      timeoutMsg: 'Application submitted confirmation panel did not appear'
-    })
+    // still unset. The confirmation render is the slowest hop of the journey,
+    // so it keeps a timeout of its own; a submit the backend rejected is
+    // reported as that rejection rather than as a panel that never appeared.
+    await assertSubmissionConfirmed(organisationId, applicationId)
 
-    return applicationId
+    return { applicationId, year }
+  }
+
+  // Turns a failed submit into a readable failure. The panel not rendering
+  // means the POST did not succeed, and the application's own status says so
+  // far more usefully than a 30-second timeout on a selector.
+  async function assertSubmissionConfirmed(orgId, applicationId) {
+    try {
+      await ApplicationSubmittedPage.panelTitle.waitForDisplayed({
+        timeout: 30000
+      })
+    } catch {
+      const application = await getApplication(orgId, applicationId)
+      throw new Error(
+        `Application submitted confirmation panel did not appear for ${applicationId}: ` +
+          `the submit POST left it at applicationStatus=${application.applicationStatus} ` +
+          `(reference ${application.applicationReference ?? 'unset'}, ` +
+          `caseManagementWorkItemId ${application.caseManagementWorkItemId ?? 'unset'}), ` +
+          `browser on ${await browser.getUrl()}`
+      )
+    }
   }
 
   it('reflects duly-made, updated, awaiting decision then approved statuses pushed from case management', async () => {
-    const year = String(3000 + (Date.now() % 1000))
-    const applicationId = await reachSubmittedApplication(year)
+    const { applicationId, year } = await reachSubmittedApplication(
+      'status-push:approved'
+    )
 
     await pushStatusChanged(organisationId, applicationId, {
       toStateId: 'duly-made',
@@ -214,8 +236,9 @@ describe('RA-368: Push CM status changes to OJ', () => {
   // this needs a second application - the one above is already spent on
   // reaching Approved.
   it('reflects a rejected status pushed from case management', async () => {
-    const year = String(3000 + ((Date.now() + 500) % 1000))
-    const applicationId = await reachSubmittedApplication(year)
+    const { applicationId, year } = await reachSubmittedApplication(
+      'status-push:rejected'
+    )
 
     await pushStatusChanged(organisationId, applicationId, {
       toStateId: 'rejected',
@@ -260,8 +283,9 @@ describe('RA-368: Push CM status changes to OJ', () => {
   // backend guard itself - the authoritative check behind OJ's own withdraw
   // link - now accepts the request instead of wrongly returning 409.
   it('accepts a withdrawal of an application awaiting decision, pushed directly to the withdraw endpoint', async () => {
-    const year = String(3000 + ((Date.now() + 1500) % 1000))
-    const applicationId = await reachSubmittedApplication(year)
+    const { applicationId, year } = await reachSubmittedApplication(
+      'status-push:withdrawn'
+    )
 
     await pushStatusChanged(organisationId, applicationId, {
       toStateId: 'awaiting-decision',

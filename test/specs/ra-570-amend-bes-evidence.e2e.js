@@ -16,6 +16,7 @@ import {
   patchSection
 } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { disposableYear } from '../helpers/accreditation-year.js'
 
 // RA-570: "Amend BES evidence". Mirrors the RA-481 section-lock pattern
 // already proven end to end for other sections (query-resubmit.e2e.js,
@@ -86,8 +87,15 @@ describe('RA-570: Amend BES evidence', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
+    // Kept for the whole spec: both tests drive the same application, and
+    // re-allocating would hand the second one a different year because the
+    // first has already claimed this slot's residue.
     if (!year) {
-      year = String(3000 + (Date.now() % 1000))
+      year = await disposableYear(
+        'ra-570-amend-bes-evidence',
+        organisationId,
+        materialType
+      )
     }
     await browser.url(landingUrl())
 

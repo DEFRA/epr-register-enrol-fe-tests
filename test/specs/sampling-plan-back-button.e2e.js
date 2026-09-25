@@ -10,6 +10,7 @@ import BusinessPlanPage from 'page-objects/business-plan.page'
 import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
+import { disposableYear } from '../helpers/accreditation-year.js'
 
 describe('RA-436: S&I plan upload page vs the browser back button', () => {
   beforeEach(async () => {
@@ -38,9 +39,9 @@ describe('RA-436: S&I plan upload page vs the browser back button', () => {
   // drives that year's application to Submitted within the same CI run.
   // Reusing the default year here would land on that already-submitted
   // application, whose Continue link no longer leads to the task list. A
-  // fresh, run-unique year makes the landing controller's seed-on-miss path
-  // create a brand new disposable draft instead (same reasoning as
-  // status-push.e2e.js and withdraw-application.e2e.js).
+  // disposable year makes the landing controller's seed-on-miss path create a
+  // brand new draft instead (same reasoning as status-push.e2e.js and
+  // withdraw-application.e2e.js).
   async function reachSamplingPlanUpload() {
     await OperatorPage.navigateToReaccreditationPlastic()
     const landing = await browser.getUrl()
@@ -49,7 +50,11 @@ describe('RA-436: S&I plan upload page vs the browser back button', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
-    const year = String(3000 + (Date.now() % 1000))
+    const year = await disposableYear(
+      'sampling-plan-back-button',
+      organisationId,
+      materialType
+    )
     await browser.url(
       `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
     )
