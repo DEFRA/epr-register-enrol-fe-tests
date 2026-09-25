@@ -379,12 +379,25 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     // page load but hidden inside a collapsed disclosure until it is opened
     // below. Attributes are readable either way, so the siteId lookup itself
     // needs no change.
+    // RA-603: two different ids now. The disclosure is keyed on the PARENT ORS
+    // (one disclosure holds all of that ORS's interim sites); the row inside it
+    // is keyed on the interim site's own id, because an ORS can hold several
+    // and the parent no longer identifies one.
+    const disclosure = await $(
+      'details[data-testid^="interim-sites-disclosure-"]'
+    )
+    await disclosure.waitForExist()
+    const orsSiteId = (await disclosure.getAttribute('data-testid')).replace(
+      'interim-sites-disclosure-',
+      ''
+    )
+
     const interimSiteRow = await $('[data-testid^="interim-site-row-"]')
     await interimSiteRow.waitForExist()
     const testId = await interimSiteRow.getAttribute('data-testid')
     const siteId = testId.replace('interim-site-row-', '')
 
-    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(siteId)
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsSiteId)
 
     await expect(
       OverseasReprocessingSitesPage.interimSiteNameValue(siteId)
@@ -507,12 +520,25 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
 
     // RA-603: see the sibling change in the "changes an interim site" test —
     // the row exists from page load but is hidden until the disclosure opens.
+    // RA-603: two different ids now. The disclosure is keyed on the PARENT ORS
+    // (one disclosure holds all of that ORS's interim sites); the row inside it
+    // is keyed on the interim site's own id, because an ORS can hold several
+    // and the parent no longer identifies one.
+    const disclosure = await $(
+      'details[data-testid^="interim-sites-disclosure-"]'
+    )
+    await disclosure.waitForExist()
+    const orsSiteId = (await disclosure.getAttribute('data-testid')).replace(
+      'interim-sites-disclosure-',
+      ''
+    )
+
     const interimSiteRow = await $('[data-testid^="interim-site-row-"]')
     await interimSiteRow.waitForExist()
     const testId = await interimSiteRow.getAttribute('data-testid')
     const siteId = testId.replace('interim-site-row-', '')
 
-    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(siteId)
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsSiteId)
 
     await expect(
       OverseasReprocessingSitesPage.interimSiteRow(siteId)
@@ -536,7 +562,17 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
       (s) => s.siteName === 'RA-486 Decoupling Proof GmbH'
     )
     expect(orsSite).toBeDefined()
+    // The mirror clears, because it always points at the first interim site
+    // the operator still has and there is no longer one.
     expect(orsSite.interimSite).toBeFalsy()
+    // RA-603 AC05: but the record itself survives, stamped with when it was
+    // withdrawn, so it stays available for reporting. A hard delete would pass
+    // the assertion above and fail this one.
+    const withdrawn = (orsSite.interimSites ?? []).find(
+      (i) => i.siteName === 'RA-486 Interim Depot'
+    )
+    expect(withdrawn).toBeDefined()
+    expect(withdrawn.removedAt).toBeTruthy()
   })
 })
 
