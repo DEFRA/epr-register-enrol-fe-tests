@@ -1,4 +1,4 @@
-import { browser, expect } from '@wdio/globals'
+import { browser, expect, $$ } from '@wdio/globals'
 import OperatorPage from 'page-objects/operator.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import TaskListPage from 'page-objects/tasklist.page'
@@ -19,6 +19,30 @@ import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import { completePrnBusinessPlanSamplingPlan } from './accreditation-journey.js'
 
 /**
+ * Every ORS that has at least one interim site renders exactly one
+ * `<details data-testid="interim-sites-disclosure-{orsSiteId}">`. Reading that
+ * set before and after the journey identifies the ORS this call created without
+ * depending on its name, on which of the four `testIdPrefix` sections it lands
+ * in, or on the page being otherwise empty.
+ *
+ * Scoped to `details` deliberately: the prefix also matches the summary span,
+ * and matching both would double every id.
+ */
+async function interimDisclosureOrsIds() {
+  const nodes = await $$('details[data-testid^="interim-sites-disclosure-"]')
+  const ids = []
+  for (const node of [...nodes]) {
+    ids.push(
+      (await node.getAttribute('data-testid')).replace(
+        'interim-sites-disclosure-',
+        ''
+      )
+    )
+  }
+  return ids
+}
+
+/**
  * Builds the state RA-603 starts from: an accreditation with one overseas
  * reprocessing site that already has one interim site.
  *
@@ -30,7 +54,14 @@ import { completePrnBusinessPlanSamplingPlan } from './accreditation-journey.js'
  *
  * Leaves the browser on the select-overseas-sites page.
  *
- * @returns {Promise<{organisationId: string, applicationId: string}>}
+ * Returns the created ORS's own siteId as well as the ids of the accreditation
+ * it belongs to. Callers need it: every test here shares one accreditation (the
+ * fixed interim-site test org, resumed rather than recreated) and adds its own
+ * ORS to it, so "the first ORS on the page" is some earlier test's, and a
+ * page-wide interim-site-row query returns every test's rows at once. Assert
+ * against this id, never against position.
+ *
+ * @returns {Promise<{organisationId: string, applicationId: string, orsSiteId: string}>}
  */
 export async function createOrsWithInterimSite({
   orsName,
@@ -57,6 +88,8 @@ export async function createOrsWithInterimSite({
   await expect(browser).toHaveUrl(
     expect.stringContaining('/accreditation/select-overseas-sites')
   )
+  const orsIdsBefore = await interimDisclosureOrsIds()
+
   await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
   await OverseasReprocessingSitesPage.addNewOrsButton.click()
 
@@ -111,7 +144,19 @@ export async function createOrsWithInterimSite({
     operationCodes: interimOperationCodes
   })
 
-  return { organisationId, applicationId }
+  // The ORS just built is the one whose disclosure was not there before. It has
+  // exactly one now, because addInterimSite above gave it its first.
+  const orsIdsAfter = await interimDisclosureOrsIds()
+  const created = orsIdsAfter.filter((id) => !orsIdsBefore.includes(id))
+  if (created.length !== 1) {
+    throw new Error(
+      `Expected exactly one new ORS disclosure, got ${created.length} ` +
+        `(before: [${orsIdsBefore}], after: [${orsIdsAfter}]). ` +
+        `Cannot identify the ORS this call created.`
+    )
+  }
+
+  return { organisationId, applicationId, orsSiteId: created[0] }
 }
 
 /**

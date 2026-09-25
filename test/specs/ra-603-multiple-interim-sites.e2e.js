@@ -1,4 +1,4 @@
-import { browser, $, $$, expect } from '@wdio/globals'
+import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
@@ -17,36 +17,41 @@ import {
  * independent of each other, and that withdrawing one keeps the record rather
  * than destroying it (AC05).
  *
- * Each test builds its own accreditation rather than sharing one. These
- * journeys mutate the thing they assert on - withdrawing, restoring, adding -
- * so a shared fixture would make every test depend on the order the others ran
- * in, and wdio does not promise one.
+ * Each test builds its own ORS, but they all share ONE accreditation: the
+ * journey resumes the fixed interim-site test org rather than creating a new
+ * application. These journeys mutate the thing they assert on - withdrawing,
+ * restoring, adding - so every read here is scoped to the ORS the test created,
+ * whose id createOrsWithInterimSite returns. Nothing may select "the first ORS
+ * on the page" or count interim rows page-wide: those pick up the other tests'
+ * ORSs, and previous runs' too, since mongo is not reset between runs.
  *
  * Needs MULTIPLE_INTERIM_SITES_ENABLED. Without it the page offers no way to
  * add a second interim site, which is the flag working rather than a failure.
  */
 
-/** The two different ids in play: the parent ORS's, and each interim site's. */
-async function readIds() {
-  const disclosure = await $(
-    'details[data-testid^="interim-sites-disclosure-"]'
-  )
-  await disclosure.waitForExist()
-  const orsSiteId = (await disclosure.getAttribute('data-testid')).replace(
-    'interim-sites-disclosure-',
-    ''
-  )
-
+/**
+ * The live interim-site ids belonging to ONE overseas site, in page order.
+ *
+ * Takes the ORS id rather than finding one, and queries within that ORS's own
+ * <details> rather than across the page. Both matter: the accreditation is
+ * shared, so an unscoped read returns the other tests' interim sites as well as
+ * this test's - which is what made a `toHaveLength(2)` here receive 4, then 8 on
+ * a second run against the same database.
+ */
+async function readInterimSiteIds(orsSiteId) {
   await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsSiteId)
 
-  const rows = await $$('[data-testid^="interim-site-row-"]')
+  const rows = await OverseasReprocessingSitesPage.interimSiteDisclosure(
+    orsSiteId
+  ).$$('[data-testid^="interim-site-row-"]')
+
   const interimSiteIds = []
   for (const row of [...rows]) {
     interimSiteIds.push(
       (await row.getAttribute('data-testid')).replace('interim-site-row-', '')
     )
   }
-  return { orsSiteId, interimSiteIds }
+  return interimSiteIds
 }
 
 describe('RA-603: several interim sites on one overseas reprocessing site', () => {
@@ -71,12 +76,12 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
   // AC01/AC06: the restriction this ticket exists to lift. The backend used to
   // 409 the second interim site, and the page offered no way to ask for one.
   it('adds a second interim site to an ORS that already has one, keeping the first', async () => {
-    await createOrsWithInterimSite({
+    const { orsSiteId } = await createOrsWithInterimSite({
       orsName: 'RA-603 Multi Interim GmbH',
       interimSiteName: 'RA-603 First Interim Depot'
     })
 
-    const { orsSiteId, interimSiteIds } = await readIds()
+    const interimSiteIds = await readInterimSiteIds(orsSiteId)
     expect(interimSiteIds).toHaveLength(1)
     const firstId = interimSiteIds[0]
 
@@ -86,8 +91,7 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
       operationCodes: ['R13']
     })
 
-    const after = await readIds()
-    expect(after.interimSiteIds).toHaveLength(2)
+    expect(await readInterimSiteIds(orsSiteId)).toHaveLength(2)
 
     // The one that was already there is untouched, and keeps its own id.
     await expect(
@@ -97,18 +101,17 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
 
   // AC05: withdrawing one must leave the others alone.
   it('withdraws one interim site and leaves the other untouched', async () => {
-    await createOrsWithInterimSite({
+    const { orsSiteId } = await createOrsWithInterimSite({
       orsName: 'RA-603 Withdraw One GmbH',
       interimSiteName: 'RA-603 Keep Me'
     })
-    const { orsSiteId } = await readIds()
     await OverseasReprocessingSitesPage.addAnotherInterimSite(orsSiteId)
     await addInterimSite({
       siteName: 'RA-603 Withdraw Me',
       operationCodes: ['R13']
     })
 
-    const { interimSiteIds } = await readIds()
+    const interimSiteIds = await readInterimSiteIds(orsSiteId)
     expect(interimSiteIds).toHaveLength(2)
     const [keepId, withdrawId] = interimSiteIds
 
@@ -132,12 +135,11 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
 
   // C4, first half: the mis-click noticed straight away.
   it('offers an undo on the banner, which brings back the same interim site', async () => {
-    await createOrsWithInterimSite({
+    const { orsSiteId } = await createOrsWithInterimSite({
       orsName: 'RA-603 Undo GmbH',
       interimSiteName: 'RA-603 Undo Depot'
     })
-    const { orsSiteId, interimSiteIds } = await readIds()
-    const targetId = interimSiteIds[0]
+    const [targetId] = await readInterimSiteIds(orsSiteId)
 
     await OverseasReprocessingSitesPage.removeInterimSite(targetId)
 
@@ -160,12 +162,11 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
 
   // C4, second half: the operator who realises after the banner has gone.
   it('lists a withdrawn interim site separately and puts it back from there', async () => {
-    await createOrsWithInterimSite({
+    const { orsSiteId } = await createOrsWithInterimSite({
       orsName: 'RA-603 Restore GmbH',
       interimSiteName: 'RA-603 Restore Depot'
     })
-    const { orsSiteId, interimSiteIds } = await readIds()
-    const targetId = interimSiteIds[0]
+    const [targetId] = await readInterimSiteIds(orsSiteId)
 
     await OverseasReprocessingSitesPage.removeInterimSite(targetId)
     await expect(browser).toHaveUrl(
@@ -198,12 +199,12 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
   // - both make the row disappear - so this is the assertion that distinguishes
   // them, and the one that fails if withdrawing ever starts destroying records.
   it('keeps a withdrawn interim site in the record, stamped with when it went', async () => {
-    const { organisationId, applicationId } = await createOrsWithInterimSite({
-      orsName: 'RA-603 Soft Delete GmbH',
-      interimSiteName: 'RA-603 Soft Delete Depot'
-    })
-    const { interimSiteIds } = await readIds()
-    const targetId = interimSiteIds[0]
+    const { organisationId, applicationId, orsSiteId } =
+      await createOrsWithInterimSite({
+        orsName: 'RA-603 Soft Delete GmbH',
+        interimSiteName: 'RA-603 Soft Delete Depot'
+      })
+    const [targetId] = await readInterimSiteIds(orsSiteId)
 
     await OverseasReprocessingSitesPage.removeInterimSite(targetId)
     await expect(browser).toHaveUrl(
