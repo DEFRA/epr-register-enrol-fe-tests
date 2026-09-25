@@ -17,6 +17,14 @@ class AddOrsCyaPage extends Page {
     return $('[data-testid="row-location"]')
   }
 
+  get coordinatesRow() {
+    return $('[data-testid="row-coordinates"]')
+  }
+
+  get changeCoordinatesLink() {
+    return $('[data-testid="change-coordinates"]')
+  }
+
   get contactNameRow() {
     return $('[data-testid="row-contact-name"]')
   }
