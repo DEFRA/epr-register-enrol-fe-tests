@@ -11,6 +11,7 @@ import QueryTaskListPage from 'page-objects/query-task-list.page'
 import QueryDeclarationPage from 'page-objects/query-declaration.page'
 import { getApplication, raiseQuery } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { disposableYear } from '../helpers/accreditation-year.js'
 
 // RA-583: a Case Management query raised against BOTH the overseas
 // reprocessing sites (ORS) and broadly-equivalent-standards (BES) sections
@@ -62,7 +63,11 @@ describe('RA-583: BES status after an ORS+BES query resubmission', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(3000 + (Date.now() % 1000))
+    year = await disposableYear(
+      'ra-583-bes-status-after-resubmit',
+      organisationId,
+      materialType
+    )
     await browser.url(landingUrl())
 
     await OperatorAccreditationPage.clickContinue()
