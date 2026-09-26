@@ -568,8 +568,12 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     // RA-603 AC05: but the record itself survives, stamped with when it was
     // withdrawn, so it stays available for reporting. A hard delete would pass
     // the assertion above and fail this one.
+    // Matched on the interim site's own id, not its name: an earlier test in
+    // this file renames it to "RA-486 Interim Depot (Updated)", and these tests
+    // share one accreditation in file order. The id is the thing that does not
+    // move, and it is also what the withdrawal above was addressed by.
     const withdrawn = (orsSite.interimSites ?? []).find(
-      (i) => i.siteName === 'RA-486 Interim Depot'
+      (i) => String(i.siteId) === String(siteId)
     )
     expect(withdrawn).toBeDefined()
     expect(withdrawn.removedAt).toBeTruthy()
