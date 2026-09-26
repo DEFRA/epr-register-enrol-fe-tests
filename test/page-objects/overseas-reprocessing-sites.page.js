@@ -143,18 +143,21 @@ class OverseasReprocessingSitesPage extends Page {
     await link.click()
   }
 
-  // RA-486: interim sites become visible/changeable/removable directly from
-  // this page — nested under their linked ORS row, keyed by the ORS's own
-  // siteId (the model is 1 ORS : 0-or-1 interim site, so no separate interim
-  // siteId/index is needed). Rendered wherever site.interimSite is present,
+  // RA-486, reworked by RA-603: interim sites are visible, changeable and
+  // withdrawable directly from this page, nested under their linked ORS row
   // across all four site sections (accredited, registered, newSites,
   // registeredSitesAdded).
-  interimSiteRow(siteId) {
-    return $(`[data-testid="interim-site-row-${siteId}"]`)
+  //
+  // Every interim selector below takes the INTERIM site's own id, not its
+  // parent ORS's. An ORS can hold several now, so the parent no longer
+  // identifies one; ids are unique application-wide (the backend allocates ORS
+  // and interim ids from one sequence), so the interim id alone is enough.
+  interimSiteRow(interimSiteId) {
+    return $(`[data-testid="interim-site-row-${interimSiteId}"]`)
   }
 
-  interimSiteNameValue(siteId) {
-    return $(`[data-testid="interim-site-name-${siteId}"]`)
+  interimSiteNameValue(interimSiteId) {
+    return $(`[data-testid="interim-site-name-${interimSiteId}"]`)
   }
 
   // RA-603: an ORS's interim sites now sit behind a single collapsed
@@ -195,31 +198,111 @@ class OverseasReprocessingSitesPage extends Page {
     })
   }
 
-  changeInterimSiteButton(siteId) {
-    return $(`[data-testid="change-interim-site-${siteId}"]`)
+  changeInterimSiteButton(interimSiteId) {
+    return $(`[data-testid="change-interim-site-${interimSiteId}"]`)
   }
 
-  // Re-enters the add-interim-site wizard pre-filled from the existing
-  // interim site (.../select-overseas-sites/{applicationId}/interim-site/edit/{siteId});
-  // its CYA submit calls the bulk PATCH with the edited interimSite (same
-  // siteId) instead of creating a new one.
-  async changeInterimSite(siteId) {
-    const link = this.changeInterimSiteButton(siteId)
+  // Re-enters the add-interim-site wizard pre-filled from the existing interim
+  // site (.../select-overseas-sites/{applicationId}/interim-site/edit/{interimSiteId}).
+  // RA-603: its CYA submit PATCHes that one interim site through its own
+  // endpoint rather than rewriting the whole site list.
+  async changeInterimSite(interimSiteId) {
+    const link = this.changeInterimSiteButton(interimSiteId)
     await link.waitForDisplayed()
     await link.scrollIntoView()
     await link.click()
   }
 
-  removeInterimSiteButton(siteId) {
-    return $(`[data-testid="remove-button-interim-site-${siteId}"]`)
+  removeInterimSiteButton(interimSiteId) {
+    return $(`[data-testid="remove-button-interim-site-${interimSiteId}"]`)
   }
 
-  // RA-486: goes through the existing bulk-patch endpoint on the frontend
-  // side (form data-testid="remove-form-interim-site-{siteId}",
-  // name="submitAction" value="removeInterimSite") — no confirmation step,
+  // RA-603: a SOFT withdraw. The backend stamps removedAt and keeps the record
+  // for reporting, so the site disappears from the list but can be put back -
+  // see undoWithdraw and restoreInterimSite below. No confirmation step,
   // matching removeAccredited/removeNewSite above.
-  async removeInterimSite(siteId) {
-    const button = this.removeInterimSiteButton(siteId)
+  async removeInterimSite(interimSiteId) {
+    const button = this.removeInterimSiteButton(interimSiteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
+  // RA-603 AC01: adds a SECOND (or third) interim site to an ORS that already
+  // has one. Lives inside the interim-sites disclosure, so open that first.
+  addInterimSiteLink(siteId) {
+    return $(`[data-testid="add-interim-site-${siteId}"]`)
+  }
+
+  async addAnotherInterimSite(siteId) {
+    await this.openInterimSiteDisclosure(siteId)
+    const link = this.addInterimSiteLink(siteId)
+    await link.waitForDisplayed()
+    await link.scrollIntoView()
+    await link.click()
+  }
+
+  // RA-603 C4: the banner shown straight after withdrawing, offering the site
+  // back in one click. It lasts exactly as long as the flash does - one render
+  // - so anything using it has to do so before navigating away.
+  withdrawnBanner() {
+    return $('[data-testid="interim-site-withdrawn-banner"]')
+  }
+
+  undoWithdrawButton() {
+    return $('[data-testid="undo-withdraw-button"]')
+  }
+
+  async undoWithdraw() {
+    const button = this.undoWithdrawButton()
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
+  // RA-603 C4: the other way back, for after the banner has gone. A second
+  // disclosure per ORS, rendered only when that ORS has something withdrawn.
+  withdrawnInterimSitesDisclosure(siteId) {
+    return $(`[data-testid="withdrawn-interim-sites-disclosure-${siteId}"]`)
+  }
+
+  withdrawnInterimSitesDisclosureSummary(siteId) {
+    return $(
+      `[data-testid="withdrawn-interim-sites-disclosure-summary-${siteId}"]`
+    )
+  }
+
+  // Same idempotent open-and-wait as openInterimSiteDisclosure, and for the
+  // same reason: a closed <details> reports "displayed" differently across
+  // Chrome versions, so `open` is the only signal that reads the same on both.
+  async openWithdrawnInterimSitesDisclosure(siteId) {
+    const details = this.withdrawnInterimSitesDisclosure(siteId)
+    await details.waitForExist()
+    await details.scrollIntoView()
+
+    if (!(await details.getProperty('open'))) {
+      await this.withdrawnInterimSitesDisclosureSummary(siteId).click()
+    }
+
+    await browser.waitUntil(() => details.getProperty('open'), {
+      timeoutMsg: `Withdrawn interim sites disclosure for site ${siteId} did not open`
+    })
+  }
+
+  withdrawnInterimSiteRow(interimSiteId) {
+    return $(`[data-testid="withdrawn-interim-site-row-${interimSiteId}"]`)
+  }
+
+  restoreInterimSiteButton(interimSiteId) {
+    return $(`[data-testid="restore-button-interim-site-${interimSiteId}"]`)
+  }
+
+  // Restores in place: the backend clears removedAt and touches nothing else,
+  // so the site returns with the siteId and siteNumber it always had rather
+  // than as a new record.
+  async restoreInterimSite(siteId, interimSiteId) {
+    await this.openWithdrawnInterimSitesDisclosure(siteId)
+    const button = this.restoreInterimSiteButton(interimSiteId)
     await button.waitForDisplayed()
     await button.scrollIntoView()
     await button.click()
