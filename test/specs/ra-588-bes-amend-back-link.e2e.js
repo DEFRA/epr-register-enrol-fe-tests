@@ -8,6 +8,7 @@ import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
 import { getOverseasSites } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { disposableYear } from '../helpers/accreditation-year.js'
 
 // RA-588: "Amend BES back button does not work as expected - takes to the
 // upload screens". (The Jira title's "CM:" prefix is a mis-tag - every URL in
@@ -114,7 +115,11 @@ describe('RA-588: back navigation out of the amend-BES evidence screen', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(3000 + (Date.now() % 1000))
+    year = await disposableYear(
+      'ra-588-bes-amend-back-link',
+      organisationId,
+      materialType
+    )
     await browser.url(
       `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
     )

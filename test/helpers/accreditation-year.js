@@ -4,30 +4,30 @@ import { listApplications } from './case-management.js'
 // against, replacing the `String(3000 + (Date.now() % 1000))` several specs
 // used to draw independently.
 //
-// The clock version looked unique but was not. The backend builds an
-// application's reference at submit time as
+// The clock version looked unique but was not. The backend derives an
+// application's reference at submit time from
 // `AP{year % 100}{agency}{orgNumber}{postcodeSuffix}{material}`
 // (StubCaseWorkingApiAdapter.GenerateReference), and that reference carries a
 // unique index in Mongo. Only the last two digits of the year reach it, so
 // 1000 apparently-distinct years collapsed to 100 distinct references per
-// org + material. Two journeys on the same org landing on years 100 apart -
-// or on the static 2027 the /operator links use - made the second submit fail
-// with a duplicate-key 500, which the spec could only see as a confirmation
-// panel that never rendered.
+// org + material - and several specs drew from that same 100 independently,
+// against the same orgs, while the full-journey specs submit the static 2027
+// (residue 27) on those orgs too.
 //
 // Years are therefore allocated rather than drawn:
 //
-//   - every journey owns a slot below, and slots map to distinct EVEN
-//     residues, so no two journeys in a run can ever share a reference;
+//   - every journey owns a slot below, and each slot owns its own private,
+//     contiguous block of EVEN residues, so no two journeys can ever share an
+//     application reference - in the same run or any later one;
 //   - leaving the odd residues unused keeps 2027 (residue 27, the static year
 //     behind every /operator link, submitted by operator-accreditation and
-//     exporter-accreditation) permanently out of reach, and keeps `year + 1`
+//     exporter-accreditation) permanently out of reach, and leaves `year + 1`
 //     free for restart-withdrawn-application.e2e.js's assertion that the
 //     following year holds nothing;
 //   - Mongo persists between local runs (compose.yml's named `mongodb-data`
-//     volume), so each slot walks its own lane of even residues and takes the
-//     first one that org + material has not used yet. A fresh CI stack always
-//     hands every journey its first choice.
+//     volume), so a slot takes the first year in its block that the
+//     org + material has not used yet. A fresh CI stack always hands every
+//     journey the first year in its block.
 const JOURNEY_SLOTS = [
   'status-push:approved',
   'status-push:rejected',
@@ -37,7 +37,8 @@ const JOURNEY_SLOTS = [
   'withdraw-application',
   'restart-withdrawn-application',
   'ra-570-amend-bes-evidence',
-  'ra-583-bes-status-after-resubmit'
+  'ra-583-bes-status-after-resubmit',
+  'ra-588-bes-amend-back-link'
 ]
 
 // Years run 3000-3098, so `year % 100` is the residue itself. The band is the
@@ -46,18 +47,13 @@ const JOURNEY_SLOTS = [
 const YEAR_BASE = 3000
 const EVEN_RESIDUES = 50
 
-// `JOURNEY_SLOTS.length` is coprime with EVEN_RESIDUES, so a slot's lane walk
-// visits every even residue before repeating. A journey that seeds more than
-// one application per run (regulator-query-banner.e2e.js does - each of its
-// tests takes a fresh one) simply walks to its next lane, because the residue
-// it used first is already taken.
-//
-// Lanes only start overlapping between slots eleven lanes apart (9 * 11 = 99
-// = -1 mod 50), so a fresh stack - which every CI run gets - always hands each
-// journey a residue no other journey can reach. Locally, the lane walk is what
-// makes reruns work against the persistent `mongodb-data` volume, and it keeps
-// doing so for roughly ten reruns before neighbouring slots can start
-// competing for the same free residue.
+// Blocks are carved by integer division, so they stay disjoint whatever the
+// slot count - no coprimality argument to get wrong when a journey is added.
+// At ten slots each block holds five years, which is how many times a single
+// journey can seed a fresh application before the stack needs resetting. Most
+// take one per run; regulator-query-banner.e2e.js takes one per test.
+const YEARS_PER_SLOT = Math.floor(EVEN_RESIDUES / JOURNEY_SLOTS.length)
+
 export async function disposableYear(journey, organisationId, materialType) {
   const slot = JOURNEY_SLOTS.indexOf(journey)
   if (slot === -1) {
@@ -72,8 +68,8 @@ export async function disposableYear(journey, organisationId, materialType) {
       .map((application) => application.year % 100)
   )
 
-  for (let lane = 0; lane < EVEN_RESIDUES; lane++) {
-    const residue = 2 * ((slot + lane * JOURNEY_SLOTS.length) % EVEN_RESIDUES)
+  for (let offset = 0; offset < YEARS_PER_SLOT; offset++) {
+    const residue = 2 * (slot * YEARS_PER_SLOT + offset)
     if (!takenResidues.has(residue)) {
       return String(YEAR_BASE + residue)
     }
@@ -81,6 +77,6 @@ export async function disposableYear(journey, organisationId, materialType) {
 
   throw new Error(
     `No disposable accreditation year left for "${journey}" on organisation ${organisationId} / ${materialType}: ` +
-      `all ${EVEN_RESIDUES} reference slots are in use. Reset the stack with \`docker compose down -v\`.`
+      `all ${YEARS_PER_SLOT} of its years are in use. Reset the stack with \`docker compose down -v\`.`
   )
 }
