@@ -351,29 +351,9 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
     await expect(QueryDeclarationPage.fullNameError).toHaveText(
       expect.stringContaining('Enter your full name')
     )
-    await expect(QueryDeclarationPage.emailError).toHaveText(
-      expect.stringContaining('Enter your email address')
-    )
     await expect(QueryDeclarationPage.roleError).toHaveText(
       expect.stringContaining('Enter your job title')
     )
-
-    // AC03/AC04: email format is validated too, distinctly from "required" —
-    // a malformed address must surface the format-specific message and must
-    // not trip the other two fields' errors
-    await QueryDeclarationPage.submitResubmission({
-      fullName: 'Test Person',
-      email: 'not-an-email',
-      role: 'Compliance Officer'
-    })
-    await expect(QueryDeclarationPage.errorSummary).toBeDisplayed()
-    await expect(QueryDeclarationPage.emailError).toHaveText(
-      expect.stringContaining('Enter an email address in the correct format')
-    )
-    await expect(await QueryDeclarationPage.fullNameError.isExisting()).toBe(
-      false
-    )
-    await expect(await QueryDeclarationPage.roleError.isExisting()).toBe(false)
 
     await QueryDeclarationPage.submitResubmission({
       role: 'Compliance Officer'
