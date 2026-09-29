@@ -37,13 +37,21 @@ class BusinessPlanDetailPage extends Page {
   }
 
   // The live "X characters remaining"/"too many" status govuk-frontend's own
-  // CharacterCount module writes into (the govukHint with id "{id}-info" —
-  // see govuk-frontend's character-count component). Reading this alongside
-  // fieldError() is what proves the real component is driving both the live
-  // count AND, via application.js, the field error's own removal — not just
-  // that the error happened to disappear for some unrelated reason.
+  // CharacterCount module writes into.
+  //
+  // NOT the "{id}-info" element — that id stays on the ORIGINAL server-
+  // rendered govukHint (the static "You can enter up to 500 characters"
+  // line). CharacterCount's constructor reads that element once to find
+  // where to attach, then creates a SEPARATE new sibling — class
+  // govuk-character-count__status, no id of its own — immediately after it
+  // and hides the original with govuk-visually-hidden (see govuk-frontend's
+  // character-count.mjs). That new sibling is the one whose text actually
+  // updates live; reading "{id}-info" instead reads the hidden, frozen
+  // original and always sees the pre-enhancement static text. Confirmed
+  // against the component source after CI caught this getter reading the
+  // wrong element.
   countMessageFor(fieldId) {
-    return $(`#${fieldId}-info`)
+    return $(`#${fieldId}-info + .govuk-character-count__status`)
   }
 
   get saveAndContinueButton() {
