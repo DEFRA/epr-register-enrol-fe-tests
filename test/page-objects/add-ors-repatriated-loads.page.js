@@ -13,6 +13,16 @@ class AddOrsRepatriatedLoadsPage extends Page {
     return $('[data-testid="error-summary"]')
   }
 
+  // RA-361: the inline error govukCharacterCount renders next to the
+  // textarea itself (controller.js#buildTextareaInput sets
+  // data-testid="repatriated-loads-error" on it), distinct from
+  // errorSummary above. The live-clearing fix in application.js only ever
+  // removes this element once the field's own word count is back within
+  // the 500-word limit — it never touches the error summary.
+  get fieldError() {
+    return $('[data-testid="repatriated-loads-error"]')
+  }
+
   get backLink() {
     return $('[data-testid="back-link"]')
   }
