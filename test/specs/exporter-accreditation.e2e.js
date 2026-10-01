@@ -342,6 +342,9 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Step 7: Check your answers
     await expect(AddOrsCyaPage.summaryList).toBeDisplayed()
     await expect(AddOrsCyaPage.siteNameRow).toBeDisplayed()
+    await expect(AddOrsCyaPage.coordinatesRow).toHaveText(
+      expect.stringContaining('53.5511, 9.9937')
+    )
     await AddOrsCyaPage.submit()
 
     // Back on select-overseas-sites with success banner
@@ -1042,6 +1045,9 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await AddOrsSiteNamePage.continue()
 
     await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await expect(AddOrsSiteLocationPage.coordinatesInput).toHaveValue(
+      '52.5200, 13.4050'
+    )
     await AddOrsSiteLocationPage.enterLocation({
       addressLine1: 'Geanderte Strasse 2',
       townOrCity: 'Munich',
@@ -1086,6 +1092,9 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(AddOrsCyaPage.summaryList).toBeDisplayed()
     await expect(AddOrsCyaPage.siteNameRow).toHaveText(
       expect.stringContaining('RA-470 Change Test Ltd (Updated)')
+    )
+    await expect(AddOrsCyaPage.coordinatesRow).toHaveText(
+      expect.stringContaining('48.1351, 11.5820')
     )
 
     // Same submit button/action as the create and promote flows — the
