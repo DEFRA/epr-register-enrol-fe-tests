@@ -362,6 +362,112 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     expect(newSite.isNewSite).toBe(true)
   })
 
+  // RA-361. This field's own countWords validation was always correct — a
+  // browser has no way to inflate a WORD count the way it CRLF-inflates a
+  // character count (fixed separately, server-side, on business-plan-detail;
+  // see RA-268) — but before this ticket the "up to 500 words" line was
+  // static text with no live behaviour behind it at all: going over showed
+  // nothing until a full submit, and no server-rendered error ever cleared
+  // itself without one either. This field is now enhanced the same way, with
+  // GOV.UK Frontend's own CharacterCount driving a live word counter that
+  // application.js also uses to clear the server-rendered error itself, in
+  // the browser, once the operator is back within the 500-word limit — no
+  // resubmit needed.
+  it('Should clear the "too many words" error live once the description is reduced back to 500 words, without resubmitting', async () => {
+    await OperatorPage.navigateToExporterAccreditationOwnOrg()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('Live Validation Recycling GmbH')
+    await AddOrsSiteNamePage.continue()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Entkopplungsweg 1',
+      townOrCity: 'Munich',
+      country: 'Germany',
+      coordinates: '48.1351, 11.5820'
+    })
+    await AddOrsSiteLocationPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Test Contact',
+      email: 'test@ra361.example.com',
+      phone: '+49 89 7654321'
+    })
+    await AddOrsSiteContactPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes(['A1181'])
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    const tooManyWords = Array(502).fill('word').join(' ')
+    await AddOrsRepatriatedLoadsPage.enterDescription(tooManyWords)
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    // Still on the same page — the server-side round trip produced the
+    // error this fix targets.
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await expect(AddOrsRepatriatedLoadsPage.fieldError).toBeDisplayed()
+    await expect(AddOrsRepatriatedLoadsPage.fieldError).toHaveText(
+      expect.stringContaining('Description must be 500 words or fewer')
+    )
+
+    // Reduced back to exactly 500 words DIRECTLY in the browser — no click,
+    // no reload, no resubmit.
+    const exactly500Words = Array(500).fill('word').join(' ')
+    await AddOrsRepatriatedLoadsPage.textarea.setValue(exactly500Words)
+
+    // Genuinely removed from the DOM, not merely hidden.
+    await expect(AddOrsRepatriatedLoadsPage.fieldError).not.toBeExisting()
+
+    // The fix is real, not merely cosmetic: the field now goes on to
+    // complete the wizard normally.
+    await AddOrsRepatriatedLoadsPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await AddOrsCyaPage.submit()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+
+    const sites = await getOverseasSites(organisationId, applicationId)
+    expect(
+      sites.some((s) => s.siteName === 'Live Validation Recycling GmbH')
+    ).toBe(true)
+  })
+
   it('Should add an interim site from the Add ORS check-your-answers page (Plastic)', async () => {
     await OperatorPage.navigateToExporterAccreditationOwnOrg()
     const landingUrl = await browser.getUrl()
