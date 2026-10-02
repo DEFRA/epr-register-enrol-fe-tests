@@ -379,12 +379,28 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     // page load but hidden inside a collapsed disclosure until it is opened
     // below. Attributes are readable either way, so the siteId lookup itself
     // needs no change.
+    // RA-603: two different ids now. The disclosure is keyed on the PARENT ORS
+    // (one disclosure holds all of that ORS's interim sites); the row inside it
+    // is keyed on the interim site's own id, because an ORS can hold several
+    // and the parent no longer identifies one.
+    // The parent is read from the disclosure that holds THIS row, not from the
+    // first disclosure on the page: an ORS whose interim sites are all
+    // withdrawn still renders an empty one, and org 50013 is never reset, so
+    // on a rerun the first disclosure can belong to a different ORS.
     const interimSiteRow = await $('[data-testid^="interim-site-row-"]')
     await interimSiteRow.waitForExist()
     const testId = await interimSiteRow.getAttribute('data-testid')
     const siteId = testId.replace('interim-site-row-', '')
 
-    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(siteId)
+    const disclosure = await interimSiteRow.$(
+      './ancestor::details[starts-with(@data-testid, "interim-sites-disclosure-")]'
+    )
+    const orsSiteId = (await disclosure.getAttribute('data-testid')).replace(
+      'interim-sites-disclosure-',
+      ''
+    )
+
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsSiteId)
 
     await expect(
       OverseasReprocessingSitesPage.interimSiteNameValue(siteId)
@@ -507,12 +523,28 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
 
     // RA-603: see the sibling change in the "changes an interim site" test —
     // the row exists from page load but is hidden until the disclosure opens.
+    // RA-603: two different ids now. The disclosure is keyed on the PARENT ORS
+    // (one disclosure holds all of that ORS's interim sites); the row inside it
+    // is keyed on the interim site's own id, because an ORS can hold several
+    // and the parent no longer identifies one.
+    // The parent is read from the disclosure that holds THIS row, not from the
+    // first disclosure on the page: an ORS whose interim sites are all
+    // withdrawn still renders an empty one, and org 50013 is never reset, so
+    // on a rerun the first disclosure can belong to a different ORS.
     const interimSiteRow = await $('[data-testid^="interim-site-row-"]')
     await interimSiteRow.waitForExist()
     const testId = await interimSiteRow.getAttribute('data-testid')
     const siteId = testId.replace('interim-site-row-', '')
 
-    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(siteId)
+    const disclosure = await interimSiteRow.$(
+      './ancestor::details[starts-with(@data-testid, "interim-sites-disclosure-")]'
+    )
+    const orsSiteId = (await disclosure.getAttribute('data-testid')).replace(
+      'interim-sites-disclosure-',
+      ''
+    )
+
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsSiteId)
 
     await expect(
       OverseasReprocessingSitesPage.interimSiteRow(siteId)
@@ -530,13 +562,27 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
     ).not.toBeExisting()
 
     // Confirm via the API too: the parent ORS still exists, but its nested
-    // interim site is gone.
+    // interim site is gone. Found by the id of the ORS the test opened, not by
+    // name: every run adds another "RA-486 Decoupling Proof GmbH" to the same
+    // never-reset org, and a name lookup returns the oldest.
     const sites = await getOverseasSites(organisationId, applicationId)
-    const orsSite = sites.find(
-      (s) => s.siteName === 'RA-486 Decoupling Proof GmbH'
-    )
+    const orsSite = sites.find((s) => String(s.siteId) === String(orsSiteId))
     expect(orsSite).toBeDefined()
+    // The mirror clears, because it always points at the first interim site
+    // the operator still has and there is no longer one.
     expect(orsSite.interimSite).toBeFalsy()
+    // RA-603 AC05: but the record itself survives, stamped with when it was
+    // withdrawn, so it stays available for reporting. A hard delete would pass
+    // the assertion above and fail this one.
+    // Matched on the interim site's own id, not its name: an earlier test in
+    // this file renames it to "RA-486 Interim Depot (Updated)", and these tests
+    // share one accreditation in file order. The id is the thing that does not
+    // move, and it is also what the withdrawal above was addressed by.
+    const withdrawn = (orsSite.interimSites ?? []).find(
+      (i) => String(i.siteId) === String(siteId)
+    )
+    expect(withdrawn).toBeDefined()
+    expect(withdrawn.removedAt).toBeTruthy()
   })
 })
 
