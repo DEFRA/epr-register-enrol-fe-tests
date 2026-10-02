@@ -220,6 +220,69 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
   })
 
+  // RA-268. Reported as a bug on the test above's own fix: a browser
+  // normalises a textarea's line breaks to CRLF on submit, so a value typed
+  // at exactly the 500-character limit could arrive here longer and be
+  // rejected — and once that error showed, reducing the text back down did
+  // not clear it without a fresh submit. Both halves are now fixed: the
+  // server counts the same way the browser does, and GOV.UK Frontend's own
+  // CharacterCount component (enhancing this field) drives a live counter
+  // that application.js also uses to clear the server-rendered error itself,
+  // in the browser, the moment the field is back within the limit — no
+  // resubmit needed. This is the live-clearing half; the CRLF-normalisation
+  // half is covered server-side in epr-register-enrol-frontend's own
+  // controller.test.js, which a browser round trip can't usefully add to.
+  it('Should clear the "too long" error live once the field is reduced back to 500 characters, without resubmitting', async () => {
+    await goToBusinessPlanForm()
+    await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
+    await BusinessPlanPage.saveAndContinue()
+
+    if ((await $('h1').getText()) === 'Check your answers before continuing') {
+      await $('a.govuk-back-link').click()
+    }
+    await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
+      "Add more details about how you'll spend the PRN income"
+    )
+
+    // Every field starts with legitimate content, so the only error the
+    // submit below can produce is the one this test is about.
+    await BusinessPlanDetailPage.fillDescriptions()
+    const fieldId = 'newInfrastructureDetail'
+    const textarea = await BusinessPlanDetailPage.textareaFor(fieldId)
+    // Real typing (not the JS value-set fillDescriptions uses to bypass the
+    // pre-enhancement maxlength cap): govuk-frontend's CharacterCount removes
+    // that attribute on the field once enhanced, so a genuine 501-character
+    // type-in now goes through directly — and, unlike a JS-set value, fires
+    // the real input events both CharacterCount's own live counter and this
+    // fix's clearing logic depend on.
+    await textarea.setValue('A'.repeat(501))
+    await BusinessPlanDetailPage.saveAndContinue()
+
+    // The server-side round trip produced the per-field error this fix
+    // targets — the same one the previous test asserts via the summary.
+    await expect(BusinessPlanDetailPage.fieldError(fieldId)).toBeDisplayed()
+    await expect(BusinessPlanDetailPage.fieldError(fieldId)).toHaveText(
+      expect.stringContaining('must be 500 characters or fewer')
+    )
+    await expect(BusinessPlanDetailPage.countMessageFor(fieldId)).toHaveText(
+      expect.stringContaining('too many')
+    )
+
+    // Reduced back to exactly 500 characters DIRECTLY in the browser — no
+    // click, no reload, no resubmit. This is the bug: the live counter
+    // already correctly said "0 characters remaining" here, but the static
+    // server error used to stay on screen regardless.
+    await textarea.setValue('A'.repeat(500))
+
+    await expect(BusinessPlanDetailPage.countMessageFor(fieldId)).toHaveText(
+      expect.stringContaining('remaining')
+    )
+    // Genuinely removed from the DOM, not merely hidden — the same
+    // distinction application.js's own unit tests make, and the reason
+    // .not.toBeExisting() is used here rather than .not.toBeDisplayed().
+    await expect(BusinessPlanDetailPage.fieldError(fieldId)).not.toBeExisting()
+  })
+
   // ── Full Journey ──────────────────────────────────────────────────────────
 
   it('Should complete the full accreditation journey and submit the application', async () => {
