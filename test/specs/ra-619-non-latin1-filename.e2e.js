@@ -20,6 +20,7 @@ import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-jo
 describe('RA-619: uploads with filenames outside Latin-1', () => {
   const SAMPLING_PLAN_NAME = 'Báo cáo kiểm tra ẻ'
   const BES_EVIDENCE_NAME = '报告'
+  const TASK_LIST_PATH = '/accreditation/task-list/'
 
   beforeEach(async () => {
     await browser.deleteCookies()
@@ -53,8 +54,7 @@ describe('RA-619: uploads with filenames outside Latin-1', () => {
 
     await OperatorAccreditationPage.clickContinue()
     await browser.waitUntil(
-      async () =>
-        (await browser.getUrl()).includes('/accreditation/task-list/'),
+      async () => (await browser.getUrl()).includes(TASK_LIST_PATH),
       { timeout: 10000, timeoutMsg: 'Did not reach task list' }
     )
 
@@ -64,9 +64,7 @@ describe('RA-619: uploads with filenames outside Latin-1', () => {
       samplingPlanBaseName: SAMPLING_PLAN_NAME
     })
 
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
+    await expect(browser).toHaveUrl(expect.stringContaining(TASK_LIST_PATH))
     await TaskListPage.overseasSitesLink.click()
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
@@ -75,9 +73,7 @@ describe('RA-619: uploads with filenames outside Latin-1', () => {
     await ConfirmOverseasSitesPage.confirmAndContinue()
 
     // BES evidence flow.
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/accreditation/task-list/')
-    )
+    await expect(browser).toHaveUrl(expect.stringContaining(TASK_LIST_PATH))
     await TaskListPage.besLink.click()
     await BesEvidencePage.pendingUploadLink.click()
     await BesEvidencePage.uploadFile('business-plan.pdf', {
