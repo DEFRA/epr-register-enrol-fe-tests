@@ -125,7 +125,11 @@ class BesEvidencePage extends Page {
   // Filenames listed on the CYA page (/cya-evidence-for-overseas-site/).
   async cyaFilenames() {
     const cells = await $$('[data-testid^="filename-"]')
-    return Promise.all(cells.map((cell) => cell.getText()))
+    const filenames = []
+    for (const cell of cells) {
+      filenames.push(await cell.getText())
+    }
+    return filenames
   }
 
   async selectNo() {
