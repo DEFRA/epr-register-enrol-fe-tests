@@ -107,11 +107,13 @@ export async function raiseQuery(
   return body.json()
 }
 
-// Simulates case-management pushing a generic status change to OJ (RA-368),
-// bypassing management-fe (out of scope for this repo, see RA-311 precedent
-// above). Unlike raiseQuery, this covers the other CM transitions
-// (duly-made, approved, rejected, ...) that OJ's ApplicationStatus now
-// projects directly from CM state ids.
+// Simulates case-management pushing a generic status change to the
+// Registration & Accreditation service (RA-368), bypassing management-fe
+// (out of scope for this repo, see RA-311 precedent above). Unlike
+// raiseQuery, this covers the other Case Management service transitions
+// (duly-made, approved, rejected, ...) that the Registration & Accreditation
+// service's ApplicationStatus now projects directly from Case Management
+// service state ids.
 export async function pushStatusChanged(
   organisationId,
   applicationId,
@@ -148,7 +150,7 @@ export async function pushStatusChanged(
   return body.json()
 }
 
-// Calls the OJ Withdraw endpoint directly, the same bypass-the-UI approach
+// Calls the Registration & Accreditation service Withdraw endpoint directly, the same bypass-the-UI approach
 // as patchSection below, to prove the backend's own withdraw guard - not
 // just the frontend withdraw link's visibility - accepts the request. Added
 // for RA-368: the guard used to wrongly 409 once AwaitingDecision became a
