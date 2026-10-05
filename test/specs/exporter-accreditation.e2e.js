@@ -1135,15 +1135,23 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     const siteId = site.siteId
 
     // Click Change on the new site's row — routes through
-    // .../edit/{siteId}, straight back into the wizard's first step.
+    // .../edit/{siteId}, which lands on the pre-filled check-your-answers
+    // page (RA-573); the Site name row's Change link then starts the replay.
     await expect(
       OverseasReprocessingSitesPage.newSiteRow(siteId)
     ).toBeDisplayed()
     await OverseasReprocessingSitesPage.editNewSite(siteId)
-    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
     await expect(browser).toHaveUrl(
       expect.stringContaining(`/add-overseas-site/${applicationId}/`)
     )
+    await expect(AddOrsCyaPage.siteNameRow).toHaveText(
+      expect.stringContaining('RA-470 Change Test Ltd')
+    )
+    await AddOrsCyaPage.changeSiteNameLink.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
 
     // Replay the wizard, updating the details to prove this is an edit of
     // the existing site rather than a second, separate one.
