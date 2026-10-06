@@ -94,8 +94,10 @@ class BesEvidencePage extends Page {
     return $('[data-testid="confirm-button"]')
   }
 
-  async uploadFile(filename) {
-    const filePath = uniqueFixtureCopy(filename)
+  // `baseName` (RA-619) uploads the fixture under that name instead of its own; read the
+  // name back on the CYA page with cyaFilenames().
+  async uploadFile(filename, { baseName } = {}) {
+    const filePath = uniqueFixtureCopy(filename, { baseName })
     let uploadPath
     try {
       uploadPath = await browser.uploadFile(filePath)
@@ -118,6 +120,16 @@ class BesEvidencePage extends Page {
 
     // Status page auto-refreshes every 2s; wait for redirect to Upload More Evidence page
     await this.moreEvidenceForm.waitForDisplayed({ timeout: 30000 })
+  }
+
+  // Filenames listed on the CYA page (/cya-evidence-for-overseas-site/).
+  async cyaFilenames() {
+    const cells = await $$('[data-testid^="filename-"]')
+    const filenames = []
+    for (const cell of cells) {
+      filenames.push(await cell.getText())
+    }
+    return filenames
   }
 
   async selectNo() {
