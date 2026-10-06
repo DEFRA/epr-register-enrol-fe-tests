@@ -13,6 +13,12 @@ class AddInterimSiteCyaPage extends Page {
     return $('[data-testid="row-country"]')
   }
 
+  // RA-632: an interim site's Change lands on this page, so an edit starts
+  // from one of its row Change links.
+  get changeCountryLink() {
+    return $('[data-testid="change-country"]')
+  }
+
   get siteNameRow() {
     return $('[data-testid="row-site-name"]')
   }

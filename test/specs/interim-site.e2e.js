@@ -406,14 +406,23 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
       OverseasReprocessingSitesPage.interimSiteNameValue(siteId)
     ).toHaveText(expect.stringContaining('RA-486 Interim Depot'))
 
-    // Change re-enters the add-interim-site wizard pre-filled, via the
-    // .../interim-site/edit/{siteId} route — mirrors editNewSite's
-    // .../add-overseas-site/{applicationId}/edit/{siteId} for the parent ORS.
-    // That route is a server-side redirect straight to /country (see
-    // selectOverseasSitesInterimSiteEditEntryGetController), so WebDriver
-    // never observes it as the settled URL — only the final /country page
-    // is asserted here, same as editNewSite's own assertion below it.
+    // Change goes through the .../interim-site/edit/{siteId} route, a
+    // server-side redirect that seeds the add-interim-site wizard from the
+    // existing interim site and lands on its pre-filled check-your-answers
+    // page (RA-632, mirroring RA-573 for the parent ORS). WebDriver never
+    // observes the redirect itself, only the settled page. The Country row's
+    // Change link then starts the replay below.
     await OverseasReprocessingSitesPage.changeInterimSite(siteId)
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await expect(browser).toHaveUrl(
+      expect.stringContaining(`/add-interim-site/${applicationId}/`)
+    )
+    await expect(AddInterimSiteCyaPage.siteNameRow).toHaveText(
+      expect.stringContaining('RA-486 Interim Depot')
+    )
+    await AddInterimSiteCyaPage.changeCountryLink.click()
     await expect(browser).toHaveUrl(expect.stringContaining('/country'))
     await expect(AddInterimSiteCountryPage.pageHeading).toBeDisplayed()
 

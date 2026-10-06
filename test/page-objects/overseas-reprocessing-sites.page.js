@@ -202,8 +202,9 @@ class OverseasReprocessingSitesPage extends Page {
     return $(`[data-testid="change-interim-site-${interimSiteId}"]`)
   }
 
-  // Re-enters the add-interim-site wizard pre-filled from the existing interim
-  // site (.../select-overseas-sites/{applicationId}/interim-site/edit/{interimSiteId}).
+  // Opens the add-interim-site wizard's check-your-answers page pre-filled from
+  // the existing interim site (RA-632), via
+  // .../select-overseas-sites/{applicationId}/interim-site/edit/{interimSiteId}.
   // RA-603: its CYA submit PATCHes that one interim site through its own
   // endpoint rather than rewriting the whole site list.
   async changeInterimSite(interimSiteId) {
