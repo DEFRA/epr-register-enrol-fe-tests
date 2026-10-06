@@ -12,7 +12,7 @@ class ErrorPage extends Page {
   }
 
   get message() {
-    return $('.govuk-grid-column-two-thirds p')
+    return $('main .govuk-grid-column-two-thirds p')
   }
 }
 
