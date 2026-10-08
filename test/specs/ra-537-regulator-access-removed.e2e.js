@@ -20,7 +20,8 @@ const REMOVED_PATHS = [
   '/en/regulator',
   '/cy/regulator',
   '/auth/regulator/login',
-  '/auth/regulator/callback'
+  '/auth/regulator/callback',
+  '/auth/regulator/entra-id'
 ]
 
 async function expectNotFoundPage() {
