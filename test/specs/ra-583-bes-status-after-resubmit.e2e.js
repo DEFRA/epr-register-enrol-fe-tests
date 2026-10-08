@@ -9,7 +9,11 @@ import BesEvidencePage from 'page-objects/bes-evidence.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import QueryTaskListPage from 'page-objects/query-task-list.page'
 import QueryDeclarationPage from 'page-objects/query-declaration.page'
-import { getApplication, raiseQuery } from '../helpers/case-management.js'
+import {
+  getApplication,
+  raiseQuery,
+  completeOverseasSites
+} from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 
 // RA-583: a Case Management query raised against BOTH the overseas
@@ -84,6 +88,11 @@ describe('RA-583: BES status after an ORS+BES query resubmission', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
+    // RA-597: ReEx seeds this application with sites that have no contact
+    // details, recycling operations or codes, and the site list will not
+    // continue while any site in the application is missing them. This journey
+    // is about something else, so fill them in rather than walk each by hand.
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')
@@ -133,6 +142,7 @@ describe('RA-583: BES status after an ORS+BES query resubmission', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')

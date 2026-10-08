@@ -69,6 +69,82 @@ export async function getOverseasSites(organisationId, applicationId) {
   return application.overseasSites?.sites ?? []
 }
 
+// RA-597: every overseas site in the application must have everything a fresh
+// add asks for, and ReEx supplies only a name, address and coordinates - never
+// contact details, recycling operations, Basel/OECD codes or repatriated loads.
+// The stub seeds some organisations' applications with such sites already
+// selected, so a journey that is about something else would be stopped at the
+// site list. This fills in whatever is missing, through the backend, so those
+// journeys can carry on; a journey about the completeness check itself leaves
+// the seeded sites alone and goes through the UI.
+const COMPLETE_SITE_DETAILS = {
+  addressLine1: '1 Hafenstrasse',
+  townOrCity: 'Hamburg',
+  coordinates: '53.5511, 9.9937',
+  contactName: 'Greta Schmidt',
+  contactEmail: 'greta.schmidt@example.com',
+  code1: 'A1181',
+  repatriatedLoads: 'Rejected loads are returned within 30 days.'
+}
+
+// The "material" recycling code each material accepts (R3/R4/R5).
+const CORE_RECYCLING_CODE = {
+  Aluminium: 'R4',
+  Fibre: 'R3',
+  Glass: 'R5',
+  Paper: 'R3',
+  Plastic: 'R3',
+  Steel: 'R4',
+  Wood: 'R3'
+}
+
+const NEEDS_CONDITIONS_OF_EXPORT = new Set(['Steel', 'Aluminium'])
+
+function fillMissingDetails(site, materialType) {
+  const filled = { ...site }
+  for (const [field, value] of Object.entries(COMPLETE_SITE_DETAILS)) {
+    filled[field] = filled[field] || value
+  }
+  if (!filled.operationCodes?.length) {
+    filled.operationCodes = [CORE_RECYCLING_CODE[materialType]]
+  }
+  if (
+    NEEDS_CONDITIONS_OF_EXPORT.has(materialType) &&
+    typeof filled.conditionsOfExport !== 'boolean'
+  ) {
+    filled.conditionsOfExport = true
+  }
+  return filled
+}
+
+export async function completeOverseasSites(organisationId, applicationId) {
+  const application = await getApplication(organisationId, applicationId)
+  const sites = (application.overseasSites?.sites ?? []).map((site) =>
+    site.selected === false
+      ? site
+      : fillMissingDetails(site, application.materialType)
+  )
+
+  const { statusCode, body } = await request(
+    apiUrl(`/${organisationId}/${applicationId}/overseas-sites`),
+    {
+      method: 'PATCH',
+      headers: {
+        'content-type': 'application/json',
+        ...frontendAuthHeaders()
+      },
+      body: JSON.stringify({ sites })
+    }
+  )
+  if (statusCode !== 200) {
+    const text = await body.text()
+    throw new Error(
+      `Failed to complete the overseas sites of application ${applicationId}: HTTP ${statusCode} ${text}`
+    )
+  }
+  return body.json()
+}
+
 // Simulates case-management-backend raising a query against an application,
 // bypassing the management-fe UI (out of scope for this repo, see RA-311).
 //
