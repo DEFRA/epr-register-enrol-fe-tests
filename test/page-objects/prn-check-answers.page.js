@@ -5,14 +5,6 @@ class PrnCheckAnswersPage extends Page {
     return $('h1')
   }
 
-  get tonnageValue() {
-    return $('[data-testid="tonnage-value"]')
-  }
-
-  get authoriserValue() {
-    return $('[data-testid="check-authoriser-value"]')
-  }
-
   get confirmAndContinueButton() {
     return $('button=Confirm and continue')
   }

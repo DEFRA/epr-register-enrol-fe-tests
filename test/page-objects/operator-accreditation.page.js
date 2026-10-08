@@ -1,4 +1,4 @@
-import { $, $$ } from '@wdio/globals'
+import { $ } from '@wdio/globals'
 import { Page } from 'page-objects/page'
 
 class OperatorAccreditationPage extends Page {
@@ -39,10 +39,6 @@ class OperatorAccreditationPage extends Page {
     return $('[data-testid="withdraw-link"]')
   }
 
-  get applyAnotherLink() {
-    return $('[data-testid="apply-another-link"]')
-  }
-
   get errorMessage() {
     return $('[data-testid="error-message"]')
   }
@@ -56,26 +52,6 @@ class OperatorAccreditationPage extends Page {
     return (await this.errorMessage.isExisting())
       ? this.errorMessage.getText()
       : null
-  }
-
-  get applicationCards() {
-    return $$('[data-testid="application-card"]')
-  }
-
-  get statusTags() {
-    return $$('[data-testid="status-tag"]')
-  }
-
-  get OrgNameTags() {
-    return $('[data-testid="organisation-name"]')
-  }
-
-  get SiteNameTags() {
-    return $('[data-testid="site-name"]')
-  }
-
-  get MaterialTags() {
-    return $('[data-testid="material-display"]')
   }
 
   get accreditationYear() {
@@ -97,20 +73,12 @@ class OperatorAccreditationPage extends Page {
     return $('[data-testid="application-period"]')
   }
 
-  get continueLinks() {
-    return $$('[data-testid="continue-button"]')
-  }
-
   get firstContinueLink() {
     return $('[data-testid="continue-button"]')
   }
 
   async clickContinue() {
     await this.clickReliably(this.firstContinueLink)
-  }
-
-  get viewLinks() {
-    return $$('[data-testid="view-link"]')
   }
 }
 
