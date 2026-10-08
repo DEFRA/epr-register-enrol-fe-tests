@@ -32,7 +32,7 @@ describe('RA-368: Push CM status changes to OJ', () => {
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })

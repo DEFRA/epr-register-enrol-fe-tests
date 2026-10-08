@@ -5,10 +5,6 @@ class Page {
     return $('h1')
   }
 
-  get pageText() {
-    return $('span.govuk-caption-m')
-  }
-
   // RA-506: govuk-caption-l shown immediately before the page heading on
   // every journey page except operator-accreditation, which keeps the
   // legacy applicationHeader strip below instead.

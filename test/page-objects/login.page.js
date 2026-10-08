@@ -9,14 +9,6 @@ class LoginPage extends Page {
     return $('.govuk-fieldset__heading')
   }
 
-  get userRadioButton() {
-    return $('#user-1')
-  }
-
-  get loginButton() {
-    return $(".govuk-button[type='submit']")
-  }
-
   // RA-537: the OJ frontend has no regulator side any more, so the stub
   // chooser must offer no link into a regulator login (formerly
   // a[href="/auth/stub/login?type=regulator"]). Matched loosely on
@@ -39,14 +31,9 @@ class LoginPage extends Page {
     )
   }
 
-  // RA-537: any type the stub chooser doesn't know — including the removed
-  // `regulator` — 302s to the operator chooser rather than 404ing.
-  async openStubLogin(type) {
-    await super.open(`/auth/stub/login?type=${type}`)
-  }
-
-  async switchToOperator() {
-    await super.open('/auth/stub/login?type=operator')
+  async openOperatorLogin() {
+    // RA-537: the stub chooser is operator-only, so it takes no `type`.
+    await super.open('/auth/stub/login')
     await $('input[type="radio"]').waitForExist({ timeout: 15000 })
   }
 

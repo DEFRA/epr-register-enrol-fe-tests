@@ -34,7 +34,7 @@ const HOME = '/'
 // stand-in for the regulator this spec used to sign in as.
 async function stubLoginAsOperator() {
   await browser.deleteCookies()
-  await LoginPage.switchToOperator()
+  await LoginPage.openOperatorLogin()
   await LoginPage.loginAsOperator()
 }
 

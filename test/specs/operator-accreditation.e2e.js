@@ -26,7 +26,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })

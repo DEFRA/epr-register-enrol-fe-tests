@@ -24,7 +24,7 @@ describe('Accessibility — key pages', () => {
   // never-built scaffold page — so there's nothing left here to check.
 
   it('Operator home page should have no WCAG 2.1 A/AA violations', async () => {
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
     await expectNoAccessibilityViolations()

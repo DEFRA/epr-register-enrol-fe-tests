@@ -11,10 +11,11 @@ import ErrorPage from 'page-objects/error.page'
 // The frontend's unit tests prove each route is no longer registered; this
 // spec proves the removal is what a real browser sees through the running
 // stack. The stub sign-in page offers no way into a regulator login, a stale
-// ?type=regulator link lands on the operator chooser, and every old regulator
-// URL — page and Entra ID auth routes alike — ends on the service's own
-// not-found page (for signed-out and signed-in callers), while operator
-// sign-in, which shares the stub routes, still works.
+// ?type=regulator link just renders the operator chooser (the stub no longer
+// reads `type` at all), and every old regulator URL — page and Entra ID auth
+// routes alike — ends on the service's own not-found page (for signed-out and
+// signed-in callers), while operator sign-in, which shares the stub routes,
+// still works.
 const REMOVED_PATHS = [
   '/regulator',
   '/en/regulator',
@@ -23,6 +24,8 @@ const REMOVED_PATHS = [
   '/auth/regulator/callback',
   '/auth/regulator/entra-id'
 ]
+
+const OPERATOR_CHOOSER_LEGEND = 'Select an operator user'
 
 async function expectNotFoundPage() {
   await expect(ErrorPage.statusCode).toHaveText('404')
@@ -35,17 +38,18 @@ describe('RA-537: OJ regulator access removed', () => {
   })
 
   it('offers no regulator sign-in on the stub login page', async () => {
-    await LoginPage.switchToOperator()
-    await expect(LoginPage.pageHeading).toHaveText('Select a operator user')
+    await LoginPage.openOperatorLogin()
+    await expect(LoginPage.pageHeading).toHaveText(OPERATOR_CHOOSER_LEGEND)
     await expect(LoginPage.regulatorLinks).toBeElementsArrayOfSize(0)
   })
 
-  it('sends a stale ?type=regulator stub link to the operator chooser', async () => {
-    await LoginPage.openStubLogin('regulator')
+  it('renders the operator chooser for a stale ?type=regulator stub link', async () => {
+    await browser.url('/auth/stub/login?type=regulator')
+    // Rendered in place, not redirected: `type` is accepted and ignored.
     await expect(browser).toHaveUrl(
-      expect.stringContaining('/auth/stub/login?type=operator')
+      expect.stringContaining('/auth/stub/login?type=regulator')
     )
-    await expect(LoginPage.pageHeading).toHaveText('Select a operator user')
+    await expect(LoginPage.pageHeading).toHaveText(OPERATOR_CHOOSER_LEGEND)
     await expect(LoginPage.regulatorLinks).toBeElementsArrayOfSize(0)
   })
 
@@ -57,7 +61,7 @@ describe('RA-537: OJ regulator access removed', () => {
   }
 
   it('shows the not-found page for the regulator URLs to a signed-in operator', async () => {
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     for (const path of REMOVED_PATHS) {
       await browser.url(path)
