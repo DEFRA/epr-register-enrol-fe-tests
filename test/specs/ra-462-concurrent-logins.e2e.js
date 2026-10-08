@@ -27,25 +27,26 @@ import LoginPage from 'page-objects/login.page'
 const NOTICE = '[data-testid="session-notice"]'
 const HOME = '/'
 
-async function stubLoginAsRegulator() {
+// RA-537: the OJ frontend no longer has a regulator side, so both jars sign
+// in through the operator stub. The concurrent-login notice is
+// identity-scoped and role-agnostic (stub/controller.js calls
+// markLoginAndNotifyPrevious for any user), so the operator is a like-for-like
+// stand-in for the regulator this spec used to sign in as.
+async function stubLoginAsOperator() {
   await browser.deleteCookies()
-  await LoginPage.openRegulatorLogin()
-  await LoginPage.loginAsUser()
-  await browser.waitUntil(
-    async () => !(await browser.getUrl()).includes('/stub/login'),
-    { timeout: 15000, timeoutMsg: 'Stub login did not redirect' }
-  )
+  await LoginPage.switchToOperator()
+  await LoginPage.loginAsOperator()
 }
 
 describe('RA-462 concurrent-login notification', () => {
   let jarA
 
   beforeEach(async () => {
-    await stubLoginAsRegulator()
+    await stubLoginAsOperator()
     jarA = await browser.getCookies()
 
     await browser.reloadSession()
-    await stubLoginAsRegulator()
+    await stubLoginAsOperator()
   })
 
   afterEach(async () => {
