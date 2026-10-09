@@ -43,6 +43,42 @@ class OverseasReprocessingSitesPage extends Page {
     await this.clickReliably(this.saveAndComeLaterButton)
   }
 
+  // RA-597: a site in the application that is missing required details is
+  // tagged "Incomplete", and the list will not continue while any is.
+  get errorSummary() {
+    return $('[data-testid="error-summary"]')
+  }
+
+  get incompleteSiteErrors() {
+    return $$('[data-testid^="incomplete-site-error-"]')
+  }
+
+  incompleteTag(siteId, prefix = 'accredited-site') {
+    return $(`[data-testid="${prefix}-incomplete-${siteId}"]`)
+  }
+
+  removeAccreditedButton(siteId) {
+    return $(`[data-testid="remove-button-accredited-${siteId}"]`)
+  }
+
+  async removeFromAccreditation(siteId) {
+    const button = this.removeAccreditedButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
+  addToAccreditationButton(siteId) {
+    return $(`[data-testid="add-button-registered-${siteId}"]`)
+  }
+
+  async addToAccreditation(siteId) {
+    const button = this.addToAccreditationButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
   newSiteRow(siteId) {
     return $(`[data-testid="new-site-row-${siteId}"]`)
   }

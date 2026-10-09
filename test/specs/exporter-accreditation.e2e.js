@@ -21,7 +21,11 @@ import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-l
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
 import AddInterimSiteRecyclingOperationPage from 'page-objects/add-interim-site-recycling-operation.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
-import { getApplication, getOverseasSites } from '../helpers/case-management.js'
+import {
+  getApplication,
+  getOverseasSites,
+  completeOverseasSites
+} from '../helpers/case-management.js'
 import { expectedCaptionText } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
@@ -221,6 +225,11 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
+    // RA-597: ReEx seeds this application with sites that have no contact
+    // details, recycling operations or codes, and the site list will not
+    // continue while any site in the application is missing them. This journey
+    // is about something else, so fill them in rather than walk each by hand.
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')
@@ -1239,10 +1248,16 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
   it('Should navigate back to select-overseas-sites via the confirm-overseas-sites Change link (Plastic)', async () => {
     await OperatorPage.navigateToExporterAccreditationOwnOrg()
+    const [, organisationId] = new URL(await browser.getUrl()).pathname
+      .split('/')
+      .filter(Boolean)
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
     )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
 
     await TaskListPage.overseasSitesLink.click()
     await expect(browser).toHaveUrl(
@@ -1304,6 +1319,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
     // A freshly added site defaults into the Accredited section, so Continue
     // is immediately available without any further action.
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')
@@ -1369,6 +1385,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')

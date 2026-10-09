@@ -7,6 +7,7 @@ import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-si
 import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { completeOverseasSites } from '../helpers/case-management.js'
 
 // RA-619: a file whose original name holds a character above U+00FF (Vietnamese
 // diacritics, CJK) used to fail the upload with a generic error, because the frontend
@@ -57,6 +58,9 @@ describe('RA-619: uploads with filenames outside Latin-1', () => {
       async () => (await browser.getUrl()).includes(TASK_LIST_PATH),
       { timeout: 10000, timeoutMsg: 'Did not reach task list' }
     )
+    const applicationId = (await browser.getUrl())
+      .split(TASK_LIST_PATH)[1]
+      .split('?')[0]
 
     // Sampling plan flow: the page object asserts the name is listed as given.
     await completePrnBusinessPlanSamplingPlan({
@@ -66,6 +70,11 @@ describe('RA-619: uploads with filenames outside Latin-1', () => {
 
     await expect(browser).toHaveUrl(expect.stringContaining(TASK_LIST_PATH))
     await TaskListPage.overseasSitesLink.click()
+    // RA-597: ReEx seeds this application with sites that have no contact
+    // details, recycling operations or codes, and the site list will not
+    // continue while any site in the application is missing them. This journey
+    // is about something else, so fill them in rather than walk each by hand.
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')

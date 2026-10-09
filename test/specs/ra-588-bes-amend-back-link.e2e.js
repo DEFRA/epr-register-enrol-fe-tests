@@ -6,7 +6,10 @@ import TaskListPage from 'page-objects/tasklist.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
 import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
-import { getOverseasSites } from '../helpers/case-management.js'
+import {
+  getOverseasSites,
+  completeOverseasSites
+} from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 
 // RA-588: "Amend BES back button does not work as expected - takes to the
@@ -146,6 +149,11 @@ describe('RA-588: back navigation out of the amend-BES evidence screen', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
+    // RA-597: ReEx seeds this application with sites that have no contact
+    // details, recycling operations or codes, and the site list will not
+    // continue while any site in the application is missing them. This journey
+    // is about something else, so fill them in rather than walk each by hand.
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')
