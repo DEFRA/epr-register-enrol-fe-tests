@@ -43,7 +43,6 @@ describe('RA-597: every overseas site in the application must be complete', () =
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })
