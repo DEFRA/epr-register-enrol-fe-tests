@@ -64,7 +64,7 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })

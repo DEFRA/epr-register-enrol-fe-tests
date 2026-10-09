@@ -9,10 +9,6 @@ class PrnAuthorityPage extends Page {
     return $('h1')
   }
 
-  get selectedTonnage() {
-    return $('[data-testid="selected-tonnage"]')
-  }
-
   get regulatorQueryBanner() {
     return $('[data-testid="regulator-query-banner"]')
   }

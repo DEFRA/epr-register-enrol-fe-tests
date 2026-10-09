@@ -75,7 +75,7 @@ describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })
