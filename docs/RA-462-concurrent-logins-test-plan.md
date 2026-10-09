@@ -10,7 +10,8 @@ this PR's head ref: `run-journey-tests` resolves
 
 Single Chrome instance, two cookie jars in one run: stub-login (jar A),
 `browser.getCookies()`, `browser.reloadSession()` for a clean jar B,
-stub-login again as the same regulator.
+stub-login again as the same operator (RA-537: the OJ frontend no longer
+has a regulator side; the spec originally signed in as a stub regulator).
 
 1. **the just-signed-in session (B) sees a session-notice** —
    `[data-testid="session-notice"]` is displayed.
@@ -43,5 +44,4 @@ against the grid-churn constraints above.
 Two real browsers as the same operator: the second shows the "signed in
 elsewhere" notice; the first, on its next page, shows "a new sign-in was
 detected" with a sign-out link and stays usable; dismiss clears it; a third
-sign-in re-raises it. Repeat for a regulator via Entra ID. Screen-reader pass
-on both variants.
+sign-in re-raises it. Screen-reader pass on both variants.

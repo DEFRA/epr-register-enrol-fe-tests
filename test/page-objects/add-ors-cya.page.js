@@ -21,10 +21,6 @@ class AddOrsCyaPage extends Page {
     return $('[data-testid="row-coordinates"]')
   }
 
-  get changeCoordinatesLink() {
-    return $('[data-testid="change-coordinates"]')
-  }
-
   get contactNameRow() {
     return $('[data-testid="row-contact-name"]')
   }
@@ -54,14 +50,6 @@ class AddOrsCyaPage extends Page {
     await button.waitForDisplayed()
     await button.scrollIntoView()
     await button.click()
-  }
-
-  get repatriatedLoadsRow() {
-    return $('[data-testid="row-repatriated-loads"]')
-  }
-
-  get conditionsOfExportRow() {
-    return $('[data-testid="row-conditions-of-export"]')
   }
 
   // RA-597: check-your-answers refuses to save a site with missing details,

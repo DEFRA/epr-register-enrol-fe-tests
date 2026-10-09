@@ -57,31 +57,8 @@ class OverseasReprocessingSitesPage extends Page {
     return $(`[data-testid="${prefix}-incomplete-${siteId}"]`)
   }
 
-  accreditedSiteRow(siteId) {
-    return $(`[data-testid="accredited-site-row-${siteId}"]`)
-  }
-
-  registeredSiteRow(siteId) {
-    return $(`[data-testid="registered-site-row-${siteId}"]`)
-  }
-
   newSiteRow(siteId) {
     return $(`[data-testid="new-site-row-${siteId}"]`)
-  }
-
-  registeredSiteAddedRow(siteId) {
-    return $(`[data-testid="registered-sites-added-row-${siteId}"]`)
-  }
-
-  removeAccreditedButton(siteId) {
-    return $(`[data-testid="remove-button-accredited-${siteId}"]`)
-  }
-
-  async removeFromAccreditation(siteId) {
-    const button = this.removeAccreditedButton(siteId)
-    await button.waitForDisplayed()
-    await button.scrollIntoView()
-    await button.click()
   }
 
   // RA-470: the "Change" link next to Remove from accreditation on an
@@ -90,24 +67,6 @@ class OverseasReprocessingSitesPage extends Page {
   // the add-overseas-site wizard pre-seeded with this site's existing data.
   editAccreditedButton(siteId) {
     return $(`[data-testid="edit-button-accredited-${siteId}"]`)
-  }
-
-  async editAccreditedSite(siteId) {
-    const link = this.editAccreditedButton(siteId)
-    await link.waitForDisplayed()
-    await link.scrollIntoView()
-    await link.click()
-  }
-
-  addToAccreditationButton(siteId) {
-    return $(`[data-testid="add-button-registered-${siteId}"]`)
-  }
-
-  async addToAccreditation(siteId) {
-    const button = this.addToAccreditationButton(siteId)
-    await button.waitForDisplayed()
-    await button.scrollIntoView()
-    await button.click()
   }
 
   removeNewSiteButton(siteId) {
@@ -128,30 +87,6 @@ class OverseasReprocessingSitesPage extends Page {
 
   async editNewSite(siteId) {
     const link = this.editNewSiteButton(siteId)
-    await link.waitForDisplayed()
-    await link.scrollIntoView()
-    await link.click()
-  }
-
-  removeRegisteredSiteAddedButton(siteId) {
-    return $(`[data-testid="remove-button-registered-added-${siteId}"]`)
-  }
-
-  async removeRegisteredSiteAdded(siteId) {
-    const button = this.removeRegisteredSiteAddedButton(siteId)
-    await button.waitForDisplayed()
-    await button.scrollIntoView()
-    await button.click()
-  }
-
-  // RA-470: same "Change" link as editAccreditedButton, on a Registered
-  // sites added (i.e. promoted-this-application) row.
-  editRegisteredSiteAddedButton(siteId) {
-    return $(`[data-testid="edit-button-registered-added-${siteId}"]`)
-  }
-
-  async editRegisteredSiteAdded(siteId) {
-    const link = this.editRegisteredSiteAddedButton(siteId)
     await link.waitForDisplayed()
     await link.scrollIntoView()
     await link.click()

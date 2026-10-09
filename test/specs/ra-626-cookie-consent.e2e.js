@@ -11,7 +11,7 @@ import {
 // Every other spec has the banner answered up front; this one turns that off.
 // It runs on the operator stub sign-in page, which is signed out and needs no
 // backend.
-const PAGE = '/auth/stub/login?type=operator'
+const PAGE = '/auth/stub/login'
 
 const banner = () => $('[data-testid="cookie-banner"]')
 const confirmation = () => $('[data-testid="cookie-banner-confirmation"]')
@@ -154,7 +154,7 @@ describe('analytics cookie consent', () => {
     // otherwise be.
     setCookieConsentSeeding(true)
     await browser.deleteCookies()
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
 
     await browser.url('/cookies')

@@ -51,7 +51,7 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })
@@ -161,9 +161,7 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
       return this.skip()
     }
 
-    await browser.url(
-      `${regulatorQueryDisabledFrontendUrl}/auth/stub/login?type=operator`
-    )
+    await browser.url(`${regulatorQueryDisabledFrontendUrl}/auth/stub/login`)
     await $('input[type="radio"]').waitForExist({ timeout: 8000 })
 
     await browser.execute(() => {

@@ -9,10 +9,6 @@ class AddInterimSiteCyaPage extends Page {
     return $('[data-testid="summary-list"]')
   }
 
-  get countryRow() {
-    return $('[data-testid="row-country"]')
-  }
-
   // RA-632: an interim site's Change lands on this page, so an edit starts
   // from one of its row Change links.
   get changeCountryLink() {
@@ -43,14 +39,6 @@ class AddInterimSiteCyaPage extends Page {
   // wizard, mirroring the ORS CYA's equivalent row.
   get recyclingOperationRow() {
     return $('[data-testid="row-recycling-operation"]')
-  }
-
-  get recyclingOperationValue() {
-    return $('[data-testid="value-recycling-operation"]')
-  }
-
-  get changeRecyclingOperationLink() {
-    return $('[data-testid="change-recycling-operation"]')
   }
 
   get errorSummary() {

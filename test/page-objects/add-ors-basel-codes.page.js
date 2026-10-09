@@ -2,24 +2,12 @@ import { browser } from '@wdio/globals'
 import { Page } from 'page-objects/page'
 
 class AddOrsBaselCodesPage extends Page {
-  get siteSummary() {
-    return $('[data-testid="site-summary"]')
-  }
-
   get pageHeading() {
     return $('[data-testid="page-heading"]')
   }
 
-  get guidanceLink() {
-    return $('[data-testid="guidance-link"]')
-  }
-
   codeInput(index) {
     return $(`[data-testid="basel-code-${index}-input"]`)
-  }
-
-  removeCodeButton(index) {
-    return $(`[data-testid="remove-code-${index}-button"]`)
   }
 
   get addCodeButton() {

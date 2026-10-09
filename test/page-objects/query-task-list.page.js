@@ -13,28 +13,12 @@ class QueryTaskListPage extends Page {
     return $('[data-testid="regulator-query-banner"]')
   }
 
-  get taskList() {
-    return $('[data-testid="query-task-list"]')
-  }
-
-  get taskItems() {
-    return $$('[data-testid="query-task-list"] .govuk-task-list__item')
-  }
-
   get continueButton() {
     return $('[data-testid="continue-button"]')
   }
 
   taskLink(testId) {
     return $(`[data-testid="${testId}-link"]`)
-  }
-
-  // RA-415: a NotStarted/InProgress non-queried section renders as locked,
-  // read-only text instead of being omitted from the list entirely - this
-  // is the label span that replaces its link. Completed/Submitted
-  // non-queried sections get a read-only link instead (see taskLink).
-  taskLabel(testId) {
-    return $(`[data-testid="${testId}-label"]`)
   }
 
   taskTag(testId) {
