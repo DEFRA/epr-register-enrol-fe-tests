@@ -57,6 +57,28 @@ class OverseasReprocessingSitesPage extends Page {
     return $(`[data-testid="${prefix}-incomplete-${siteId}"]`)
   }
 
+  removeAccreditedButton(siteId) {
+    return $(`[data-testid="remove-button-accredited-${siteId}"]`)
+  }
+
+  async removeFromAccreditation(siteId) {
+    const button = this.removeAccreditedButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
+  addToAccreditationButton(siteId) {
+    return $(`[data-testid="add-button-registered-${siteId}"]`)
+  }
+
+  async addToAccreditation(siteId) {
+    const button = this.addToAccreditationButton(siteId)
+    await button.waitForDisplayed()
+    await button.scrollIntoView()
+    await button.click()
+  }
+
   newSiteRow(siteId) {
     return $(`[data-testid="new-site-row-${siteId}"]`)
   }
