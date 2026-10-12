@@ -7,6 +7,7 @@ import {
   decodeConsentRecord,
   setCookieConsentSeeding
 } from '../helpers/cookie-consent.js'
+import { skipUnlessAnalyticsIsOn } from '../helpers/analytics.js'
 
 // Every other spec has the banner answered up front; this one turns that off.
 // It runs on the operator stub sign-in page, which is signed out and needs no
@@ -46,12 +47,7 @@ async function saveOnCookiesPage(choice, cookiesPath = '/cookies') {
 describe('analytics cookie consent', () => {
   before(async function () {
     setCookieConsentSeeding(false)
-
-    // Analytics may not be switched on in the environment under test.
-    await browser.url('/cookies')
-    if (!(await $('[data-testid="analytics-cookies"]').isExisting())) {
-      this.skip()
-    }
+    await skipUnlessAnalyticsIsOn(this)
   })
 
   after(() => {
