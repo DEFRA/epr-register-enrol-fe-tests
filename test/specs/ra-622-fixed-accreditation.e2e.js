@@ -130,6 +130,7 @@ describe('RA-622 fixed granted accreditation through the real backend', () => {
           requestId,
           caseId,
           proposedSiteId,
+          baselineSites,
           caseReference: replay.caseReference,
           target: replay.target
         }) + '\n'

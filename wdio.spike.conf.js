@@ -9,7 +9,11 @@ export const config = {
         port: Number(process.env.CHROMEDRIVER_PORT)
       }
     : {}),
-  specs: ['./test/specs/ra-622-fixed-accreditation.e2e.js'],
+  specs: [
+    process.env.RA_622_SPIKE_PHASE === 'refusal-readback'
+      ? './test/specs/ra-622-refusal.e2e.js'
+      : './test/specs/ra-622-fixed-accreditation.e2e.js'
+  ],
   capabilities: [
     {
       browserName: 'chrome',
