@@ -41,7 +41,7 @@ describe('RA-477: ORS fee counting with an interim site attached', () => {
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })

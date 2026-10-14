@@ -45,7 +45,7 @@ describe('RA-580-2: coordinate decimal-place precision on Add ORS site location'
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
 
@@ -133,7 +133,7 @@ describe('RA-580-2: coordinate decimal-place precision on Add ORS site location'
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
   })
 

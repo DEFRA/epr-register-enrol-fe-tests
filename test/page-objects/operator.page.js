@@ -120,14 +120,6 @@ class OperatorPage extends Page {
     })
     await link.click()
   }
-
-  get accreditationLinks() {
-    return $$('a[href*="accreditation"]')
-  }
-
-  async navigateToOperatorAccreditation() {
-    await $('a[href="/operator-accreditation"]').click()
-  }
 }
 
 export default new OperatorPage()

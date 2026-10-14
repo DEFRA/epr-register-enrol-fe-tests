@@ -103,7 +103,7 @@ async function completeBusinessPlan({ assert }) {
 // Completes the sampling and inspection plan task starting from the task list,
 // and returns to the task list. `material` is only used for the page-heading
 // assertion, so callers that can't predict it should pass assert: false.
-async function completeSamplingPlan({ assert, material }) {
+async function completeSamplingPlan({ assert, material, baseName }) {
   await TaskListPage.SIPlanLink.click()
 
   if (assert) {
@@ -111,7 +111,9 @@ async function completeSamplingPlan({ assert, material }) {
       `Upload sampling and inspection plan - part 2 - ${material}`
     )
   }
-  await SamplingPlanPage.uploadFile('business-plan.pdf')
+  await SamplingPlanPage.uploadFile('business-plan.pdf', 'SamplingPlan', {
+    baseName
+  })
   await SamplingPlanPage.saveAndContinue()
 }
 
@@ -132,6 +134,10 @@ async function completeSamplingPlan({ assert, material }) {
  *   Assert page headings and URLs along the way. Pass false to walk the journey
  *   purely as fixture setup, for callers whose application state or material is
  *   not predictable enough to assert on.
+ * @param {string}  [options.samplingPlanBaseName]
+ *   Upload the sampling plan under this base name instead of the fixture's own
+ *   (RA-619: a name with characters outside Latin-1). The plan page then asserts
+ *   the name is listed exactly as given.
  * @param {boolean} [options.skipCompletedTasks=false]
  *   Skip any of the three tasks whose task-list link is absent, which is how a
  *   completed task presents. Needed by callers that may run against an
@@ -140,7 +146,8 @@ async function completeSamplingPlan({ assert, material }) {
 export async function completePrnBusinessPlanSamplingPlan({
   material = 'Plastic',
   assert = true,
-  skipCompletedTasks = false
+  skipCompletedTasks = false,
+  samplingPlanBaseName
 } = {}) {
   const shouldRun = async (link) =>
     !skipCompletedTasks || (await link.isExisting())
@@ -166,7 +173,11 @@ export async function completePrnBusinessPlanSamplingPlan({
   }
 
   if (await shouldRun(TaskListPage.SIPlanLink)) {
-    await completeSamplingPlan({ assert, material })
+    await completeSamplingPlan({
+      assert,
+      material,
+      baseName: samplingPlanBaseName
+    })
   }
 
   if (assert) {

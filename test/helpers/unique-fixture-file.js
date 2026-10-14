@@ -49,10 +49,15 @@ function registerCleanupOnExit() {
 // so repeated runs on a long-lived CI runner or dev machine don't
 // accumulate orphaned business-plan-<uuid>.pdf files in the OS temp dir
 // (review: slorek).
-export function uniqueFixtureCopy(fixtureFilename) {
+//
+// RA-619: `baseName` replaces the fixture's own base name in the copy, so a spec can
+// upload the same on-disk fixture under a name with characters outside Latin-1
+// (e.g. Vietnamese diacritics) without committing a binary for each. The uuid suffix
+// is kept, so the RA-571 uniqueness guarantee above still holds.
+export function uniqueFixtureCopy(fixtureFilename, { baseName } = {}) {
   const sourcePath = path.resolve(FIXTURES_DIR, fixtureFilename)
   const ext = path.extname(fixtureFilename)
-  const base = path.basename(fixtureFilename, ext)
+  const base = baseName ?? path.basename(fixtureFilename, ext)
   const uniquePath = path.join(os.tmpdir(), `${base}-${randomUUID()}${ext}`)
   fs.copyFileSync(sourcePath, uniquePath)
   createdCopies.add(uniquePath)

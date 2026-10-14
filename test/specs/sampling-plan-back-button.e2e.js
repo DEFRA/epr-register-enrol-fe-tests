@@ -22,7 +22,7 @@ describe('RA-436: S&I plan upload page vs the browser back button', () => {
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })

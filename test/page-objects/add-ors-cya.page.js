@@ -17,6 +17,10 @@ class AddOrsCyaPage extends Page {
     return $('[data-testid="row-location"]')
   }
 
+  get coordinatesRow() {
+    return $('[data-testid="row-coordinates"]')
+  }
+
   get contactNameRow() {
     return $('[data-testid="row-contact-name"]')
   }
@@ -48,12 +52,26 @@ class AddOrsCyaPage extends Page {
     await button.click()
   }
 
-  get repatriatedLoadsRow() {
-    return $('[data-testid="row-repatriated-loads"]')
+  // RA-597: check-your-answers refuses to save a site with missing details,
+  // naming each one in an error summary and against its row.
+  get errorSummary() {
+    return $('[data-testid="error-summary"]')
   }
 
-  get conditionsOfExportRow() {
-    return $('[data-testid="row-conditions-of-export"]')
+  get errorSummaryLinks() {
+    return $$('[data-testid^="error-summary-link-"]')
+  }
+
+  rowError(rowId) {
+    return $(`[data-testid="error-${rowId}"]`)
+  }
+
+  changeLink(rowId) {
+    return $(`[data-testid="change-${rowId}"]`)
+  }
+
+  get interimSitesHeading() {
+    return $('[data-testid="interim-sites-heading"]')
   }
 
   get changeSiteNameLink() {
