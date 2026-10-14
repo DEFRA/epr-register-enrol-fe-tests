@@ -38,8 +38,10 @@ class SamplingPlanPage extends Page {
     return $(`[data-testid="file-document-type"]*=${text}`)
   }
 
-  async uploadFile(filename, documentType = 'SamplingPlan') {
-    const filePath = uniqueFixtureCopy(filename)
+  // `baseName` (RA-619) uploads the fixture under that name instead of its own, and
+  // then asserts the results page shows it exactly as chosen.
+  async uploadFile(filename, documentType = 'SamplingPlan', { baseName } = {}) {
+    const filePath = uniqueFixtureCopy(filename, { baseName })
     let uploadPath
     try {
       uploadPath = await browser.uploadFile(filePath)
@@ -60,6 +62,13 @@ class SamplingPlanPage extends Page {
     // URL check would sail past that failure and only blow up later.
     await $('[data-testid="file-name"]').waitForDisplayed({ timeout: 60000 })
     await expect($('[data-testid="error-summary"]')).not.toBeDisplayed()
+    if (baseName) {
+      await expect(this.fileNameCellContaining(baseName)).toBeDisplayed()
+    }
+  }
+
+  fileNameCellContaining(text) {
+    return $(`[data-testid="file-name"]*=${text}`)
   }
 
   async saveAndContinue() {

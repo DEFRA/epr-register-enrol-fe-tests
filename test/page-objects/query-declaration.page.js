@@ -33,10 +33,6 @@ class QueryDeclarationPage extends Page {
     return $('[data-testid="full-name-error"]')
   }
 
-  get emailError() {
-    return $('[data-testid="email-error"]')
-  }
-
   get roleError() {
     return $('[data-testid="role-error"]')
   }
@@ -52,19 +48,12 @@ class QueryDeclarationPage extends Page {
     return names[Math.floor(Math.random() * names.length)]
   }
 
-  randomEmail(name) {
-    const slug = name.toLowerCase().replace(/\s+/g, '.')
-    return `${slug}.${Date.now()}@stub.example`
-  }
-
-  async submitResubmission({ fullName, email, role } = {}) {
+  async submitResubmission({ fullName, role } = {}) {
     const name = fullName ?? this.randomFullName()
-    const emailAddress = email ?? this.randomEmail(name)
     const jobRole = role ?? 'Compliance Officer'
 
     await this.fullNameInput.waitForDisplayed()
     await this.fullNameInput.setValue(name)
-    await this.emailInput.setValue(emailAddress)
     await this.roleInput.setValue(jobRole)
     await this.clickReliably(this.resubmitButton)
   }

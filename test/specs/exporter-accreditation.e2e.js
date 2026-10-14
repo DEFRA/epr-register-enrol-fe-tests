@@ -21,7 +21,11 @@ import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-l
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
 import AddInterimSiteRecyclingOperationPage from 'page-objects/add-interim-site-recycling-operation.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
-import { getApplication, getOverseasSites } from '../helpers/case-management.js'
+import {
+  getApplication,
+  getOverseasSites,
+  completeOverseasSites
+} from '../helpers/case-management.js'
 import { expectedCaptionText } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
@@ -116,7 +120,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
       // eslint-disable-next-line no-undef
       sessionStorage.clear()
     })
-    await LoginPage.switchToOperator()
+    await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
   })
@@ -221,6 +225,11 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
+    // RA-597: ReEx seeds this application with sites that have no contact
+    // details, recycling operations or codes, and the site list will not
+    // continue while any site in the application is missing them. This journey
+    // is about something else, so fill them in rather than walk each by hand.
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')
@@ -342,6 +351,9 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     // Step 7: Check your answers
     await expect(AddOrsCyaPage.summaryList).toBeDisplayed()
     await expect(AddOrsCyaPage.siteNameRow).toBeDisplayed()
+    await expect(AddOrsCyaPage.coordinatesRow).toHaveText(
+      expect.stringContaining('53.5511, 9.9937')
+    )
     await AddOrsCyaPage.submit()
 
     // Back on select-overseas-sites with success banner
@@ -357,6 +369,112 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     const newSite = sites.find((s) => s.siteName === 'Test Recycling GmbH')
     expect(newSite).toBeDefined()
     expect(newSite.isNewSite).toBe(true)
+  })
+
+  // RA-361. This field's own countWords validation was always correct — a
+  // browser has no way to inflate a WORD count the way it CRLF-inflates a
+  // character count (fixed separately, server-side, on business-plan-detail;
+  // see RA-268) — but before this ticket the "up to 500 words" line was
+  // static text with no live behaviour behind it at all: going over showed
+  // nothing until a full submit, and no server-rendered error ever cleared
+  // itself without one either. This field is now enhanced the same way, with
+  // GOV.UK Frontend's own CharacterCount driving a live word counter that
+  // application.js also uses to clear the server-rendered error itself, in
+  // the browser, once the operator is back within the 500-word limit — no
+  // resubmit needed.
+  it('Should clear the "too many words" error live once the description is reduced back to 500 words, without resubmitting', async () => {
+    await OperatorPage.navigateToExporterAccreditationOwnOrg()
+    const landingUrl = await browser.getUrl()
+    const [, organisationId] = new URL(landingUrl).pathname
+      .split('/')
+      .filter(Boolean)
+    await OperatorAccreditationPage.clickContinue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
+
+    await TaskListPage.overseasSitesLink.click()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/select-overseas-sites')
+    )
+    await OverseasReprocessingSitesPage.addNewOrsButton.waitForDisplayed()
+    await OverseasReprocessingSitesPage.addNewOrsButton.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+
+    await AddOrsSiteNamePage.enterSiteName('Live Validation Recycling GmbH')
+    await AddOrsSiteNamePage.continue()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await AddOrsSiteLocationPage.enterLocation({
+      addressLine1: 'Entkopplungsweg 1',
+      townOrCity: 'Munich',
+      country: 'Germany',
+      coordinates: '48.1351, 11.5820'
+    })
+    await AddOrsSiteLocationPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/site-contact-details')
+    )
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: 'Test Contact',
+      email: 'test@ra361.example.com',
+      phone: '+49 89 7654321'
+    })
+    await AddOrsSiteContactPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/recycling-operation-details')
+    )
+    await AddOrsRecyclingOperationPage.selectOperationCode('R3')
+    await AddOrsRecyclingOperationPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/basel-convention-and-oecd-code')
+    )
+    await AddOrsBaselCodesPage.enterCodes(['A1181'])
+    await AddOrsBaselCodesPage.continue()
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    const tooManyWords = Array(502).fill('word').join(' ')
+    await AddOrsRepatriatedLoadsPage.enterDescription(tooManyWords)
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    // Still on the same page — the server-side round trip produced the
+    // error this fix targets.
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/repatriated-loads')
+    )
+    await expect(AddOrsRepatriatedLoadsPage.fieldError).toBeDisplayed()
+    await expect(AddOrsRepatriatedLoadsPage.fieldError).toHaveText(
+      expect.stringContaining('Description must be 500 words or fewer')
+    )
+
+    // Reduced back to exactly 500 words DIRECTLY in the browser — no click,
+    // no reload, no resubmit.
+    const exactly500Words = Array(500).fill('word').join(' ')
+    await AddOrsRepatriatedLoadsPage.textarea.setValue(exactly500Words)
+
+    // Genuinely removed from the DOM, not merely hidden.
+    await expect(AddOrsRepatriatedLoadsPage.fieldError).not.toBeExisting()
+
+    // The fix is real, not merely cosmetic: the field now goes on to
+    // complete the wizard normally.
+    await AddOrsRepatriatedLoadsPage.continue()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await AddOrsCyaPage.submit()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/select-overseas-sites')
+    )
+    await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
+
+    const sites = await getOverseasSites(organisationId, applicationId)
+    expect(
+      sites.some((s) => s.siteName === 'Live Validation Recycling GmbH')
+    ).toBe(true)
   })
 
   it('Should add an interim site from the Add ORS check-your-answers page (Plastic)', async () => {
@@ -1026,15 +1144,23 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     const siteId = site.siteId
 
     // Click Change on the new site's row — routes through
-    // .../edit/{siteId}, straight back into the wizard's first step.
+    // .../edit/{siteId}, which lands on the pre-filled check-your-answers
+    // page (RA-573); the Site name row's Change link then starts the replay.
     await expect(
       OverseasReprocessingSitesPage.newSiteRow(siteId)
     ).toBeDisplayed()
     await OverseasReprocessingSitesPage.editNewSite(siteId)
-    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
     await expect(browser).toHaveUrl(
       expect.stringContaining(`/add-overseas-site/${applicationId}/`)
     )
+    await expect(AddOrsCyaPage.siteNameRow).toHaveText(
+      expect.stringContaining('RA-470 Change Test Ltd')
+    )
+    await AddOrsCyaPage.changeSiteNameLink.click()
+    await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
 
     // Replay the wizard, updating the details to prove this is an edit of
     // the existing site rather than a second, separate one.
@@ -1042,6 +1168,9 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await AddOrsSiteNamePage.continue()
 
     await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
+    await expect(AddOrsSiteLocationPage.coordinatesInput).toHaveValue(
+      '52.5200, 13.4050'
+    )
     await AddOrsSiteLocationPage.enterLocation({
       addressLine1: 'Geanderte Strasse 2',
       townOrCity: 'Munich',
@@ -1087,6 +1216,9 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(AddOrsCyaPage.siteNameRow).toHaveText(
       expect.stringContaining('RA-470 Change Test Ltd (Updated)')
     )
+    await expect(AddOrsCyaPage.coordinatesRow).toHaveText(
+      expect.stringContaining('48.1351, 11.5820')
+    )
 
     // Same submit button/action as the create and promote flows — the
     // server, not the client, decides create vs promote vs update from
@@ -1116,10 +1248,16 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
   it('Should navigate back to select-overseas-sites via the confirm-overseas-sites Change link (Plastic)', async () => {
     await OperatorPage.navigateToExporterAccreditationOwnOrg()
+    const [, organisationId] = new URL(await browser.getUrl()).pathname
+      .split('/')
+      .filter(Boolean)
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
     )
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/task-list/')[1]
+      .split('?')[0]
 
     await TaskListPage.overseasSitesLink.click()
     await expect(browser).toHaveUrl(
@@ -1181,6 +1319,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
 
     // A freshly added site defaults into the Accredited section, so Continue
     // is immediately available without any further action.
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')
@@ -1246,6 +1385,7 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
+    await completeOverseasSites(organisationId, applicationId)
     await OverseasReprocessingSitesPage.continue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/confirm-overseas-sites')

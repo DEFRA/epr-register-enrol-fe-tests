@@ -9,30 +9,12 @@ class LoginPage extends Page {
     return $('.govuk-fieldset__heading')
   }
 
-  get userRadioButton() {
-    return $('#user-1')
-  }
-
-  get loginButton() {
-    return $(".govuk-button[type='submit']")
-  }
-
-  get switchToOperatorLink() {
-    return $('a[href="/auth/stub/login?type=operator"]')
-  }
-
-  get switchToRegulatorLink() {
-    return $('a[href="/auth/stub/login?type=regulator"]')
-  }
-
-  async loginAsUser() {
-    await $('input[type="radio"]').waitForExist({ timeout: 15000 })
-    await browser.execute(() => {
-      // eslint-disable-next-line no-undef
-      document.querySelector('input[type="radio"]').click()
-    })
-    const submitBtn = await $('button.govuk-button')
-    await this.clickReliably(submitBtn)
+  // RA-537: the OJ frontend has no regulator side any more, so the stub
+  // chooser must offer no link into a regulator login (formerly
+  // a[href="/auth/stub/login?type=regulator"]). Matched loosely on
+  // "regulator" so a renamed route can't slip past the negative assertion.
+  get regulatorLinks() {
+    return $$('a[href*="regulator"]')
   }
 
   async loginAsOperator() {
@@ -49,18 +31,10 @@ class LoginPage extends Page {
     )
   }
 
-  async switchToOperator() {
-    await super.open('/auth/stub/login?type=operator')
+  async openOperatorLogin() {
+    // RA-537: the stub chooser is operator-only, so it takes no `type`.
+    await super.open('/auth/stub/login')
     await $('input[type="radio"]').waitForExist({ timeout: 15000 })
-  }
-
-  async openRegulatorLogin() {
-    await super.open('/auth/stub/login?type=regulator')
-    await $('input[type="radio"]').waitForExist({ timeout: 15000 })
-  }
-
-  async switchToRegulator() {
-    await this.switchToRegulatorLink.click()
   }
 
   get signOutLink() {

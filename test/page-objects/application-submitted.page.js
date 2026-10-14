@@ -15,10 +15,6 @@ class ApplicationSubmittedPage extends withPaymentDetails(Page) {
   get referenceNumber() {
     return $('.govuk-panel__body strong')
   }
-
-  get returnToHomeLink() {
-    return $('a=Return to home page')
-  }
 }
 
 export default new ApplicationSubmittedPage()
