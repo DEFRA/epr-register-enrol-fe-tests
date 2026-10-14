@@ -145,6 +145,28 @@ export async function completeOverseasSites(organisationId, applicationId) {
   return body.json()
 }
 
+// Submit's click returns before the POST lands and the backend creates the CM
+// work item, so a caller that goes straight from submitApplication() to here can
+// read the application before caseManagementWorkItemId is set.
+async function waitForWorkItemId(organisationId, applicationId, purpose) {
+  const deadline = Date.now() + 30000
+  for (;;) {
+    const { caseManagementWorkItemId } = await getApplication(
+      organisationId,
+      applicationId
+    )
+    if (caseManagementWorkItemId) {
+      return caseManagementWorkItemId
+    }
+    if (Date.now() > deadline) {
+      throw new Error(
+        `Application ${applicationId} has no caseManagementWorkItemId to ${purpose}`
+      )
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+}
+
 // Simulates case-management-backend raising a query against an application,
 // bypassing the management-fe UI (out of scope for this repo, see RA-311).
 //
@@ -158,13 +180,11 @@ export async function raiseQuery(
   applicationId,
   { queryNote, sectionKeys }
 ) {
-  const application = await getApplication(organisationId, applicationId)
-  const workItemId = application.caseManagementWorkItemId
-  if (!workItemId) {
-    throw new Error(
-      `Application ${applicationId} has no caseManagementWorkItemId to raise a query against`
-    )
-  }
+  const workItemId = await waitForWorkItemId(
+    organisationId,
+    applicationId,
+    'raise a query against'
+  )
 
   const { statusCode, body } = await request(
     apiUrl(`/case-management/${workItemId}/query`),
@@ -193,13 +213,11 @@ export async function pushStatusChanged(
   applicationId,
   { toStateId, toStateDisplayName, actionId, actionDisplayName, occurredAt }
 ) {
-  const application = await getApplication(organisationId, applicationId)
-  const workItemId = application.caseManagementWorkItemId
-  if (!workItemId) {
-    throw new Error(
-      `Application ${applicationId} has no caseManagementWorkItemId to push a status change against`
-    )
-  }
+  const workItemId = await waitForWorkItemId(
+    organisationId,
+    applicationId,
+    'push a status change against'
+  )
 
   const { statusCode, body } = await request(
     apiUrl(`/case-management/${workItemId}/status`),
