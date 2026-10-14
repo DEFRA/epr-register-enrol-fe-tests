@@ -15,6 +15,7 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import { listApplicationsForYear } from '../helpers/case-management.js'
+import { disposableYear } from '../helpers/accreditation-year.js'
 
 const WITHDRAWAL_REASON = 'Submitted the wrong tonnage band'
 
@@ -64,11 +65,11 @@ describe('RA-357: Start a new application after withdrawing one', () => {
   // As in withdraw-application.e2e.js, the year is deliberately not the static
   // 2027 from the /operator link. Mongo persists between runs (compose.yml's
   // named `mongodb-data` volume) and withdrawal is terminal, so a fixed year
-  // would find last run's records and assert against the wrong ones. A fresh,
-  // run-unique year sends the landing controller down its seed-on-miss path
-  // every time. The 4000 band keeps it clear of the 3000 band
-  // withdraw-application.e2e.js uses, so the two specs can never collide on a
-  // year even when their millisecond offsets happen to agree.
+  // would find last run's records and assert against the wrong ones. A
+  // disposable year sends the landing controller down its seed-on-miss path
+  // every time. Its slot also guarantees `year + 1` - which this spec asserts
+  // holds nothing - is never handed to another journey, because every
+  // allocated year is even.
   async function reachWithdrawnApplication() {
     await OperatorPage.navigateToWithdrawnApplicationTestOrg()
 
@@ -78,7 +79,11 @@ describe('RA-357: Start a new application after withdrawing one', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(4000 + (Date.now() % 1000))
+    year = await disposableYear(
+      'restart-withdrawn-application',
+      organisationId,
+      materialType
+    )
     await browser.url(landingUrl())
 
     // Only Submitted/Queried/Updated applications can be withdrawn, and a
