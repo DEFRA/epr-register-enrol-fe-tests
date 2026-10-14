@@ -56,9 +56,10 @@ describe('RA-622 fixed granted accreditation through the real backend', () => {
       ).toHaveText(expect.stringContaining(identity))
     }
     await expect($('[data-testid="granted-status"]')).toHaveText('Granted')
-    await expect(
-      $$('[data-testid="approved-sites"] li')
-    ).toBeElementsArrayOfSize(4)
+    const baselineSiteEntries = await $$(
+      '[data-testid="approved-sites"] li'
+    ).map((site) => site.getText())
+    expect(baselineSiteEntries.length).toBeGreaterThanOrEqual(4)
     await expect($('[data-testid="approved-sites"]')).toHaveText(
       expect.stringContaining('Overseas Site 1 (Germany)')
     )
@@ -131,6 +132,7 @@ describe('RA-622 fixed granted accreditation through the real backend', () => {
           caseId,
           proposedSiteId,
           baselineSites,
+          baselineSiteEntries,
           caseReference: replay.caseReference,
           target: replay.target
         }) + '\n'

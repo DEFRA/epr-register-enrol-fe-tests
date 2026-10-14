@@ -12,7 +12,11 @@ export const config = {
   specs: [
     process.env.RA_622_SPIKE_PHASE === 'refusal-readback'
       ? './test/specs/ra-622-refusal.e2e.js'
-      : './test/specs/ra-622-fixed-accreditation.e2e.js'
+      : ['approval-repeat', 'approval-readback'].includes(
+            process.env.RA_622_SPIKE_PHASE
+          )
+        ? './test/specs/ra-622-approval.e2e.js'
+        : './test/specs/ra-622-fixed-accreditation.e2e.js'
   ],
   capabilities: [
     {
