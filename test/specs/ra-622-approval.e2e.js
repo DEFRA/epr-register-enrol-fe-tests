@@ -29,11 +29,15 @@ describe('RA-622 actual approval readback and repeated prepared ORS additions', 
     const receipt = JSON.parse(await readFile(file, 'utf8'))
     const approvedRequests = [
       ...(receipt.approvedRequests || []),
-      {
-        requestId: receipt.requestId,
-        caseId: receipt.caseId,
-        proposedSiteId: receipt.proposedSiteId
-      }
+      ...(process.env.RA_622_SPIKE_PHASE === 'restart-readback'
+        ? []
+        : [
+            {
+              requestId: receipt.requestId,
+              caseId: receipt.caseId,
+              proposedSiteId: receipt.proposedSiteId
+            }
+          ])
     ]
     const readTarget = async () => {
       const response = await fetch(
@@ -78,6 +82,58 @@ describe('RA-622 actual approval readback and repeated prepared ORS additions', 
     const read = await readTarget()
     expect(read.activeRequest).toBe(null)
     expect(read.status).toBe('Granted')
+    if (receipt.refusedRequest && receipt.withdrawnRequest) {
+      const closedRequests = [
+        { ...receipt.refusedRequest, outcome: 'rejected', label: 'Refused' },
+        {
+          ...receipt.withdrawnRequest,
+          outcome: 'withdrawn',
+          label: 'Withdrawn'
+        }
+      ]
+      for (const request of closedRequests) {
+        const history = $(
+          `[data-testid="closed-change-request"][data-request-id="${request.requestId}"]`
+        )
+        await expect(history).toHaveText(expect.stringContaining(request.label))
+        expect(await history.getAttribute('data-case-id')).toBe(request.caseId)
+        expect(await history.getAttribute('data-site-id')).toBe(
+          request.proposedSiteId
+        )
+        expect(
+          read.approvedAdditions.some(
+            (site) => site.siteId === request.proposedSiteId
+          )
+        ).toBe(false)
+        expect(
+          read.history.find(
+            (attempt) => attempt.requestId === request.requestId
+          ).status
+        ).toBe(request.outcome)
+      }
+      const newIds = [...closedRequests, ...approvedRequests].map(
+        (request) => request.requestId
+      )
+      for (const field of ['requestId', 'caseId', 'proposedSiteId']) {
+        expect(
+          new Set(
+            [...closedRequests, ...approvedRequests].map(
+              (request) => request[field]
+            )
+          ).size
+        ).toBe(closedRequests.length + approvedRequests.length)
+      }
+      expect(
+        read.history.filter((attempt) => !newIds.includes(attempt.requestId))
+      ).toEqual(receipt.baselineRead.history)
+      expect(read.overseasSites).toEqual(receipt.baselineRead.overseasSites)
+      expect(
+        read.approvedAdditions.slice(
+          0,
+          receipt.baselineRead.approvedAdditions.length
+        )
+      ).toEqual(receipt.baselineRead.approvedAdditions)
+    }
     for (const request of approvedRequests) {
       expect(
         read.approvedAdditions.filter(
@@ -123,11 +179,15 @@ describe('RA-622 actual approval readback and repeated prepared ORS additions', 
       )
     } else {
       expect(approvedRequests).toHaveLength(2)
+      if (process.env.RA_622_SPIKE_PHASE === 'restart-readback') {
+        expect(read).toEqual(receipt.finalRead)
+      }
       await writeFile(
         file,
         JSON.stringify({
           ...receipt,
           approvedRequests,
+          finalRead: read,
           finalSiteCount: entries.length
         }) + '\n'
       )

@@ -34,6 +34,14 @@ describe('RA-622 fixed granted accreditation through the real backend', () => {
       return response.json()
     }
     const before = await readApplications()
+    const targetResponse = await fetch(
+      backend +
+        '/api/v1/accreditation-changes' +
+        summary.replace('/granted-accreditation', ''),
+      { headers }
+    )
+    expect(targetResponse.status).toBe(200)
+    const baselineRead = await targetResponse.json()
     await browser.url('/operator')
     await expect(
       $$('[data-testid="spike-accreditation-link"]')
@@ -133,6 +141,7 @@ describe('RA-622 fixed granted accreditation through the real backend', () => {
           proposedSiteId,
           baselineSites,
           baselineSiteEntries,
+          baselineRead,
           caseReference: replay.caseReference,
           target: replay.target
         }) + '\n'

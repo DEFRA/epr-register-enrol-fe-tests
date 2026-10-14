@@ -14,7 +14,7 @@ export const config = {
       ? './test/specs/ra-622-withdrawal.e2e.js'
       : process.env.RA_622_SPIKE_PHASE === 'refusal-readback'
         ? './test/specs/ra-622-refusal.e2e.js'
-        : ['approval-repeat', 'approval-readback'].includes(
+        : ['approval-repeat', 'approval-readback', 'restart-readback'].includes(
               process.env.RA_622_SPIKE_PHASE
             )
           ? './test/specs/ra-622-approval.e2e.js'

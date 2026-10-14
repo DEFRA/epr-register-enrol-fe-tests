@@ -79,6 +79,7 @@ describe('RA-622 actual refusal readback and a new request', () => {
     await writeFile(
       file,
       JSON.stringify({
+        ...original,
         ...next,
         target: read.activeRequest.target,
         caseReference: read.activeRequest.caseReference,
