@@ -221,6 +221,11 @@ class OverseasReprocessingSitesPage extends Page {
     return $('[data-testid="interim-site-withdrawn-banner"]')
   }
 
+  // RA-638: kept only so a spec can assert the banner has no undo button.
+  undoWithdrawButton() {
+    return $('[data-testid="undo-withdraw-button"]')
+  }
+
   // RA-603 C4: the other way back, for after the banner has gone. A second
   // disclosure per ORS, rendered only when that ORS has something withdrawn.
   withdrawnInterimSitesDisclosure(siteId) {

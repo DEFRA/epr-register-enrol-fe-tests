@@ -133,6 +133,24 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
     ).toBeExisting()
   })
 
+  // RA-638: the banner confirms the withdrawal but no longer offers an undo.
+  it('shows the withdrawn banner without an undo button', async () => {
+    const { orsSiteId } = await createOrsWithInterimSite({
+      orsName: 'RA-638 Banner GmbH',
+      interimSiteName: 'RA-638 Banner Depot'
+    })
+    const [targetId] = await readInterimSiteIds(orsSiteId)
+
+    await OverseasReprocessingSitesPage.removeInterimSite(targetId)
+
+    await expect(
+      OverseasReprocessingSitesPage.withdrawnBanner()
+    ).toBeDisplayed()
+    await expect(
+      OverseasReprocessingSitesPage.undoWithdrawButton()
+    ).not.toBeExisting()
+  })
+
   // C4: the operator who realises after the banner has gone.
   it('lists a withdrawn interim site separately and puts it back from there', async () => {
     const { orsSiteId } = await createOrsWithInterimSite({
