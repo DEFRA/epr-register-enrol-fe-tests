@@ -133,11 +133,11 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
     ).toBeExisting()
   })
 
-  // C4, first half: the mis-click noticed straight away.
-  it('offers an undo on the banner, which brings back the same interim site', async () => {
+  // RA-638: the banner confirms the withdrawal but no longer offers an undo.
+  it('shows the withdrawn banner without an undo button', async () => {
     const { orsSiteId } = await createOrsWithInterimSite({
-      orsName: 'RA-603 Undo GmbH',
-      interimSiteName: 'RA-603 Undo Depot'
+      orsName: 'RA-638 Banner GmbH',
+      interimSiteName: 'RA-638 Banner Depot'
     })
     const [targetId] = await readInterimSiteIds(orsSiteId)
 
@@ -146,21 +146,12 @@ describe('RA-603: several interim sites on one overseas reprocessing site', () =
     await expect(
       OverseasReprocessingSitesPage.withdrawnBanner()
     ).toBeDisplayed()
-    await OverseasReprocessingSitesPage.undoWithdraw()
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/select-overseas-sites')
-    )
-
-    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsSiteId)
-    // The SAME id returns. Restoring is in place, so this is the record
-    // resuming rather than a replacement wearing the same name - which is the
-    // identity link AC05 exists to protect.
     await expect(
-      OverseasReprocessingSitesPage.interimSiteRow(targetId)
-    ).toBeExisting()
+      OverseasReprocessingSitesPage.undoWithdrawButton()
+    ).not.toBeExisting()
   })
 
-  // C4, second half: the operator who realises after the banner has gone.
+  // C4: the operator who realises after the banner has gone.
   it('lists a withdrawn interim site separately and puts it back from there', async () => {
     const { orsSiteId } = await createOrsWithInterimSite({
       orsName: 'RA-603 Restore GmbH',

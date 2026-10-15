@@ -191,7 +191,7 @@ class OverseasReprocessingSitesPage extends Page {
 
   // RA-603: a SOFT withdraw. The backend stamps removedAt and keeps the record
   // for reporting, so the site disappears from the list but can be put back -
-  // see undoWithdraw and restoreInterimSite below. No confirmation step,
+  // see restoreInterimSite below. No confirmation step,
   // matching removeAccredited/removeNewSite above.
   async removeInterimSite(interimSiteId) {
     const button = this.removeInterimSiteButton(interimSiteId)
@@ -214,22 +214,16 @@ class OverseasReprocessingSitesPage extends Page {
     await link.click()
   }
 
-  // RA-603 C4: the banner shown straight after withdrawing, offering the site
-  // back in one click. It lasts exactly as long as the flash does - one render
-  // - so anything using it has to do so before navigating away.
+  // RA-603 C4: the banner shown straight after withdrawing. It lasts exactly as
+  // long as the flash does - one render. It no longer offers an undo button
+  // (RA-638); the way back is the withdrawn-sites disclosure below.
   withdrawnBanner() {
     return $('[data-testid="interim-site-withdrawn-banner"]')
   }
 
+  // RA-638: kept only so a spec can assert the banner has no undo button.
   undoWithdrawButton() {
     return $('[data-testid="undo-withdraw-button"]')
-  }
-
-  async undoWithdraw() {
-    const button = this.undoWithdrawButton()
-    await button.waitForDisplayed()
-    await button.scrollIntoView()
-    await button.click()
   }
 
   // RA-603 C4: the other way back, for after the banner has gone. A second
