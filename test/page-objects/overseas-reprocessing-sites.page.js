@@ -5,8 +5,24 @@ class OverseasReprocessingSitesPage extends Page {
     return $('[data-testid="page-heading"]')
   }
 
+  // The button appears twice: under the page heading (always rendered) and
+  // above Continue (only when the application has sites). Callers that just
+  // need to start adding a site use the top one, which exists even on an
+  // application with no sites yet.
   get addNewOrsButton() {
+    return $('[data-testid="add-new-ors-button-top"]')
+  }
+
+  get addNewOrsButtonBottom() {
     return $('[data-testid="add-new-ors-button"]')
+  }
+
+  get accreditedHeading() {
+    return $('[data-testid="accredited-heading"]')
+  }
+
+  get registeredHeading() {
+    return $('[data-testid="registered-heading"]')
   }
 
   get successBanner() {
