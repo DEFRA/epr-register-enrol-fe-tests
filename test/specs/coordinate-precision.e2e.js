@@ -13,6 +13,7 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
 import AddOrsSiteNamePage from 'page-objects/add-ors-site-name.page'
 import AddOrsSiteLocationPage from 'page-objects/add-ors-site-location.page'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-580-2: the site-location coordinates field now accepts 4-10 decimal
 // places inclusive (was an unbounded "4+" floor) — see
@@ -23,7 +24,11 @@ import AddOrsSiteLocationPage from 'page-objects/add-ors-site-location.page'
 // HttpReExApiAdapter.MapCoordinates — there is no user-facing form or API
 // this suite can drive to exercise that path, so it is covered by
 // HttpReExApiAdapterTests in the backend repo instead, not here.
-describe('RA-580-2: coordinate decimal-place precision on Add ORS site location', () => {
+describe('RA-580-2: coordinate decimal-place precision on Add ORS site location @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   // The "Overseas sites" task-list item is locked (task-list/controller.js:
   // osLocked = !spComplete) until PRN tonnage, business plan, and sampling
   // plan are all Completed — confirmed live via CI: reusing org 50017 with

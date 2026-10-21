@@ -7,6 +7,7 @@ import {
   createOrsWithInterimSite,
   addInterimSite
 } from '../helpers/interim-site-journey.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 /**
  * RA-603: an overseas reprocessing site can carry more than one interim site,
@@ -54,7 +55,11 @@ async function readInterimSiteIds(orsSiteId) {
   return interimSiteIds
 }
 
-describe('RA-603: several interim sites on one overseas reprocessing site', () => {
+describe('RA-603: several interim sites on one overseas reprocessing site @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()

@@ -29,6 +29,7 @@ import {
 import { expectedCaptionText } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-470: shared "add a new overseas site via the wizard, submit, land back on
 // select-overseas-sites with the success banner" walk, for tests that only
@@ -110,7 +111,11 @@ async function addOverseasSiteViaWizard({
   await expect(OverseasReprocessingSitesPage.successBanner).toBeDisplayed()
 }
 
-describe('Exporter Accreditation - Full Journey (Plastic 2027)', () => {
+describe('Exporter Accreditation - Full Journey (Plastic 2027) @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()

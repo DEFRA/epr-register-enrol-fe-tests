@@ -14,6 +14,7 @@ import SubmitApplicationPage from 'page-objects/submit-application.page'
 import QueryTaskListPage from 'page-objects/query-task-list.page'
 import { raiseQuery } from '../helpers/case-management.js'
 import { regulatorQueryDisabledFrontendUrl } from '../config.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // Reachability is checked directly against the container's own healthcheck
 // endpoint (see compose.yml), not by swallowing errors from the actual
@@ -34,7 +35,11 @@ async function isRegulatorQueryDisabledFrontendReachable() {
   }
 }
 
-describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-query banner', () => {
+describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-query banner @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType

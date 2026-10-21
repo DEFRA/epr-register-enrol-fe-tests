@@ -17,8 +17,13 @@ import {
   withdrawApplication,
   patchSection
 } from '../helpers/case-management.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
-describe('RA-368: Push CM status changes to OJ', () => {
+describe('RA-368: Push CM status changes to OJ @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType

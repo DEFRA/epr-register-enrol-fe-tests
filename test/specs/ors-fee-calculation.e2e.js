@@ -26,12 +26,17 @@ import AddInterimSiteRecyclingOperationPage from 'page-objects/add-interim-site-
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import ViewPaymentDetailsPage from 'page-objects/view-payment-details.page'
 import { getOverseasSites } from '../helpers/case-management.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-477: the application fee must count only chargeable ORS (Overseas
 // Reprocessing Site) entries. An interim site is nested under its linked
 // ORS (chargeable-for-information only, per the regulations) and must
 // never be counted as an extra ORS toward the fee.
-describe('RA-477: ORS fee counting with an interim site attached', () => {
+describe('RA-477: ORS fee counting with an interim site attached @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()
