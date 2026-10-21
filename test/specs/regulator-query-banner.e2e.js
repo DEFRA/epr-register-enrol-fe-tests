@@ -14,6 +14,7 @@ import SubmitApplicationPage from 'page-objects/submit-application.page'
 import QueryTaskListPage from 'page-objects/query-task-list.page'
 import { raiseQuery } from '../helpers/case-management.js'
 import { regulatorQueryDisabledFrontendUrl } from '../config.js'
+import { disposableYear } from '../helpers/accreditation-year.js'
 
 // Reachability is checked directly against the container's own healthcheck
 // endpoint (see compose.yml), not by swallowing errors from the actual
@@ -60,12 +61,13 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
     await LoginPage.signOut()
   })
 
-  // Drives a fresh, run-unique reaccreditation application (org 50003 -
-  // Delta Green Ltd, Plastic) to Submitted and raises a query against its
-  // business plan section. Uses a disposable year, the same seed-on-miss
-  // pattern as status-push.e2e.js and withdraw-application.e2e.js, so this
-  // doesn't collide with query-resubmit.e2e.js's fixed-year application on
-  // the same org.
+  // Drives a fresh reaccreditation application (org 50003 - Delta Green Ltd,
+  // Plastic) to Submitted and raises a query against its business plan
+  // section. Uses a disposable year, the same seed-on-miss pattern as
+  // status-push.e2e.js and withdraw-application.e2e.js, so this doesn't
+  // collide with query-resubmit.e2e.js's fixed-year application on the same
+  // org - nor, via its own slot, with the other disposable-year journeys
+  // that share it.
   async function reachQueriedApplication() {
     await OperatorPage.navigateToReaccreditationPlastic()
     const landing = await browser.getUrl()
@@ -74,7 +76,11 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(3000 + (Date.now() % 1000))
+    year = await disposableYear(
+      'regulator-query-banner',
+      organisationId,
+      materialType
+    )
     await browser.url(
       `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
     )
