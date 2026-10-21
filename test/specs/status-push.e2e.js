@@ -135,15 +135,17 @@ describe('RA-368: Push CM status changes to OJ', () => {
       expect.stringContaining('DULY MADE')
     )
 
-    // RA-368: assessment-in-progress is CM's "payment received" action. CM
-    // itself displays this state as "Updated" (label collision with its own
-    // updated state), so OJ mirrors that rather than inventing a new tag -
-    // this was the gap that originally left OJ pinned at DULY MADE.
+    // RA-368 / RA-595: assessment-in-progress is reached by CM's
+    // "Assessment started" action (`start-assessment`, which replaced
+    // "Payment received"). The operator keeps seeing DULY MADE until then.
+    // CM itself displays this state as "Updated" (label collision with its
+    // own updated state), so OJ mirrors that rather than inventing a new
+    // tag - this was the gap that originally left OJ pinned at DULY MADE.
     await pushStatusChanged(organisationId, applicationId, {
       toStateId: 'assessment-in-progress',
       toStateDisplayName: 'Assessment in progress',
-      actionId: 'payment-received',
-      actionDisplayName: 'Payment received',
+      actionId: 'start-assessment',
+      actionDisplayName: 'Assessment started',
       occurredAt: new Date(Date.now() + 1000).toISOString()
     })
     await browser.url(landingUrl(year))
