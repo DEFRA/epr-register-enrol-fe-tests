@@ -13,6 +13,7 @@ import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answe
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
+import { disposableYear } from '../helpers/accreditation-year.js'
 
 describe('RA-252: Withdraw an accreditation application', () => {
   let organisationId
@@ -72,7 +73,11 @@ describe('RA-252: Withdraw an accreditation application', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(3000 + (Date.now() % 1000))
+    year = await disposableYear(
+      'withdraw-application',
+      organisationId,
+      materialType
+    )
     await browser.url(landingUrl())
 
     await OperatorAccreditationPage.clickContinue()
