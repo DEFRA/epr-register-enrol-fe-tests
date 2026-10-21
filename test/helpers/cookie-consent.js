@@ -23,8 +23,13 @@ export function setCookieConsentSeeding(enabled) {
   isSeeding = enabled
 }
 
-async function hasConsentCookie(browser) {
+// getCookies only sees the current page's host, so a cookie on another host
+// (regulator-query-banner drives a second frontend container) counts as absent.
+async function hasConsentCookie(browser, origin) {
   try {
+    if (new URL(await browser.getUrl()).origin !== origin) {
+      return false
+    }
     const cookies = await browser.getCookies({ name: ANALYTICS_CONSENT_COOKIE })
     return cookies.length > 0
   } catch {
@@ -35,12 +40,14 @@ async function hasConsentCookie(browser) {
 
 // Specs navigate via Page.open() and browser.url(), and some reset the session
 // or cookies mid-way, so hooking `url` is the one place that covers them all.
-// Seeding goes via /health because it's open with or without a session and
-// outside HTTP basic auth.
+// The cookie is seeded on whichever host the navigation targets, via its
+// /health because that's open with or without a session and outside HTTP
+// basic auth.
 export function seedCookieConsentOnNavigation(browser) {
   browser.overwriteCommand('url', async (originalUrl, path, ...rest) => {
-    if (isSeeding && !(await hasConsentCookie(browser))) {
-      await originalUrl('/health')
+    const origin = new URL(path, browser.options.baseUrl).origin
+    if (isSeeding && !(await hasConsentCookie(browser, origin))) {
+      await originalUrl(`${origin}/health`)
       await browser.setCookies({
         name: ANALYTICS_CONSENT_COOKIE,
         value: encodeConsentRecord('rejected'),
