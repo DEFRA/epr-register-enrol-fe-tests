@@ -38,6 +38,23 @@ async function stubLoginAsOperator() {
   await LoginPage.loginAsOperator()
 }
 
+// The just-signed-in session only gets its notice if the registry still holds
+// the first session's login when it signs in. Parallel workers sign in and
+// out as the same stub user, and a logout drops the registry entry when it
+// was the latest, so one can land between our two sign-ins and wipe it. Sign
+// in again on a fresh session when that happens: the previous attempt is now
+// the registry entry. A notice that never shows still fails the tests.
+const MAX_SECOND_SIGN_INS = 3
+
+async function signInAgainUntilNotified() {
+  for (let attempt = 1; attempt <= MAX_SECOND_SIGN_INS; attempt++) {
+    await stubLoginAsOperator()
+    if (await $(NOTICE).isExisting()) {
+      return
+    }
+  }
+}
+
 describe('RA-462 concurrent-login notification', () => {
   let jarA
 
@@ -46,7 +63,7 @@ describe('RA-462 concurrent-login notification', () => {
     jarA = await browser.getCookies()
 
     await browser.reloadSession()
-    await stubLoginAsOperator()
+    await signInAgainUntilNotified()
   })
 
   afterEach(async () => {

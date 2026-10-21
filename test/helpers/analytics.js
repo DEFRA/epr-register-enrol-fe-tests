@@ -29,10 +29,19 @@ export async function skipUnlessAnalyticsIsOn(context) {
  * this sees what a listener attached afterwards would miss. Read from the
  * browser log rather than via BiDi, which the Selenium image in the compose
  * stack doesn't support.
+ *
+ * Chrome also logs other refusals under the `security` source, such as its
+ * MIME-type check on a script. The compose stack's placeholder container
+ * (GTM-LOCAL0000) hits that one: googletagmanager.com answers an unknown id
+ * with a GIF. That is not a CSP violation, so only CSP messages are kept.
  */
 export async function takeCspViolations() {
   const entries = await browser.getLogs('browser')
   return entries
-    .filter((entry) => entry.source === 'security')
+    .filter(
+      (entry) =>
+        entry.source === 'security' &&
+        entry.message.includes('Content Security Policy')
+    )
     .map((entry) => entry.message)
 }
