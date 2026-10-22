@@ -15,10 +15,15 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import { listApplicationsForYear } from '../helpers/case-management.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 const WITHDRAWAL_REASON = 'Submitted the wrong tonnage band'
 
-describe('RA-357: Start a new application after withdrawing one', () => {
+describe('RA-357: Start a new application after withdrawing one @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType

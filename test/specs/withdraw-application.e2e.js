@@ -13,8 +13,13 @@ import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answe
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
-describe('RA-252: Withdraw an accreditation application', () => {
+describe('RA-252: Withdraw an accreditation application @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType

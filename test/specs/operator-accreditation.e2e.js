@@ -15,8 +15,13 @@ import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import { getApplication } from '../helpers/case-management.js'
 import { expectedCaptionText } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
+  beforeEach(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()
@@ -78,7 +83,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   // ── Business Plan Percentage Page Validation ──────────────────────────────
 
-  it('Should show error when percentages are left blank and do not sum to 100', async () => {
+  it('Should show error when percentages are left blank and do not sum to 100 @docker-only', async () => {
     await goToBusinessPlanForm()
     await BusinessPlanPage.fillPercentages([10, 10, 10, 10, 10, 10, 10])
     await BusinessPlanPage.saveAndContinue()
@@ -93,7 +98,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await expect(errorLinks[0]).toHaveText('The percentages must add up to 100')
   })
 
-  it('Should show error when a non-numeric percentage value is entered', async () => {
+  it('Should show error when a non-numeric percentage value is entered @docker-only', async () => {
     await goToBusinessPlanForm()
     await BusinessPlanPage.fillPercentages(['abc', 0, 0, 0, 0, 0, 0])
     await BusinessPlanPage.saveAndContinue()
@@ -109,7 +114,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
   })
 
-  it('Should show error when a percentage value is out of range', async () => {
+  it('Should show error when a percentage value is out of range @docker-only', async () => {
     await goToBusinessPlanForm()
     await BusinessPlanPage.fillPercentages([150, 0, 0, 0, 0, 0, 0])
     await BusinessPlanPage.saveAndContinue()
@@ -125,7 +130,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
   })
 
-  it('Should show error when percentages are valid but do not sum to 100', async () => {
+  it('Should show error when percentages are valid but do not sum to 100 @docker-only', async () => {
     await goToBusinessPlanForm()
     await BusinessPlanPage.fillPercentages([10, 10, 10, 10, 10, 10, 10])
     await BusinessPlanPage.saveAndContinue()
@@ -141,7 +146,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   // ── RA-496: task-list save buttons set the correct section status ─────────
 
-  it('Should accept incomplete percentages on save-and-come-later and mark the section IN PROGRESS', async () => {
+  it('Should accept incomplete percentages on save-and-come-later and mark the section IN PROGRESS @docker-only', async () => {
     await goToBusinessPlanForm()
     // Deliberately doesn't sum to 100 — save-and-come-later must skip the
     // sum-to-100 check (unlike save-and-continue, asserted above) and still
@@ -158,7 +163,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   // ── Business Plan Detail Page Validation ──────────────────────────────────
 
-  it('Should show error on detail page when descriptions are missing for filled percentages', async () => {
+  it('Should show error on detail page when descriptions are missing for filled percentages @docker-only', async () => {
     await goToBusinessPlanForm()
     await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
@@ -189,7 +194,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     )
   })
 
-  it('Should show error on detail page when a description exceeds 500 characters', async () => {
+  it('Should show error on detail page when a description exceeds 500 characters @docker-only', async () => {
     await goToBusinessPlanForm()
     await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
@@ -232,7 +237,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
   // resubmit needed. This is the live-clearing half; the CRLF-normalisation
   // half is covered server-side in epr-register-enrol-frontend's own
   // controller.test.js, which a browser round trip can't usefully add to.
-  it('Should clear the "too long" error live once the field is reduced back to 500 characters, without resubmitting', async () => {
+  it('Should clear the "too long" error live once the field is reduced back to 500 characters, without resubmitting @docker-only', async () => {
     await goToBusinessPlanForm()
     await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
     await BusinessPlanPage.saveAndContinue()
@@ -285,7 +290,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
 
   // ── Full Journey ──────────────────────────────────────────────────────────
 
-  it('Should complete the full accreditation journey and submit the application', async () => {
+  it('Should complete the full accreditation journey and submit the application @docker-only', async () => {
     await expect(OperatorAccreditationPage.pageHeading).toHaveText(
       'Operator Testing Flows Landing Page'
     )
@@ -453,7 +458,7 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
   // — so the reprocessor back link would have rendered "undefined" in the
   // URL and 404'd.
 
-  it('Should navigate back from the task list to the operator-accreditation landing page', async () => {
+  it('Should navigate back from the task list to the operator-accreditation landing page @docker-only', async () => {
     await OperatorPage.navigateToOperatorAccreditationPlastic()
     const landingUrl = await browser.getUrl()
     const [, organisationId, registrationId] = new URL(landingUrl).pathname

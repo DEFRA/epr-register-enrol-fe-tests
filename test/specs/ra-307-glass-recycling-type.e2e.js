@@ -5,6 +5,7 @@ import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import TaskListPage from 'page-objects/tasklist.page'
 import { getApplication } from '../helpers/case-management.js'
 import { expectedMaterialDisplay } from '../helpers/applicationHeader.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 /**
  * RA-307: the ReEx API returns glassRecyclingProcess as an array of 0 or 1
@@ -15,7 +16,11 @@ import { expectedMaterialDisplay } from '../helpers/applicationHeader.js'
  * epr-register-enrol-backend) flows through to the persistent application
  * header as "Glass - Remelt", not plain "Glass".
  */
-describe('RA-307: Glass recycling type shown on the application header', () => {
+describe('RA-307: Glass recycling type shown on the application header @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()
