@@ -27,13 +27,18 @@ function readTag() {
     )
     const srcsInHead = (selector) =>
       [...document.head.querySelectorAll(selector)].map((s) => s.src)
+    // A real container (a deployed environment's) can load more gtm.js
+    // itself once it runs, e.g. for a linked Google tag. Those carry more
+    // query params than the id, so only the bare ?id= script is the app's.
+    const isAppTag = (src) =>
+      [...new URL(src).searchParams.keys()].join() === 'id'
 
     return {
       containerId: meta?.getAttribute('content') ?? null,
       bundles: srcsInHead('script[type="module"][src*="/analytics"]'),
       tags: srcsInHead(
         'script[src^="https://www.googletagmanager.com/gtm.js"]'
-      ),
+      ).filter(isAppTag),
       tagsOutsideHead: document.querySelectorAll(
         'body script[src^="https://www.googletagmanager.com/"]'
       ).length
@@ -129,6 +134,10 @@ describe('Google Tag Manager container', () => {
     await startUnanswered()
 
     await $('[data-testid="cookie-banner-reject"]').click()
+    // The click reloads the page; reading it before then hits the old one.
+    await expect(
+      $('[data-testid="cookie-banner-confirmation"]')
+    ).toBeDisplayed()
     await expectNoTag()
 
     await browser.url(PAGE)
