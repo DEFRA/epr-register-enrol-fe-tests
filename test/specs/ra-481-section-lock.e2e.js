@@ -14,6 +14,7 @@ import {
   raiseQuery,
   patchSection
 } from '../helpers/case-management.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-481: submitted accreditation applications lock every section read-only
 // except the one the regulator has queried. This spec proves both halves of
@@ -39,7 +40,11 @@ import {
 // than each seeding their own — the second test's premise (this section used
 // to be locked, then got queried) only makes sense as a continuation of the
 // first.
-describe('RA-481: locked accreditation sections stay read-only except the queried one', () => {
+describe('RA-481: locked accreditation sections stay read-only except the queried one @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let applicationId
 

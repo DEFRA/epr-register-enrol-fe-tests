@@ -10,8 +10,13 @@ import BusinessPlanPage from 'page-objects/business-plan.page'
 import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
-describe('RA-436: S&I plan upload page vs the browser back button', () => {
+describe('RA-436: S&I plan upload page vs the browser back button @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()

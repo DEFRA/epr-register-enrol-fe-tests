@@ -15,6 +15,7 @@ import {
   completeOverseasSites
 } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-583: a Case Management query raised against BOTH the overseas
 // reprocessing sites (ORS) and broadly-equivalent-standards (BES) sections
@@ -29,7 +30,11 @@ import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-jo
 // doesn't race that other spec's use of the same org under concurrent wdio
 // workers (see operator.page.js's org-50013 comment for the underlying Seed
 // race this avoids).
-describe('RA-583: BES status after an ORS+BES query resubmission', () => {
+describe('RA-583: BES status after an ORS+BES query resubmission @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType

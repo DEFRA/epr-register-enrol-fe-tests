@@ -17,6 +17,7 @@ import {
   completeOverseasSites
 } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-570: "Amend BES evidence". Mirrors the RA-481 section-lock pattern
 // already proven end to end for other sections (query-resubmit.e2e.js,
@@ -36,7 +37,11 @@ import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-jo
 // (query-resubmit.e2e.js's / ra-481-section-lock.e2e.js's precedent), since
 // the second block's premise — this section used to be locked, then got
 // queried — only makes sense as a continuation of the first.
-describe('RA-570: Amend BES evidence', () => {
+describe('RA-570: Amend BES evidence @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType

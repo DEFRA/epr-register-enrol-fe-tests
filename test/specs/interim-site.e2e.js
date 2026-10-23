@@ -19,6 +19,7 @@ import AddInterimSiteRecyclingOperationPage from 'page-objects/add-interim-site-
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import { getOverseasSites } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-297: every overseas/interim site carries an isNewSite boolean — false
 // for sites seeded from a prior-year ReEx registry when the application was
@@ -26,7 +27,11 @@ import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-jo
 // wizards. It isn't rendered anywhere in the UI, so it's asserted here via a
 // direct API call, same convention as case-management.js's other helpers
 // (management-fe is out of scope for this suite, see RA-311).
-describe('RA-297: isNewSite flag on overseas sites', () => {
+describe('RA-297: isNewSite flag on overseas sites @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()
@@ -105,7 +110,11 @@ describe('RA-297: isNewSite flag on overseas sites', () => {
 //     parent ORS
 //   - "Save and add interim site" on the ORS CYA page is always available,
 //     independent of which codes were selected on the ORS
-describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
+describe('RA-486: decoupled ORS/interim-site recycling operations @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()
@@ -601,7 +610,11 @@ describe('RA-486: decoupled ORS/interim-site recycling operations', () => {
 // Every GET controller in the wizard now guards on `linkedSiteId` being
 // present in the interim-site session, and redirects back to
 // select-overseas-sites when it's missing.
-describe('RA-486: AC7 guard - add-interim-site wizard requires a linked ORS', () => {
+describe('RA-486: AC7 guard - add-interim-site wizard requires a linked ORS @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()

@@ -8,6 +8,7 @@ import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 import { completeOverseasSites } from '../helpers/case-management.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-619: a file whose original name holds a character above U+00FF (Vietnamese
 // diacritics, CJK) used to fail the upload with a generic error, because the frontend
@@ -18,7 +19,11 @@ import { completeOverseasSites } from '../helpers/case-management.js'
 //
 // Same org (50006, Glass exporter) and run-unique disposable year as
 // ra-570-amend-bes-evidence.e2e.js, so it does not race the other exporter specs.
-describe('RA-619: uploads with filenames outside Latin-1', () => {
+describe('RA-619: uploads with filenames outside Latin-1 @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   const SAMPLING_PLAN_NAME = 'Báo cáo kiểm tra ẻ'
   const BES_EVIDENCE_NAME = '报告'
   const TASK_LIST_PATH = '/accreditation/task-list/'

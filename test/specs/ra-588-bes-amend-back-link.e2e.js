@@ -11,6 +11,7 @@ import {
   completeOverseasSites
 } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-588: "Amend BES back button does not work as expected - takes to the
 // upload screens". (The Jira title's "CM:" prefix is a mis-tag - every URL in
@@ -64,7 +65,11 @@ import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-jo
 // run-unique year, which makes the landing controller seed a brand new draft
 // instead of landing on another spec's application. See operator.page.js's
 // org-50013 comment for the underlying Seed race that avoids.
-describe('RA-588: back navigation out of the amend-BES evidence screen', () => {
+describe('RA-588: back navigation out of the amend-BES evidence screen @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType
