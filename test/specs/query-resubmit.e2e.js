@@ -23,6 +23,7 @@ import {
   expectedSiteName,
   expectedCaptionText
 } from '../helpers/applicationHeader.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-309 AC03: the persistent header must survive every redirect hop of the
 // queried/resubmit journey on operator-accreditation, the one page that
@@ -59,7 +60,11 @@ async function assertPageCaption(page, application) {
   await expect(page.pageCaption).toHaveText(expectedCaptionText(application))
 }
 
-describe('RA-311: Respond to a regulator query and resubmit (FET-5)', () => {
+describe('RA-311: Respond to a regulator query and resubmit (FET-5) @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType

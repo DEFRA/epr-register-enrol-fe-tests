@@ -15,6 +15,7 @@ import {
   getOverseasSites
 } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-597: every overseas site in the application must have everything a fresh
 // add asks for - wherever its data came from. ReEx supplies a name, address and
@@ -26,7 +27,11 @@ import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-jo
 // a fresh application seeded with four bare ReEx sites, isolated from every
 // other spec's use of the org. The three tests are one story told in order, so
 // they share the application captured in the first.
-describe('RA-597: every overseas site in the application must be complete', () => {
+describe('RA-597: every overseas site in the application must be complete @docker-only', () => {
+  before(function () {
+    skipDockerOnlyOnDeployedEnvironment(this)
+  })
+
   let organisationId
   let registrationId
   let materialType

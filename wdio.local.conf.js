@@ -124,7 +124,12 @@ export const config = {
   // with `/`, the base url gets prepended, not including the path portion of your baseUrl.
   // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
   // gets prepended directly.
-  baseUrl: 'http://localhost:3000',
+  // With ENVIRONMENT set (e.g. ENVIRONMENT=test), run from this machine against
+  // that CDP tier's frontend instead of the local docker-compose stack.
+  // test/config.js points the direct backend calls at the same tier.
+  baseUrl: process.env.ENVIRONMENT
+    ? `https://epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`
+    : 'http://localhost:3000',
   //
   // Default timeout for all waitFor* commands.
   waitforTimeout: 10000,
@@ -193,13 +198,13 @@ export const config = {
    * @param {object} config wdio configuration object
    * @param {Array.<Object>} capabilities list of capabilities details
    */
-  async onPrepare() {
+  async onPrepare(config) {
     const maxWaitMs = 120_000
     const pollIntervalMs = 2_000
     const endpoints = [
       {
         name: 'epr-register-enrol-frontend',
-        url: 'http://localhost:3000/health'
+        url: `${config.baseUrl}/health`
       }
     ]
 
