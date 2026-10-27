@@ -22,16 +22,26 @@ try {
     ? await loadOrganisation(values['organisation-id'])
     : await seedOrganisation({ email: values.email })
 
-  process.stdout.write(
-    `Organisation ${organisation.orgId} (${organisation.id}), ` +
-      `Defra ID ${organisation.email}\n\n`
-  )
-  for (const link of operatorAccreditationLinks(organisation)) {
-    const material = link.glassRecyclingProcess ?? link.material
-    process.stdout.write(
-      `${link.wasteProcessingType.padEnd(11)} ${material.padEnd(13)} ${link.url}\n`
-    )
+  // One line per item, so each reads whole in CDP's log view.
+  const links = operatorAccreditationLinks(organisation)
+  const lines = [
+    `Defra ID: ${organisation.email}`,
+    `Organisation: ${organisation.orgId} (${organisation.id})`,
+    `Defra organisation: ${organisation.defraOrganisation?.name ?? 'not linked'}`
+  ]
+  for (const [heading, wasteProcessingType] of [
+    ['Reprocessor', 'reprocessor'],
+    ['Exporter', 'exporter']
+  ]) {
+    lines.push(`${heading} links:`)
+    for (const link of links) {
+      if (link.wasteProcessingType === wasteProcessingType) {
+        const material = link.glassRecyclingProcess ?? link.material
+        lines.push(`  ${heading} ${material}: ${link.url}`)
+      }
+    }
   }
+  process.stdout.write(`${lines.join('\n')}\n`)
 } catch (err) {
   process.stderr.write(`${err.message}\n`)
   process.exitCode = 1
