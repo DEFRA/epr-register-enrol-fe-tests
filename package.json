@@ -18,9 +18,12 @@
     "test:local": "npm run clean && wdio run wdio.local.conf.js",
     "test:local:debug": "npm run clean && DEBUG=true wdio run wdio.local.conf.js",
     "test:local:accessibility": "npm run clean && wdio run wdio.local.conf.js --spec 'test/specs/accessibility/**/*.accessibility.js'",
+    "test:integration": "npm run clean && node --env-file-if-exists=.env node_modules/@wdio/cli/bin/wdio.js run wdio.integration.conf.js",
+    "test:integration:headed": "npm run clean && HEADED=true node --env-file-if-exists=.env node_modules/@wdio/cli/bin/wdio.js run wdio.integration.conf.js",
     "test:github": "npm run clean && wdio run wdio.github.conf.js",
     "test:github:browserstack": "npm run clean && wdio run wdio.github.browserstack.conf.js",
     "test:accessibility": "npm run clean && wdio run wdio.github.conf.js --spec 'test/specs/accessibility/**/*.accessibility.js'",
+    "seed:organisation": "node --env-file-if-exists=.env test/helpers/integration-organisation/seeding/seed-organisation.js",
     "format": "prettier --write \"test/**/*.js\" \"**/*.{js,md,json,config.js}\"",
     "format:check": "prettier --check \"test/**/*.js\" \"**/*.{js,md,json,config.js}\"",
     "git:pre-commit-hook": "npm run format:check && npm run lint",
@@ -29,7 +32,10 @@
     "postinstall": "npm run setup:husky",
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module",
     "report": "allure generate allure-results --single-file --clean",
-    "report:publish": "npm run report; ./bin/publish-tests.sh"
+    "report:publish": "npm run report; ./bin/publish-tests.sh",
+    "link:defra-id": "node --env-file-if-exists=.env test/helpers/integration-organisation/seeding/link-defra-id.js",
+    "seed:accreditation-links": "node --env-file-if-exists=.env test/helpers/integration-organisation/print-accreditation-links.js",
+    "seed:linked-organisation": "node --env-file-if-exists=.env test/helpers/integration-organisation/seeding/seed-linked-organisation.js"
   },
   "dependencies": {
     "@wdio/allure-reporter": "9.27.0",
@@ -47,6 +53,7 @@
   },
   "devDependencies": {
     "@axe-core/webdriverio": "4.12.1",
+    "@faker-js/faker": "10.6.0",
     "chromedriver": "148.0.2",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "9.1.0",

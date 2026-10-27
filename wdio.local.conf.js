@@ -37,9 +37,9 @@ export const config = {
   //
   specs: ['./test/specs/**/*.*.js'],
   // Patterns to exclude.
-  exclude: [
-    // 'path/to/excluded/files'
-  ],
+  // test/specs/integration/** drives a deployed environment through its real
+  // sign-in, not this localhost stack - it has its own wdio.integration.conf.js.
+  exclude: ['./test/specs/integration/**'],
   // injectGlobals: false,
   //
   // ============
