@@ -11,3 +11,14 @@ coverage
 allure-report/
 allure-results/
 FAILED
+
+# Local secrets, e.g. for npm run seed:organisation
+.env
+
+# Postman environments hold the CDP API key and Entra credentials
+postman/*.postman_environment.json
+# Ready-to-send payloads carry the contact email from .env
+postman/*.ready.json
+
+# Organisation seeded for an integrated run (test/helpers/integration-organisation)
+.integration/

@@ -25,7 +25,9 @@ export const config = {
   // Tests to run
   specs: ['./test/specs/**/*.js'],
   // Tests to exclude
-  exclude: [],
+  // test/specs/integration/** drives a deployed environment through its real
+  // sign-in, not this localhost stack - it has its own wdio.integration.conf.js.
+  exclude: ['./test/specs/integration/**'],
   maxInstances: 1,
 
   capabilities: [
