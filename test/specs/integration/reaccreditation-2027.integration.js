@@ -80,7 +80,7 @@ describe(`Re-Ex reaccreditation ${accreditationYear} - integration`, () => {
     )
 
     await expect(TaskListPage.overseasSitesStatus).toBeDisplayed()
-    await expect(TaskListPage.besEvidenceStatus).toBeDisplayed()
+    await expect(TaskListPage.besStatus).toBeDisplayed()
 
     const material = await completeOutstandingTasks({ isExporter: true })
 
@@ -88,7 +88,7 @@ describe(`Re-Ex reaccreditation ${accreditationYear} - integration`, () => {
     await expect(TaskListPage.businessPlanStatus).toHaveText('COMPLETED')
     await expect(TaskListPage.SIPlanStatus).toHaveText('COMPLETED')
     await expect(TaskListPage.overseasSitesStatus).toHaveText('COMPLETED')
-    await expect(TaskListPage.besEvidenceStatus).toHaveText('COMPLETED')
+    await expect(TaskListPage.besStatus).toHaveText('COMPLETED')
 
     await TaskListPage.continueToSubmit()
 

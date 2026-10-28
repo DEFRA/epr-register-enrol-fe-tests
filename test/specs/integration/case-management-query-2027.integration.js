@@ -210,8 +210,7 @@ describe(`Case management query and determination ${accreditationYear} - integra
     // status is lost by the query-and-resubmit cycle. Checked at the end of the
     // test rather than here, so that this known defect does not stop the
     // determination steps below from being exercised.
-    const besStatusAfterResubmission =
-      await TaskListPage.besEvidenceStatus.getText()
+    const besStatusAfterResubmission = await TaskListPage.besStatus.getText()
 
     // ── Case management: the updated application, with the new sites ────────
     await signInToCaseManagement()
