@@ -55,7 +55,7 @@
     "@axe-core/webdriverio": "4.12.1",
     "@faker-js/faker": "10.6.0",
     "chromedriver": "148.0.2",
-    "eslint": "^8.57.0",
+    "eslint": "^10.9.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-config-standard": "17.1.0",
     "eslint-plugin-prettier": "5.1.3",
