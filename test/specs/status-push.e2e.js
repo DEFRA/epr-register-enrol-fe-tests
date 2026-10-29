@@ -124,7 +124,7 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
     return applicationId
   }
 
-  it('reflects duly-made, updated, awaiting decision then approved statuses pushed from case management', async () => {
+  it('reflects duly-made (kept after a start), updated, awaiting decision then approved statuses pushed from case management', async () => {
     const year = String(3000 + (Date.now() % 1000))
     const applicationId = await reachSubmittedApplication(year)
 
@@ -140,18 +140,35 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
       expect.stringContaining('DULY MADE')
     )
 
-    // RA-368 / RA-595: assessment-in-progress is reached by CM's
-    // "Assessment started" action (`start-assessment`, which replaced
-    // "Payment received"). The operator keeps seeing DULY MADE until then.
-    // CM itself displays this state as "Updated" (label collision with its
-    // own updated state), so OJ mirrors that rather than inventing a new
-    // tag - this was the gap that originally left OJ pinned at DULY MADE.
+    // RA-527 follow-up: CM's "Assessment started" action (`start-assessment`)
+    // now lands on its internal `assessment-started` state, which CM still
+    // shows as "Duly made" and never pushes, so the operator keeps seeing
+    // DULY MADE after a start. Should that state ever be pushed (a
+    // misconfiguration or a replay), OJ maps it to DULY MADE too, never
+    // UPDATED.
     await pushStatusChanged(organisationId, applicationId, {
-      toStateId: 'assessment-in-progress',
-      toStateDisplayName: 'Assessment in progress',
+      toStateId: 'assessment-started',
+      toStateDisplayName: 'Duly made',
       actionId: 'start-assessment',
       actionDisplayName: 'Assessment started',
       occurredAt: new Date(Date.now() + 1000).toISOString()
+    })
+    await browser.url(landingUrl(year))
+    await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
+      expect.stringContaining('DULY MADE')
+    )
+
+    // RA-368 / RA-527 follow-up: CM reaches assessment-in-progress from a
+    // started case only by a determination deadline change (`sla-extend`) or
+    // Continue review after a query response. CM displays this state as
+    // "Updated" (label collision with its own updated state), so OJ mirrors
+    // that rather than inventing a new tag.
+    await pushStatusChanged(organisationId, applicationId, {
+      toStateId: 'assessment-in-progress',
+      toStateDisplayName: 'Updated',
+      actionId: 'sla-extend',
+      actionDisplayName: 'Extend SLA',
+      occurredAt: new Date(Date.now() + 2000).toISOString()
     })
     await browser.url(landingUrl(year))
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
@@ -166,7 +183,7 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
       toStateDisplayName: 'Awaiting decision',
       actionId: 'submit-for-decision',
       actionDisplayName: 'Submit for decision',
-      occurredAt: new Date(Date.now() + 2000).toISOString()
+      occurredAt: new Date(Date.now() + 3000).toISOString()
     })
     await browser.url(landingUrl(year))
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
@@ -181,7 +198,7 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
       toStateDisplayName: 'Granted',
       actionId: 'approve',
       actionDisplayName: 'Approve',
-      occurredAt: new Date(Date.now() + 3000).toISOString()
+      occurredAt: new Date(Date.now() + 4000).toISOString()
     })
     await browser.url(landingUrl(year))
     // RA-415: CM renamed its "Approved" label to "Granted" - OJ's own status
