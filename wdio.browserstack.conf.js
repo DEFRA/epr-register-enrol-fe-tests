@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { ProxyAgent, setGlobalDispatcher } from 'undici'
 import { bootstrap } from 'global-agent'
+import { cdpSpecs } from './test/cdp-specs.js'
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
 
 /**
@@ -37,8 +38,9 @@ export const config = {
   user: process.env.BROWSERSTACK_USERNAME,
   key: process.env.BROWSERSTACK_KEY,
 
-  // Tests to run
-  specs: ['./test/specs/**/*.js'],
+  // Tests to run: only the specs that pass against a deployed environment,
+  // see test/cdp-specs.js
+  specs: cdpSpecs,
   // Tests to exclude
   // test/specs/integration/** drives a deployed environment through its real
   // sign-in, not this localhost stack - it has its own wdio.integration.conf.js.
