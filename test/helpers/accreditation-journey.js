@@ -1,4 +1,6 @@
 import { browser, expect } from '@wdio/globals'
+import OperatorPage from 'page-objects/operator.page'
+import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import TaskListPage from 'page-objects/tasklist.page'
 import PrnTonnagePage from 'page-objects/prn-tonnage.page'
 import PrnAuthorityPage from 'page-objects/prn-authority.page'
@@ -7,6 +9,38 @@ import BusinessPlanPage from 'page-objects/business-plan.page'
 import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
+
+const TASK_LIST_PATH = '/accreditation/task-list/'
+
+/**
+ * From the operator landing page, opens the Glass exporter application for a
+ * run-unique disposable year (so it cannot race other specs that use org 50006)
+ * and returns once on its task list.
+ *
+ * @returns {Promise<{organisationId: string, registrationId: string, applicationId: string}>}
+ */
+export async function startDisposableGlassExporterApplication() {
+  await OperatorPage.navigateToExporterAccreditationGlass()
+  const [, organisationId, registrationId, materialType] = new URL(
+    await browser.getUrl()
+  ).pathname
+    .split('/')
+    .filter(Boolean)
+  const year = String(3000 + (Date.now() % 1000))
+  await browser.url(
+    `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
+  )
+
+  await OperatorAccreditationPage.clickContinue()
+  await browser.waitUntil(
+    async () => (await browser.getUrl()).includes(TASK_LIST_PATH),
+    { timeout: 10000, timeoutMsg: 'Did not reach task list' }
+  )
+  const applicationId = (await browser.getUrl())
+    .split(TASK_LIST_PATH)[1]
+    .split('?')[0]
+  return { organisationId, registrationId, applicationId }
+}
 
 // RA-424: the four PRN tonnage bands, in display order, as they must now read.
 const EXPECTED_TONNAGE_LABELS = [
