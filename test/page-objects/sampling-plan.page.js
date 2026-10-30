@@ -30,6 +30,10 @@ class SamplingPlanPage extends Page {
     return $('[data-testid="upload-another-file-link"]')
   }
 
+  get fileError() {
+    return $('[data-testid="file-error"]')
+  }
+
   get fileRows() {
     return $$('[data-testid="file-row"]')
   }

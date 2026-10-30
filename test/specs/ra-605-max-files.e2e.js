@@ -81,7 +81,7 @@ describe('RA-605: file-count limit on sampling plan uploads @docker-only', () =>
     await SamplingPlanPage.uploadAnotherFileLink.click()
     await SamplingPlanPage.attemptUpload('business-plan.pdf')
 
-    await expect($('[data-testid="file-error"]')).toHaveText(
+    await expect(SamplingPlanPage.fileError).toHaveText(
       expect.stringContaining(MAX_FILES_MESSAGE)
     )
 
