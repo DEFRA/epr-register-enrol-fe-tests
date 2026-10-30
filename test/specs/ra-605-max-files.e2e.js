@@ -2,8 +2,8 @@ import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
-import TaskListPage from 'page-objects/tasklist.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
+import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-605: an 11th sampling plan / supporting evidence upload used to fail with the
@@ -57,16 +57,25 @@ describe('RA-605: file-count limit on sampling plan uploads @docker-only', () =>
       { timeout: 10000, timeoutMsg: 'Did not reach task list' }
     )
 
-    await TaskListPage.SIPlanLink.click()
-    await SamplingPlanPage.uploadFile('business-plan.pdf')
+    const applicationId = (await browser.getUrl())
+      .split(TASK_LIST_PATH)[1]
+      .split('?')[0]
+
+    // The sampling plan task is locked until the PRN tonnage and business plan
+    // tasks are done; this also uploads (and saves) the first file.
+    await completePrnBusinessPlanSamplingPlan({ material: 'Glass' })
+
+    const uploadPageUrl = `/accreditation/sampling-plan/${applicationId}`
+    await browser.url(uploadPageUrl)
     for (let i = 1; i < MAX_FILES; i++) {
-      await SamplingPlanPage.uploadAnotherFileLink.click()
       // Alternate the document type: the limit covers both combined.
       await SamplingPlanPage.uploadFile(
         'business-plan.pdf',
         i % 2 === 0 ? 'SamplingPlan' : 'SupportingEvidence'
       )
+      await SamplingPlanPage.uploadAnotherFileLink.click()
     }
+    await browser.url(`${uploadPageUrl}/results`)
     await expect(SamplingPlanPage.fileRows).toBeElementsArrayOfSize(MAX_FILES)
 
     await SamplingPlanPage.uploadAnotherFileLink.click()
@@ -76,9 +85,7 @@ describe('RA-605: file-count limit on sampling plan uploads @docker-only', () =>
       expect.stringContaining(MAX_FILES_MESSAGE)
     )
 
-    await browser.url(
-      `/accreditation/sampling-plan/${(await browser.getUrl()).split('/sampling-plan/')[1].split(/[/?]/)[0]}/results`
-    )
+    await browser.url(`${uploadPageUrl}/results`)
     await expect(SamplingPlanPage.fileRows).toBeElementsArrayOfSize(MAX_FILES)
   })
 })

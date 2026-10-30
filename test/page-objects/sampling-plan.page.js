@@ -38,8 +38,6 @@ class SamplingPlanPage extends Page {
     return $(`[data-testid="file-document-type"]*=${text}`)
   }
 
-  // `baseName` (RA-619) uploads the fixture under that name instead of its own, and
-  // then asserts the results page shows it exactly as chosen.
   // Selects the document type and file and submits, without asserting an outcome.
   async attemptUpload(
     filename,
@@ -60,6 +58,8 @@ class SamplingPlanPage extends Page {
     await this.clickReliably(this.uploadFileButton)
   }
 
+  // `baseName` (RA-619) uploads the fixture under that name instead of its own, and
+  // then asserts the results page shows it exactly as chosen.
   async uploadFile(filename, documentType = 'SamplingPlan', { baseName } = {}) {
     await this.attemptUpload(filename, documentType, { baseName })
     // RA-290 AC04: upload -> checking -> results is now three separate pages.
