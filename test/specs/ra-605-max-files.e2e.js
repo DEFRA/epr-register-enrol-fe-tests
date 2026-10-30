@@ -1,9 +1,11 @@
 import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
-import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
-import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import {
+  completePrnBusinessPlanSamplingPlan,
+  startDisposableGlassExporterApplication
+} from '../helpers/accreditation-journey.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
 // RA-605: an 11th sampling plan / supporting evidence upload used to fail with the
@@ -18,7 +20,6 @@ describe('RA-605: file-count limit on sampling plan uploads @docker-only', () =>
   })
 
   const MAX_FILES = 10
-  const TASK_LIST_PATH = '/accreditation/task-list/'
   const MAX_FILES_MESSAGE =
     'The maximum number of files permitted to be uploaded is ten'
 
@@ -41,25 +42,7 @@ describe('RA-605: file-count limit on sampling plan uploads @docker-only', () =>
   })
 
   it('refuses an 11th file with the limit message and keeps the ten already uploaded', async () => {
-    await OperatorPage.navigateToExporterAccreditationGlass()
-    const [, organisationId, registrationId, materialType] = new URL(
-      await browser.getUrl()
-    ).pathname
-      .split('/')
-      .filter(Boolean)
-    const year = String(3000 + (Date.now() % 1000))
-    await browser.url(
-      `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
-    )
-    await OperatorAccreditationPage.clickContinue()
-    await browser.waitUntil(
-      async () => (await browser.getUrl()).includes(TASK_LIST_PATH),
-      { timeout: 10000, timeoutMsg: 'Did not reach task list' }
-    )
-
-    const applicationId = (await browser.getUrl())
-      .split(TASK_LIST_PATH)[1]
-      .split('?')[0]
+    const { applicationId } = await startDisposableGlassExporterApplication()
 
     // The sampling plan task is locked until the PRN tonnage and business plan
     // tasks are done; this also uploads (and saves) the first file.
