@@ -1,4 +1,4 @@
-import { browser, expect } from '@wdio/globals'
+import { browser, expect, $$ } from '@wdio/globals'
 import allureReporter from '@wdio/allure-reporter'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import CmWorkItemPage from 'page-objects/cm-work-item.page'
@@ -23,7 +23,11 @@ import {
   recordAccreditationApplication
 } from '../../helpers/integration-organisation/accreditation-applications.js'
 import {
+  addNewSiteWithInterimSites,
+  addRegisteredSitesToAccreditation,
+  completeIncompleteOverseasSites,
   openSeededAccreditation,
+  seededRegistrations,
   startFirstApplicableAccreditation
 } from '../../helpers/integration-organisation/seeded-accreditation-journey.js'
 import { loadOrganisation } from '../../helpers/integration-organisation/seeded-organisation.js'
@@ -56,14 +60,19 @@ import {
 //                  Defra organisation holds both roles), with registered and
 //                  accredited overseas sites on its paper exporter registration
 //   Test 1         apply for reprocessor accreditation, record the application
-//   Test 2         apply for exporter accreditation, record the application
+//   Test 2         apply for exporter accreditation: keep the accredited
+//                  overseas sites, add the registered one, and add a new site
+//                  with two interim sites; record the application
 //   Test 3         case management: duly make and query the reprocessor
 //                  application; operator: update the queried sections and
 //                  resubmit; case management: see the changes, approve it
 //                  (Approved) and confirm the applicant has been contacted
 //                  (Granted); operator: the application reads Granted
-//   Test 4         the same for the exporter application, querying its
-//                  overseas sites and BES evidence
+//   Test 4         the same for the exporter application: case management
+//                  sees every overseas and interim site submitted; querying
+//                  its overseas sites and BES evidence, the operator adds
+//                  another site with an interim site, which case management
+//                  then sees too
 //   Clean up       delete the organisation
 //
 // The organisation, and each application as it is submitted, is attached to
@@ -96,8 +105,41 @@ const OVERSEAS_SITES = [
 const UPDATED_BUSINESS_PLAN = [25, 25, 20, 10, 10, 5, 5]
 const UPDATED_SAMPLING_PLAN = 'sampling-plan-query-response'
 
-// Test 4's query response.
-const NEW_SITE = {
+// Test 2: the new overseas site added when applying, and its interim sites
+// (the second and later named after the first, with a number).
+const SUBMISSION_SITE = {
+  name: 'Penang Paper Reprocessing Sdn Bhd',
+  location: {
+    addressLine1: '8 Jalan Perusahaan',
+    townOrCity: 'George Town',
+    country: 'Malaysia',
+    coordinates: '5.4141, 100.3288'
+  },
+  contact: {
+    name: 'Mei Ling Tan',
+    email: 'meiling.tan@example.com',
+    phone: '+60 4 123 4567'
+  }
+}
+const SUBMISSION_INTERIM_SITE = {
+  country: 'Malaysia',
+  name: 'Penang Interim Storage Yard',
+  location: {
+    addressLine1: '21 Lorong Pelabuhan',
+    townOrCity: 'George Town',
+    stateOrRegion: 'Penang',
+    postcode: '10300'
+  },
+  contact: {
+    name: 'Ahmad Rahman',
+    email: 'ahmad.rahman@example.com',
+    phone: '+60 4 765 4321'
+  }
+}
+const SUBMISSION_INTERIM_SITE_COUNT = 2
+
+// Test 4's query response: a further overseas site with an interim site.
+const QUERY_SITE = {
   name: 'Mumbai Paper Reprocessing Pvt Ltd',
   location: {
     addressLine1: '12 Dockside Road',
@@ -111,7 +153,7 @@ const NEW_SITE = {
     phone: '+91 22 1234 5678'
   }
 }
-const INTERIM_SITE = {
+const QUERY_INTERIM_SITE = {
   country: 'India',
   name: 'Mumbai Interim Storage Depot',
   location: {
@@ -131,23 +173,12 @@ const APPROVAL_NOTE = 'All queried sections were updated and are satisfactory.'
 
 const timestamp = () => new Date().toISOString().replace(/\D/g, '').slice(0, 14)
 
-// Registrations of one waste processing type, `preferred` materials first.
-function registrationsToTry(organisation, wasteProcessingType, preferred) {
-  const rank = (registration) => {
-    const index = preferred.indexOf(registration.material)
-    return index === -1 ? preferred.length : index
-  }
-  return organisation.registrations
-    .filter(
-      (registration) => registration.wasteProcessingType === wasteProcessingType
-    )
-    .sort((a, b) => rank(a) - rank(b))
-}
-
 describe(`Accreditation workflow ${accreditationYear} on a new organisation - test environment`, () => {
   let organisation
   let seededOrgId
   let defraIdUserId
+  // The names of the overseas sites the organisation is seeded with.
+  let seededSiteNames = []
   // By waste processing type: the registration applied for, and the
   // application's id and reference once submitted.
   const applications = {}
@@ -155,12 +186,27 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
   /**
    * Applies for accreditation on the first of `registrations` that can be,
    * completes every task, submits, and records the application.
+   *
+   * @param {object} options
+   * @param {boolean} options.isExporter
+   * @param {(applicationId: string) => Promise<{material: string, overseasSiteNames?: string[]}>} [options.completeTasks]
+   *   completes the tasks, from the task list back to it; by default each
+   *   outstanding task as completeOutstandingTasks does it
    */
-  async function applyForAccreditation(registrations, { isExporter }) {
+  async function applyForAccreditation(
+    registrations,
+    {
+      isExporter,
+      completeTasks = async () => ({
+        material: await completeOutstandingTasks({ isExporter })
+      })
+    }
+  ) {
     const { registration, applicationId } =
       await startFirstApplicableAccreditation(registrations, { organisation })
 
-    const material = await completeOutstandingTasks({ isExporter })
+    const { material, overseasSiteNames = [] } =
+      await completeTasks(applicationId)
     await TaskListPage.assertAllTasksCompleted({ isExporter })
     await TaskListPage.continueToSubmit()
 
@@ -187,7 +233,8 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
     applications[registration.wasteProcessingType] = {
       registration,
       applicationId,
-      applicationReference
+      applicationReference,
+      overseasSiteNames
     }
     allureReporter.addAttachment(
       `${registration.wasteProcessingType} application`,
@@ -197,7 +244,8 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
           applicationReference,
           material: registration.glassRecyclingProcess ?? registration.material,
           registrationNumber: registration.registrationNumber,
-          orgId: organisation.orgId
+          orgId: organisation.orgId,
+          ...(overseasSiteNames.length && { overseasSiteNames })
         },
         null,
         2
@@ -207,12 +255,69 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
   }
 
   /**
-   * Case management: finds the application's work item, duly makes it and
-   * queries `sections`. Leaves the browser on the work item, now Queried.
+   * Exporter tasks: the others first, as the overseas sites task only opens
+   * once they are done. Then the overseas sites: the accredited ones the
+   * organisation is seeded with are kept and completed, the registered one is
+   * added, and a new site is added with its interim sites. Then BES evidence,
+   * which the new site, outside the EU and OECD, needs.
+   */
+  async function completeExporterTasks(applicationId) {
+    const material = await completeOutstandingTasks({ isExporter: false })
+
+    const added = await addRegisteredSitesToAccreditation(applicationId)
+    expect(added).toHaveLength(OVERSEAS_SITES[0].registered)
+    await completeIncompleteOverseasSites(applicationId)
+    await expect($$('[data-testid*="-incomplete-"]')).toBeElementsArrayOfSize(0)
+
+    const { interimSites } = await addNewSiteWithInterimSites(applicationId, {
+      site: SUBMISSION_SITE,
+      interimSite: SUBMISSION_INTERIM_SITE,
+      interimSiteCount: SUBMISSION_INTERIM_SITE_COUNT
+    })
+    expect(interimSites).toHaveLength(SUBMISSION_INTERIM_SITE_COUNT)
+    process.stdout.write(
+      `Added overseas site ${SUBMISSION_SITE.name} with interim sites ` +
+        `${interimSites.map(({ name, orsId }) => `${name} (ORS ${orsId})`).join(', ')}\n`
+    )
+
+    await confirmOverseasSites()
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/accreditation/task-list/')
+    )
+    await expect(TaskListPage.overseasSitesStatus).toHaveText('COMPLETED')
+    // What is left: BES evidence.
+    await completeOutstandingTasks({ isExporter: true })
+
+    return {
+      material,
+      overseasSiteNames: [
+        SUBMISSION_SITE.name,
+        ...interimSites.map(({ name }) => name)
+      ]
+    }
+  }
+
+  /** Case management: the work item's overseas sites include every one of `names`. */
+  async function expectOverseasSitesInCaseManagement(names) {
+    const overseasSitesText = await CmWorkItemPage.overseasSitesText()
+    for (const name of names) {
+      expect(overseasSitesText).toContain(name)
+    }
+  }
+
+  /**
+   * Case management: finds the application's work item, runs `checkWorkItem`
+   * on it, duly makes it and queries `sections`. Leaves the browser on the
+   * work item, now Queried.
    *
    * @returns {Promise<string>} the work item id
    */
-  async function dulyMakeAndQuery(application, applicantType, sections) {
+  async function dulyMakeAndQuery(
+    application,
+    applicantType,
+    sections,
+    checkWorkItem = async () => {}
+  ) {
     await signInToCaseManagement()
     const workItem = await findWorkItem({
       organisation: organisation.name,
@@ -222,6 +327,7 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
     })
     await CmWorkItemsPage.openWorkItem(workItem.workItemId)
     await CmWorkItemPage.waitUntilLoaded()
+    await checkWorkItem()
 
     await dulyMakeWorkItem({ paymentDate: new Date() })
     await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.dulyMade)
@@ -380,7 +486,9 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
         `user ${email} and organisation ${seeded.defraOrgId}\n`
     )
 
-    await addOverseasSites(seeded.refNo, OVERSEAS_SITES)
+    seededSiteNames = (
+      await addOverseasSites(seeded.refNo, OVERSEAS_SITES)
+    ).map(({ name }) => name)
     organisation = await loadOrganisation(seeded.refNo)
     // The accreditation journey signs in again through
     // epr-register-enrol-frontend's own Defra ID stub.
@@ -401,15 +509,15 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
 
   it('Test 1: should apply for reprocessor accreditation', async () => {
     await applyForAccreditation(
-      registrationsToTry(organisation, 'reprocessor', REPROCESSOR_MATERIALS),
+      seededRegistrations('reprocessor', REPROCESSOR_MATERIALS, organisation),
       { isExporter: false }
     )
   })
 
   it('Test 2: should apply for exporter accreditation', async () => {
     await applyForAccreditation(
-      registrationsToTry(organisation, 'exporter', [EXPORTER_MATERIAL]),
-      { isExporter: true }
+      seededRegistrations('exporter', [EXPORTER_MATERIAL], organisation),
+      { isExporter: true, completeTasks: completeExporterTasks }
     )
   })
 
@@ -454,10 +562,18 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
       this.skip()
     }
 
-    const workItemId = await dulyMakeAndQuery(application, 'Exporter', [
-      QUERY_SECTIONS.overseasSites,
-      QUERY_SECTIONS.bes
-    ])
+    // Every site submitted: those seeded, and the new one and its interim
+    // sites.
+    const submittedSiteNames = [
+      ...seededSiteNames,
+      ...application.overseasSiteNames
+    ]
+    const workItemId = await dulyMakeAndQuery(
+      application,
+      'Exporter',
+      [QUERY_SECTIONS.overseasSites, QUERY_SECTIONS.bes],
+      () => expectOverseasSitesInCaseManagement(submittedSiteNames)
+    )
 
     await openQueriedApplication(application, [
       'task-overseas-sites',
@@ -468,8 +584,8 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
     await addOverseasSiteWithInterimSite({
-      site: NEW_SITE,
-      interimSite: INTERIM_SITE,
+      site: QUERY_SITE,
+      interimSite: QUERY_INTERIM_SITE,
       additionalCodes: ['R12', 'R13'],
       interimRecyclingOperationCodes: ['R12', 'R13']
     })
@@ -477,16 +593,19 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/query-task-list/')
     )
-    // Required for the new site, outside the EU and OECD.
+    // Required for the query's new site, outside the EU and OECD.
     await uploadOutstandingBesEvidence()
     await resubmit()
 
     await reopenUpdatedWorkItem(workItemId)
-    const overseasSitesText = await CmWorkItemPage.overseasSitesText()
-    expect(overseasSitesText).toContain(NEW_SITE.name)
-    expect(overseasSitesText).toContain(INTERIM_SITE.name)
+    // The site and interim site the query added, beside the ones submitted.
+    await expectOverseasSitesInCaseManagement([
+      ...submittedSiteNames,
+      QUERY_SITE.name,
+      QUERY_INTERIM_SITE.name
+    ])
     await expect(CmWorkItemPage.besValue).toHaveText(
-      expect.stringContaining(NEW_SITE.name)
+      expect.stringContaining(QUERY_SITE.name)
     )
 
     await approveAndConfirmContact()

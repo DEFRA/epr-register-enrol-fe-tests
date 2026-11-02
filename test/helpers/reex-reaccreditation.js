@@ -23,16 +23,13 @@ import {
   hasSeededOrganisation,
   signInAsSeededOperator
 } from './integration-organisation/index.js'
-import { completeIncompleteOverseasSites } from './integration-organisation/seeded-accreditation-journey.js'
+import {
+  APPLICABLE_STATUSES,
+  completeIncompleteOverseasSites
+} from './integration-organisation/seeded-accreditation-journey.js'
 
 const BUSINESS_PLAN_PERCENTAGES = [15, 15, 15, 15, 15, 15, 10]
 const EVIDENCE_FIXTURE = 'business-plan.pdf'
-
-// Statuses a 2027 application can already be in on the shared dev tier. Only
-// the first two can be driven through to submission — SUBMITTED, UPDATED and
-// QUERIED all mean somebody (a previous run, or a regulator) has moved the
-// application past the point this journey starts from.
-const APPLICABLE_STATUSES = ['NOT STARTED', 'IN PROGRESS']
 
 /**
  * Signs in to the Re-Ex frontend and lands on the organisation home page: as
@@ -162,6 +159,25 @@ async function accreditationMaterial() {
 }
 
 /**
+ * Whether a task is still to do, read only once the browser is back on the
+ * task list. Each task ends on a JavaScript click (clickReliably) that returns
+ * before the next page loads, so checking the link straight away can read the
+ * task's own last page, find no link and skip a task that is not done.
+ *
+ * @param {ChainablePromiseElement} link the task's task-list link
+ */
+async function outstandingTask(link) {
+  await browser.waitUntil(
+    async () =>
+      (await browser.getUrl()).includes('/accreditation/task-list/') &&
+      (await browser.execute(() => document.readyState)) === 'complete',
+    { timeout: 30000, timeoutMsg: 'Did not return to the task list' }
+  )
+  await TaskListPage.pageCaption.waitForDisplayed({ timeout: 30000 })
+  return link.isExisting()
+}
+
+/**
  * Completes every outstanding task on the task list, leaving the browser back
  * on the task list with everything COMPLETED and ready to submit.
  *
@@ -187,23 +203,23 @@ export async function completeOutstandingTasks({
   const material = await accreditationMaterial()
   await checkPage('Task list')
 
-  if (await TaskListPage.PRNTonnageLink.isExisting()) {
+  if (await outstandingTask(TaskListPage.PRNTonnageLink)) {
     await completeTonnage(checkPage)
   }
 
-  if (await TaskListPage.businessPlanLink.isExisting()) {
+  if (await outstandingTask(TaskListPage.businessPlanLink)) {
     await completeBusinessPlan(checkPage)
   }
 
-  if (await TaskListPage.SIPlanLink.isExisting()) {
+  if (await outstandingTask(TaskListPage.SIPlanLink)) {
     await completeSamplingPlan(material, checkPage)
   }
 
   if (isExporter) {
-    if (await TaskListPage.overseasSitesLink.isExisting()) {
+    if (await outstandingTask(TaskListPage.overseasSitesLink)) {
       await completeOverseasSites(checkPage)
     }
-    if (await TaskListPage.besLink.isExisting()) {
+    if (await outstandingTask(TaskListPage.besLink)) {
       await completeBesEvidence(checkPage)
     }
   }

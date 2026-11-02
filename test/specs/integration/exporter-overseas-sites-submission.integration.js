@@ -6,7 +6,7 @@ import BesEvidencePage from 'page-objects/bes-evidence.page'
 
 import { createAccessibilityAudit } from '../../helpers/accessibility.js'
 import {
-  MANY_SITES_MATERIAL,
+  OVERSEAS_SITES_MATERIAL,
   hasSeededOrganisation
 } from '../../helpers/integration-organisation/index.js'
 import {
@@ -25,8 +25,9 @@ import { accreditationYear } from '../../config.js'
 
 // Test environment scenario 2: on the organisation seeded for the run, the
 // operator applies for exporter accreditation for the material seeded with
-// 200 overseas reprocessing sites (MANY_SITES_MATERIAL, or the exporter
-// material with the most sites once that one has been applied for). They add
+// overseas reprocessing sites (OVERSEAS_SITES_MATERIAL: 3 accredited, 2
+// registered; or the exporter material with the most sites once that one has
+// been applied for). They add
 // its registered sites to the accreditation, complete every incomplete site,
 // add a new site with four interim sites, upload BES evidence wherever it is
 // required, complete the other tasks and submit.
@@ -68,11 +69,11 @@ const INTERIM_SITE = {
 
 const INTERIM_SITE_COUNT = 4
 
-// Completing a couple of hundred sites one by one through the browser takes
-// far longer than any other journey.
-const JOURNEY_TIMEOUT = 3 * 60 * 60 * 1000
+// A handful of sites, a new one and its interim sites, each completed through
+// the browser page by page.
+const JOURNEY_TIMEOUT = 30 * 60 * 1000
 
-describe(`Exporter accreditation ${accreditationYear} with 200 overseas sites - test environment`, () => {
+describe(`Exporter accreditation ${accreditationYear} with overseas sites - test environment`, () => {
   const audit = createAccessibilityAudit()
   const checkPage = (pageName) => audit.check(pageName)
 
@@ -87,7 +88,7 @@ describe(`Exporter accreditation ${accreditationYear} with 200 overseas sites - 
 
     const { registration, applicationId } =
       await startFirstApplicableAccreditation(
-        seededRegistrations('exporter', [MANY_SITES_MATERIAL])
+        seededRegistrations('exporter', [OVERSEAS_SITES_MATERIAL])
       )
     const seededSites = Object.keys(registration.overseasSites).length
     process.stdout.write(

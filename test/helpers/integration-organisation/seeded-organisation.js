@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -20,16 +20,16 @@ const SNAPSHOT_FILE = resolve(
   '../../../.integration/seeded-organisation.json'
 )
 
-// The exporter material given a full page of overseas reprocessing sites (200,
-// as an operator migrating a large export network would have), which the
-// exporter scenario completes, adds to and submits.
-export const MANY_SITES_MATERIAL = 'plastic'
+// The exporter material the exporter scenario applies for: a few accredited
+// overseas reprocessing sites to complete and registered ones to add, before
+// it adds a new site of its own.
+export const OVERSEAS_SITES_MATERIAL = 'plastic'
 
 // Exporter materials given overseas reprocessing sites, so the accreditation
 // journey's select-overseas-sites page has accredited sites to show and
 // registered ones to add.
 const OVERSEAS_SITES = [
-  { material: MANY_SITES_MATERIAL, accredited: 120, registered: 80 },
+  { material: OVERSEAS_SITES_MATERIAL, accredited: 3, registered: 2 },
   { material: 'paper', accredited: 2, registered: 1 },
   { material: 'aluminium', accredited: 1, registered: 2 },
   {
@@ -45,7 +45,7 @@ const timestamp = () => new Date().toISOString().replace(/\D/g, '').slice(0, 14)
 /**
  * Seeds a Companies House organisation approved to reprocess and export every
  * material, linked to a Defra ID user, with overseas sites on a few of its
- * exporter registrations (200 on MANY_SITES_MATERIAL).
+ * exporter registrations.
  *
  * @param {object} [options]
  * @param {string} [options.email] the Defra ID user's email; a new
@@ -136,6 +136,14 @@ export async function loadOrganisation(id) {
 export function writeSnapshot(organisation) {
   mkdirSync(dirname(SNAPSHOT_FILE), { recursive: true })
   writeFileSync(SNAPSHOT_FILE, `${JSON.stringify(organisation, null, 2)}\n`)
+}
+
+/**
+ * Removes the snapshot, so nothing reads back an organisation from an earlier
+ * run, one that has since been deleted or belongs to another environment.
+ */
+export function removeSnapshot() {
+  rmSync(SNAPSHOT_FILE, { force: true })
 }
 
 /**

@@ -24,7 +24,7 @@ export {
 } from './hooks.js'
 export { handOffToRegisterEnrol } from './register-enrol-sign-in.js'
 export {
-  MANY_SITES_MATERIAL,
+  OVERSEAS_SITES_MATERIAL,
   hasSeededOrganisation,
   loadOrganisation,
   seedOrganisation,

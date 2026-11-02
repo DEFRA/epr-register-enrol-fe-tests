@@ -1,5 +1,6 @@
 import {
   loadOrganisation,
+  removeSnapshot,
   seedOrganisation,
   writeSnapshot
 } from './seeded-organisation.js'
@@ -37,6 +38,10 @@ const seedsHere = () => SEEDS_IN.includes(process.env.ENVIRONMENT)
 export async function prepareSeededOrganisation() {
   const environment = process.env.ENVIRONMENT
   startRunOrganisationsLog()
+  // Whatever an earlier run left: off test, or should seeding fail part-way,
+  // the specs then find no organisation and skip rather than sign in as one
+  // that has been deleted.
+  removeSnapshot()
   if (!seedsHere()) {
     return
   }
@@ -87,6 +92,9 @@ export async function deleteSeededOrganisations() {
   }
 
   const { deleted, failed } = await deleteCreatedOrganisations()
+  // The run is over, and its organisation deleted (or reused, and not this
+  // run's to keep pointing at).
+  removeSnapshot()
   for (const { orgId, id } of deleted) {
     process.stdout.write(`Deleted seeded organisation ${orgId} (${id})\n`)
   }

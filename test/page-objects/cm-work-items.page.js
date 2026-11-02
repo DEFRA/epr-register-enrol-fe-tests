@@ -46,6 +46,27 @@ class CmWorkItemsPage extends Page {
     for (const remove of await this.activeFilterRemoveLinks) {
       if ((await remove.getText()).includes(label)) {
         await this.clickReliably(remove)
+        // The filter toggle is on the page being left as well, and
+        // clickReliably returns before the next page loads, so wait until the
+        // filter is gone from the page: until then the list read is still the
+        // filtered one.
+        await browser.waitUntil(
+          async () =>
+            (await browser.execute(
+              (text) =>
+                document.readyState === 'complete' &&
+                ![
+                  ...document.querySelectorAll(
+                    '[data-testid="active-filter-remove"]'
+                  )
+                ].some((link) => link.innerText.includes(text)),
+              label
+            )) === true,
+          {
+            timeout: 30000,
+            timeoutMsg: `The "${label}" filter was not removed`
+          }
+        )
         await this.organisationFilterToggle.waitForDisplayed({ timeout: 30000 })
         return
       }

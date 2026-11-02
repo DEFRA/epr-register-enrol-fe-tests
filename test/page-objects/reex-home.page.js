@@ -34,11 +34,29 @@ class ReexHomePage extends Page {
 
   async openReprocessing() {
     await this.clickReliably(this.reprocessingTab)
-    await this.waitUntilLoaded()
+    await this.waitForTab(false)
   }
 
   async openExporting() {
     await this.clickReliably(this.exportingTab)
+    await this.waitForTab(true)
+  }
+
+  // The tabs are separate pages, and the tab panel is on both, so waiting for
+  // the panel alone passes on the page being left: clickReliably returns
+  // before the next page loads, and the rows read would be the other tab's.
+  // Waiting for the tab's own URL, fully loaded, rules that out.
+  async waitForTab(exporting) {
+    await browser.waitUntil(
+      async () =>
+        new URL(await browser.getUrl()).pathname.endsWith('/exporting') ===
+          exporting &&
+        (await browser.execute(() => document.readyState)) === 'complete',
+      {
+        timeout: 30000,
+        timeoutMsg: `The ${exporting ? 'Exporting' : 'Reprocessing'} tab did not open`
+      }
+    )
     await this.waitUntilLoaded()
   }
 

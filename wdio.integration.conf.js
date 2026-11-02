@@ -12,8 +12,8 @@ import {
 // rather than this repo's docker-compose sandbox.
 //
 // On test, onPrepare first seeds an organisation with every material, linked
-// to a Defra ID user, with 200 overseas sites on its plastic exporter
-// registration, and lists it in .integration/created-organisations.jsonl.
+// to a Defra ID user, with a few overseas sites on some of its exporter
+// registrations, and lists it in .integration/created-organisations.jsonl.
 // Each test signs in as that user through the Defra ID stubs
 // (test/helpers/integration-organisation), and onComplete deletes every
 // organisation the file lists. SEEDED_ORGANISATION_ID reuses an organisation
@@ -64,7 +64,7 @@ export const config = {
   //
   // The test-environment scenarios go before reaccreditation-2027, which takes
   // whichever material is first still open, so that they get the ones they
-  // ask for (aluminium, and the material with 200 overseas sites).
+  // ask for (aluminium, and plastic for the overseas sites scenario).
   specs: [
     './test/specs/integration/seeded-organisation.integration.js',
     './test/specs/integration/reprocessor-submission.integration.js',

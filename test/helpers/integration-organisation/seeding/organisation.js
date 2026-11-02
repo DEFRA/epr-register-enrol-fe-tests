@@ -137,16 +137,17 @@ export async function migrateOrganisation(refNo) {
 // of a freshly migrated organisation can miss it.
 async function readOrganisationOnceMigrated(api, authHeader, refNo) {
   const deadline = Date.now() + 5000
-  let response
-  while (Date.now() < deadline) {
-    response = await api.get(`/v1/organisations/${refNo}`, authHeader)
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      break
+  for (;;) {
+    const response = await api.get(`/v1/organisations/${refNo}`, authHeader)
+    const succeeded = response.statusCode >= 200 && response.statusCode < 300
+    // The last response is left unread, so a failure reports its status and
+    // body rather than a body already consumed.
+    if (succeeded || Date.now() >= deadline) {
+      return assertSuccessResponse(response, `GET /v1/organisations/${refNo}`)
     }
     await response.body.dump()
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
-  return assertSuccessResponse(response, `GET /v1/organisations/${refNo}`)
 }
 
 // Statuses and numbers seed through the non-prod twin of the organisation

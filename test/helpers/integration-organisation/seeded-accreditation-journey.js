@@ -22,6 +22,8 @@ import { signInAsSeededOperator } from './sign-in.js'
 // through a long list of overseas reprocessing sites.
 
 // The application statuses a journey can still be driven to submission from.
+// SUBMITTED, UPDATED and QUERIED all mean somebody (a previous run, or a
+// regulator) has moved the application past the point a journey starts from.
 export const APPLICABLE_STATUSES = ['NOT STARTED', 'IN PROGRESS']
 
 const noCheck = async () => {}
@@ -33,14 +35,20 @@ const noCheck = async () => {}
  *
  * @param {'reprocessor' | 'exporter'} wasteProcessingType
  * @param {string[]} [preferred]
+ * @param {import('./seeded-organisation.js').SeededOrganisation} [organisation]
+ *   the organisation, when not the one seeded for the run
  */
-export function seededRegistrations(wasteProcessingType, preferred = []) {
+export function seededRegistrations(
+  wasteProcessingType,
+  preferred = [],
+  organisation = seededOrganisation()
+) {
   const rank = (registration) => {
     const index = preferred.indexOf(registration.material)
     return index === -1 ? preferred.length : index
   }
-  return seededOrganisation()
-    .registrations.filter(
+  return organisation.registrations
+    .filter(
       (registration) => registration.wasteProcessingType === wasteProcessingType
     )
     .sort(
@@ -456,8 +464,8 @@ async function interimSiteIds(orsId) {
  * overseas site takes one, so each of the rest goes on an accredited site
  * that has none yet, through that site's "Save and add interim site".
  *
- * @returns {Promise<{orsId: string, interimSites: {orsId: string, interimSiteId: string}[]}>}
- *   the new site's ORS id, and every interim site added with its ORS
+ * @returns {Promise<{orsId: string, interimSites: {orsId: string, interimSiteId: string, name: string}[]}>}
+ *   the new site's ORS id, and every interim site added with its ORS and name
  */
 export async function addNewSiteWithInterimSites(
   applicationId,
@@ -481,7 +489,8 @@ export async function addNewSiteWithInterimSites(
   await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsId)
   const interimSites = (await interimSiteIds(orsId)).map((interimSiteId) => ({
     orsId,
-    interimSiteId
+    interimSiteId,
+    name: interimSite.name
   }))
   expect(interimSites).toHaveLength(1)
 
@@ -528,17 +537,15 @@ export async function addNewSiteWithInterimSites(
       await AddOrsCyaPage.saveAndAddInterimSite()
     }
     // addInterimSite's own address, a German one, for the second and later.
-    await addInterimSite({
-      siteName: `${interimSite.name} ${n}`,
-      operationCodes: ['R12']
-    })
+    const name = `${interimSite.name} ${n}`
+    await addInterimSite({ siteName: name, operationCodes: ['R12'] })
 
     await OverseasReprocessingSitesPage.openInterimSiteDisclosure(host)
     const ids = await interimSiteIds(host)
     const known = interimSites.map(({ interimSiteId }) => interimSiteId)
     const added = ids.filter((id) => !known.includes(id))
     expect(added).toHaveLength(1)
-    interimSites.push({ orsId: host, interimSiteId: added[0] })
+    interimSites.push({ orsId: host, interimSiteId: added[0], name })
   }
 
   return { orsId, interimSites }

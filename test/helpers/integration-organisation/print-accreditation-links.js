@@ -2,6 +2,7 @@ import { parseArgs } from 'node:util'
 
 import { operatorAccreditationLinks } from './accreditation-links.js'
 import { loadOrganisation, seedOrganisation } from './seeded-organisation.js'
+import { registerWithRegisterEnrolDefraId } from './seeding/register-enrol-defra-id.js'
 
 // Seeds an organisation with every material (or reads one already seeded) and
 // prints the link into the accreditation journey for each registration.
@@ -21,6 +22,15 @@ try {
   const organisation = values['organisation-id']
     ? await loadOrganisation(values['organisation-id'])
     : await seedOrganisation({ email: values.email })
+  // The links sign in through epr-register-enrol-frontend's own Defra ID
+  // stub, which has to know the user and their Defra organisation, or they
+  // end in "You do not have access to this organisation".
+  if (organisation.defraOrganisation) {
+    await registerWithRegisterEnrolDefraId(
+      organisation.email,
+      organisation.defraOrganisation
+    )
+  }
 
   // One line per item, so each reads whole in CDP's log view.
   const links = operatorAccreditationLinks(organisation)

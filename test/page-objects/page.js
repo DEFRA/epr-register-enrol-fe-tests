@@ -74,6 +74,19 @@ class Page {
     const resolved = await element
     await browser.execute((el) => el.click(), resolved)
   }
+
+  // clickReliably returns before the next page loads, so anything read
+  // straight after it can come from the page being left. Called with the URL
+  // read before the click, this waits until the browser is on another page,
+  // fully loaded.
+  async waitToLeave(url) {
+    await browser.waitUntil(
+      async () =>
+        (await browser.getUrl()) !== url &&
+        (await browser.execute(() => document.readyState)) === 'complete',
+      { timeout: 30000, timeoutMsg: `Did not move on from ${url}` }
+    )
+  }
 }
 
 export { Page }
