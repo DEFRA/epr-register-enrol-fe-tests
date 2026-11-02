@@ -46,7 +46,8 @@ export async function prepareSeededOrganisation() {
     ? await loadOrganisation(reuseId)
     : await seedOrganisation({
         email: process.env.DEFRA_ID_EMAIL || undefined,
-        onCreated: recordCreatedOrganisation
+        onCreated: recordCreatedOrganisation,
+        onLinked: (linked) => logRunOrganisation('linked', linked)
       })
   if (!organisation.defraOrganisation) {
     throw new Error(

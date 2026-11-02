@@ -24,6 +24,8 @@ export const RUN_ORGANISATIONS_FILE = resolve(
 
 const STATUS_BY_EVENT = {
   created: 'kept',
+  // Its Defra ID user and organisation, once seeding has linked it.
+  linked: 'kept',
   reused: 'reused (never deleted)',
   deleted: 'deleted',
   'delete-failed': 'still on the environment: delete failed'
@@ -36,7 +38,7 @@ export function startRunOrganisationsLog() {
 }
 
 /**
- * @param {'created' | 'reused' | 'deleted' | 'delete-failed'} event
+ * @param {'created' | 'linked' | 'reused' | 'deleted' | 'delete-failed'} event
  * @param {{orgId: number, id?: string, email?: string, defraOrganisation?: {id: string, name: string} | null}} organisation
  * @param {string} [error] why a delete failed
  */

@@ -34,6 +34,7 @@ import {
 import { seedDefraLinkedOrganisation } from '../../helpers/integration-organisation/seeding/linked-organisation.js'
 import { addOverseasSites } from '../../helpers/integration-organisation/seeding/overseas-sites.js'
 import { registerWithRegisterEnrolDefraId } from '../../helpers/integration-organisation/seeding/register-enrol-defra-id.js'
+import { logRunOrganisation } from '../../helpers/integration-organisation/seeding/run-organisations.js'
 import {
   addOverseasSiteWithInterimSite,
   confirmOverseasSites,
@@ -73,9 +74,12 @@ import {
 // it builds on did not get as far as it needs. Every application is appended
 // to .integration/accreditation-applications.jsonl as it is submitted.
 //
-// The organisation is listed in .integration/created-organisations.jsonl as
-// soon as it exists, so should the clean-up here not happen (a crash, or
-// KEEP_SEEDED_ORGANISATIONS=true) the end of a later run deletes it instead.
+// Clean-up happens whether the tests pass or fail: the `after` hook runs
+// either way, even when the prerequisites themselves fail part-way. The
+// organisation is listed in .integration/created-organisations.jsonl the
+// moment it is created, so should the `after` not get to delete it (a failed
+// delete, a killed run, or KEEP_SEEDED_ORGANISATIONS=true), the end of this
+// run or of a later one deletes it instead.
 
 // Reprocessor materials to try first; then any.
 const REPROCESSOR_MATERIALS = ['aluminium']
@@ -330,9 +334,22 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
 
     // ── Prerequisites ───────────────────────────────────────────────────────
     const email = `reex-operator-${timestamp()}@example.com`
-    const seeded = await seedDefraLinkedOrganisation({ email })
-    seededOrgId = seeded.orgId
-    recordCreatedOrganisation({
+    // Recorded for clean-up the moment it exists, so the `after` below (or,
+    // failing that, the end of the run) deletes it even when the rest of the
+    // seeding fails.
+    const seeded = await seedDefraLinkedOrganisation({
+      email,
+      onCreated: ({ orgId, refNo }) => {
+        seededOrgId = orgId
+        recordCreatedOrganisation({
+          orgId,
+          id: refNo,
+          email,
+          defraOrganisation: null
+        })
+      }
+    })
+    logRunOrganisation('linked', {
       orgId: seeded.orgId,
       id: seeded.refNo,
       email,

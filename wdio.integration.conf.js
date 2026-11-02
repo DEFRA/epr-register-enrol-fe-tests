@@ -158,7 +158,14 @@ export const config = {
 
   onComplete: async function () {
     // Before the report, which rejects when it cannot be generated.
-    await deleteSeededOrganisations()
+    // Runs whether or not the tests passed. A clean-up that throws still
+    // leaves the organisations listed for the next run's clean-up, and the
+    // report below says which are still there.
+    try {
+      await deleteSeededOrganisations()
+    } catch (err) {
+      process.stdout.write(`Deleting the seeded organisations failed: ${err}\n`)
+    }
     // Every organisation the run touched, and whether it is still there to
     // delete, in the report's Environment section.
     reportRunOrganisations('allure-results')

@@ -40,9 +40,17 @@ function wasteProcessingTypeAnswer(dataRows) {
  * Applies for an organisation, then a registration (and accreditation) per
  * data row, then migrates the submission into an organisation.
  *
+ * @param {object[]} dataRows
+ * @param {object} [options]
+ * @param {(organisation: {orgId: number, refNo: string}) => void} [options.onCreated]
+ *   called as soon as the organisation exists, before anything else is
+ *   applied for, so a caller can record it for clean-up even if the rest fails
  * @returns {Promise<{orgId: number, refNo: string, organisation: Organisation, registrations: Registration[]}>}
  */
-export async function createLinkedOrganisation(dataRows) {
+export async function createLinkedOrganisation(
+  dataRows,
+  { onCreated = () => {} } = {}
+) {
   const api = new ReexApi()
 
   // A reprocessor applies as a sole trader unless the first row asks for a
@@ -64,6 +72,7 @@ export async function createLinkedOrganisation(dataRows) {
   const { orgId, referenceNumber: refNo } = JSON.parse(
     await assertStatus(response, 200, 'POST /v1/apply/organisation')
   )
+  onCreated({ orgId, refNo })
 
   const registrations = []
 
@@ -329,14 +338,17 @@ export async function approveMigratedRegistration(
  * Creates, migrates and approves an organisation in one call: one approved
  * registration and accreditation per data row, numbered in the Re/Ex format.
  * The organisation is given contactEmail (a random address when unset).
+ * onCreated is called as soon as it exists (see createLinkedOrganisation).
  *
  * @returns {Promise<{orgId: number, refNo: string, email: string, numbers: {regNumber: string, accNumber: string}[], registrationIds: string[], accreditationIds: string[]}>}
  */
 export async function createApprovedOrganisation(
   dataRows = [{ wasteProcessingType: 'Reprocessor', material: 'Plastic (R3)' }],
-  { contactEmail = process.env.ORG_CONTACT_EMAIL } = {}
+  { contactEmail = process.env.ORG_CONTACT_EMAIL, onCreated } = {}
 ) {
-  const { orgId, refNo } = await createLinkedOrganisation(dataRows)
+  const { orgId, refNo } = await createLinkedOrganisation(dataRows, {
+    onCreated
+  })
   const approved = await approveSeededOrganisation(refNo, dataRows, {
     contactEmail
   })

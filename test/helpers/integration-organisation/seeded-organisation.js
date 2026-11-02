@@ -50,17 +50,25 @@ const timestamp = () => new Date().toISOString().replace(/\D/g, '').slice(0, 14)
  * @param {object} [options]
  * @param {string} [options.email] the Defra ID user's email; a new
  *   example.com address when unset
- * @param {(organisation: {orgId: number, id: string, email: string, defraOrganisation: {id: string, name: string}}) => void} [options.onCreated]
- *   called as soon as the organisation exists, before its overseas sites are
- *   added, so a caller can record it for clean-up even if the rest fails
+ * @param {(organisation: {orgId: number, id: string, email: string, defraOrganisation: null}) => void} [options.onCreated]
+ *   called as soon as the organisation exists, before it is approved, linked
+ *   or given overseas sites, so a caller can record it for clean-up even if
+ *   the rest fails
+ * @param {(organisation: {orgId: number, id: string, email: string, defraOrganisation: {id: string, name: string}}) => void} [options.onLinked]
+ *   called once it is linked to its Defra ID user and organisation
  * @returns {Promise<SeededOrganisation>}
  */
 export async function seedOrganisation({
   email = `reex-operator-${timestamp()}@example.com`,
-  onCreated = () => {}
+  onCreated = () => {},
+  onLinked = () => {}
 } = {}) {
-  const seeded = await seedDefraLinkedOrganisation({ email })
-  onCreated({
+  const seeded = await seedDefraLinkedOrganisation({
+    email,
+    onCreated: ({ orgId, refNo }) =>
+      onCreated({ orgId, id: refNo, email, defraOrganisation: null })
+  })
+  onLinked({
     orgId: seeded.orgId,
     id: seeded.refNo,
     email,
