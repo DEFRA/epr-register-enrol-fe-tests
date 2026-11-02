@@ -85,8 +85,8 @@ export async function expectNoAccessibilityViolations(pageName = 'page') {
  * For a long journey that should not stop at its first accessibility failure:
  * check(pageName) runs axe on the current page the first time it is called
  * for that name, and collects any violations rather than throwing. A journey
- * through hundreds of overseas sites passes the same few pages hundreds of
- * times, and one check of each is enough. assertNoViolations() then fails with
+ * through several overseas sites passes the same few pages once per site,
+ * and one check of each is enough. assertNoViolations() then fails with
  * everything collected, from a test of its own.
  */
 export function createAccessibilityAudit() {

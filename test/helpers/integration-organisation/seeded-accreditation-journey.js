@@ -19,7 +19,7 @@ import { signInAsSeededOperator } from './sign-in.js'
 
 // Steps the test-environment scenarios share, on the organisation seeded for
 // the run: opening one particular registration's accreditation, and working
-// through a long list of overseas reprocessing sites.
+// through its overseas reprocessing sites.
 
 // The application statuses a journey can still be driven to submission from.
 // SUBMITTED, UPDATED and QUERIED all mean somebody (a previous run, or a
@@ -161,82 +161,11 @@ async function testIdSuffixes(selector, prefix) {
   return ids
 }
 
-// A few hundred sites take a while, so say how far through they are.
-function reportProgress(what, done, total) {
-  if (done % 10 === 0 || done === total) {
-    process.stdout.write(`${what} ${done} of ${total}\n`)
-  }
-}
-
-// Chrome now and then drops a long-lived session ("invalid session id: the
-// browser has closed the connection"), and a few hundred sites is several
-// hundred page loads. So the site loops below start a fresh session every
-// SESSION_RECYCLE_EVERY sites, and, should a session still be lost, resume in
-// a new one and redo the site it was on.
-const SESSION_RECYCLE_EVERY = 40
-
-// A lost session, or the network briefly dropping out from under it (the
-// environment is reached over the Defra VPN, and its DNS now and then fails to
-// resolve for a few seconds).
-const sessionLost = (err) =>
-  /invalid session id|browser has closed|session deleted|not reachable|disconnected|net::ERR_/i.test(
-    String(err?.message ?? err)
-  )
-
-const RESUME_ATTEMPTS = 3
-const RESUME_WAIT = 15000
-
-async function resumeWithRetries(resumeSession) {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      await resumeSession()
-      return
-    } catch (err) {
-      if (attempt >= RESUME_ATTEMPTS || !sessionLost(err)) {
-        throw err
-      }
-      process.stdout.write(
-        `Resuming the browser session failed (${String(err.message).split('\n')[0]}); trying again\n`
-      )
-      await new Promise((resolve) => setTimeout(resolve, RESUME_WAIT))
-    }
-  }
-}
-
-/**
- * Runs `doSite` for each of `sites` in turn. With `resumeSession` (which must
- * leave the browser signed in on the application's landing page), the browser
- * session is recycled every SESSION_RECYCLE_EVERY sites, and a site whose
- * session is lost is redone once in a new one: `doSite(site, {retrying: true})`.
- */
-async function forEachSite(sites, label, doSite, resumeSession) {
-  for (const [index, site] of sites.entries()) {
-    if (resumeSession && index > 0 && index % SESSION_RECYCLE_EVERY === 0) {
-      await resumeWithRetries(resumeSession)
-    }
-    try {
-      await doSite(site, { retrying: false })
-    } catch (err) {
-      if (!resumeSession || !sessionLost(err)) {
-        throw err
-      }
-      process.stdout.write(
-        `Browser session lost at ${label.toLowerCase()} ${site.id}; resuming in a new one\n`
-      )
-      await resumeWithRetries(resumeSession)
-      await doSite(site, { retrying: true })
-    }
-    reportProgress(label, index + 1, sites.length)
-  }
-}
-
-// Submits the form the browser is on and waits for it to leave that page.
+// Submits the form the browser is on and waits for the next page to load.
 async function continueFrom(page) {
   const from = await browser.getUrl()
   await page.continue()
-  await browser.waitUntil(async () => (await browser.getUrl()) !== from, {
-    timeoutMsg: `Continuing did not leave ${from}`
-  })
+  await page.waitToLeave(from)
 }
 
 /**
@@ -248,12 +177,11 @@ async function continueFrom(page) {
  *
  * @param {string} applicationId
  * @param {object} [options]
- * @param {() => Promise<void>} [options.resumeSession] see forEachSite
  * @returns {Promise<string[]>} the ORS ids added
  */
 export async function addRegisteredSitesToAccreditation(
   applicationId,
-  { baselCode = 'B3011', checkPage = noCheck, resumeSession } = {}
+  { baselCode = 'B3011', checkPage = noCheck } = {}
 ) {
   await openSelectOverseasSites(applicationId)
   await checkPage('Select overseas sites')
@@ -269,29 +197,13 @@ export async function addRegisteredSitesToAccreditation(
     })
   }
 
-  await forEachSite(
-    links,
-    'Added registered site',
-    async ({ id, href }, { retrying }) => {
-      if (retrying) {
-        // The lost session may have got as far as adding it.
-        await openSelectOverseasSites(applicationId)
-        if (
-          !(await OverseasReprocessingSitesPage.addToAccreditationButton(
-            id
-          ).isExisting())
-        ) {
-          return
-        }
-      }
-      await browser.url(new URL(href, await frontendOrigin()).toString())
-      await expect(browser).toHaveUrl(
-        expect.stringContaining('/check-your-answers')
-      )
-      await completeSiteDetails(applicationId, id, { baselCode, checkPage })
-    },
-    resumeSession
-  )
+  for (const { id, href } of links) {
+    await browser.url(new URL(href, await frontendOrigin()).toString())
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await completeSiteDetails(applicationId, id, { baselCode, checkPage })
+  }
 
   await openSelectOverseasSites(applicationId)
   for (const { id } of links) {
@@ -393,12 +305,11 @@ async function completeSiteDetails(
  *
  * @param {string} applicationId
  * @param {object} [options]
- * @param {() => Promise<void>} [options.resumeSession] see forEachSite
  * @returns {Promise<string[]>} the ORS ids completed
  */
 export async function completeIncompleteOverseasSites(
   applicationId,
-  { baselCode = 'B3011', checkPage = noCheck, resumeSession } = {}
+  { baselCode = 'B3011', checkPage = noCheck } = {}
 ) {
   const completed = []
   for (let pass = 0; pass < 3; pass++) {
@@ -414,27 +325,14 @@ export async function completeIncompleteOverseasSites(
       return completed
     }
 
-    await forEachSite(
-      incomplete,
-      'Completed incomplete site',
-      async ({ id, href }, { retrying }) => {
-        if (retrying) {
-          // The lost session may have got as far as completing it.
-          await openSelectOverseasSites(applicationId)
-          if (!(await $(`[data-testid$="-incomplete-${id}"]`).isExisting())) {
-            completed.push(id)
-            return
-          }
-        }
-        await browser.url(new URL(href, await frontendOrigin()).toString())
-        await expect(browser).toHaveUrl(
-          expect.stringContaining('/check-your-answers')
-        )
-        await completeSiteDetails(applicationId, id, { baselCode, checkPage })
-        completed.push(id)
-      },
-      resumeSession
-    )
+    for (const { id, href } of incomplete) {
+      await browser.url(new URL(href, await frontendOrigin()).toString())
+      await expect(browser).toHaveUrl(
+        expect.stringContaining('/check-your-answers')
+      )
+      await completeSiteDetails(applicationId, id, { baselCode, checkPage })
+      completed.push(id)
+    }
   }
 
   await openSelectOverseasSites(applicationId)
@@ -475,7 +373,13 @@ export async function addNewSiteWithInterimSites(
   const prefix = 'new-site-row-'
   const before = await testIdSuffixes(`[data-testid^="${prefix}"]`, prefix)
 
-  await addOverseasSiteWithInterimSite({ site, interimSite })
+  // Every interim site is numbered, from 1, so no name is part of another's
+  // and each can be looked for on its own.
+  const interimSiteName = (n) => `${interimSite.name} ${n}`
+  await addOverseasSiteWithInterimSite({
+    site,
+    interimSite: { ...interimSite, name: interimSiteName(1) }
+  })
   await checkPage('Select overseas sites with interim site')
 
   const after = await testIdSuffixes(`[data-testid^="${prefix}"]`, prefix)
@@ -490,7 +394,7 @@ export async function addNewSiteWithInterimSites(
   const interimSites = (await interimSiteIds(orsId)).map((interimSiteId) => ({
     orsId,
     interimSiteId,
-    name: interimSite.name
+    name: interimSiteName(1)
   }))
   expect(interimSites).toHaveLength(1)
 
@@ -537,7 +441,7 @@ export async function addNewSiteWithInterimSites(
       await AddOrsCyaPage.saveAndAddInterimSite()
     }
     // addInterimSite's own address, a German one, for the second and later.
-    const name = `${interimSite.name} ${n}`
+    const name = interimSiteName(n)
     await addInterimSite({ siteName: name, operationCodes: ['R12'] })
 
     await OverseasReprocessingSitesPage.openInterimSiteDisclosure(host)

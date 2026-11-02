@@ -106,7 +106,7 @@ const UPDATED_BUSINESS_PLAN = [25, 25, 20, 10, 10, 5, 5]
 const UPDATED_SAMPLING_PLAN = 'sampling-plan-query-response'
 
 // Test 2: the new overseas site added when applying, and its interim sites
-// (the second and later named after the first, with a number).
+// (named after SUBMISSION_INTERIM_SITE, numbered from 1).
 const SUBMISSION_SITE = {
   name: 'Penang Paper Reprocessing Sdn Bhd',
   location: {
@@ -515,8 +515,13 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
   })
 
   it('Test 2: should apply for exporter accreditation', async () => {
+    // Paper only: it is the one seeded with the overseas sites the journey
+    // adds to and builds on, so falling back to another material would only
+    // fail later, and less clearly.
     await applyForAccreditation(
-      seededRegistrations('exporter', [EXPORTER_MATERIAL], organisation),
+      seededRegistrations('exporter', [EXPORTER_MATERIAL], organisation).filter(
+        ({ material }) => material === EXPORTER_MATERIAL
+      ),
       { isExporter: true, completeTasks: completeExporterTasks }
     )
   })

@@ -84,10 +84,6 @@ export const config = {
     {
       maxInstances: 1,
       browserName: 'chrome',
-      // WebDriver BiDi lost track of the page's browsing context over the
-      // exporter scenario's long session (hundreds of page loads), until the
-      // renderer hung and Chrome dropped the session. Classic WebDriver holds.
-      'wdio:enforceWebDriverClassic': true,
       // No pinned chromedriver binary, unlike wdio.local.conf.js: this config
       // runs on a developer machine against whatever Chrome is installed
       // there, so wdio's own driver management is left to match the two.
@@ -107,11 +103,10 @@ export const config = {
 
   bail: 0,
 
-  // Chrome now and then drops a long session ("invalid session id: the
-  // browser has closed the connection"), which the exporter scenario's
-  // hundreds of page loads are most exposed to. Its journey resumes where it
-  // stopped (the same in-progress application, finished sites skipped), so
-  // one rerun in a fresh browser carries it through.
+  // The deployed environment is reached over the Defra VPN, which now and then
+  // drops out from under a run. The seeded-organisation journeys resume where
+  // they stopped (the same in-progress application, finished tasks skipped),
+  // so one rerun in a fresh browser carries them through.
   specFileRetries: 1,
 
   // The Re-Ex frontend, where the journey starts. The register-enrol frontend

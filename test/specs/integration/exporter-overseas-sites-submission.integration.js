@@ -13,7 +13,6 @@ import {
   addNewSiteWithInterimSites,
   addRegisteredSitesToAccreditation,
   completeIncompleteOverseasSites,
-  openSeededAccreditation,
   seededRegistrations,
   startFirstApplicableAccreditation
 } from '../../helpers/integration-organisation/seeded-accreditation-journey.js'
@@ -29,7 +28,7 @@ import { accreditationYear } from '../../config.js'
 // registered; or the exporter material with the most sites once that one has
 // been applied for). They add
 // its registered sites to the accreditation, complete every incomplete site,
-// add a new site with four interim sites, upload BES evidence wherever it is
+// add a new site with two interim sites, upload BES evidence wherever it is
 // required, complete the other tasks and submit.
 //
 // Each page type is also checked for accessibility, once, the first time the
@@ -67,7 +66,9 @@ const INTERIM_SITE = {
   }
 }
 
-const INTERIM_SITE_COUNT = 4
+// Two: with one interim site allowed per overseas site, as on test, the second
+// goes on an accredited site, and a retry needs some still free.
+const INTERIM_SITE_COUNT = 2
 
 // A handful of sites, a new one and its interim sites, each completed through
 // the browser page by page.
@@ -101,19 +102,11 @@ describe(`Exporter accreditation ${accreditationYear} with overseas sites - test
       checkPage
     })
 
-    // A fresh browser session, signed back in to this application, for the
-    // site loops to carry on in (see forEachSite).
-    const resumeSession = async () => {
-      await browser.reloadSession()
-      await openSeededAccreditation(registration)
-    }
     const added = await addRegisteredSitesToAccreditation(applicationId, {
-      checkPage,
-      resumeSession
+      checkPage
     })
     const completed = await completeIncompleteOverseasSites(applicationId, {
-      checkPage,
-      resumeSession
+      checkPage
     })
     process.stdout.write(
       `Added ${added.length} registered site(s), completed ${completed.length} incomplete site(s)\n`
