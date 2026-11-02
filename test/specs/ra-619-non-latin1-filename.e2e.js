@@ -1,12 +1,14 @@
 import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
-import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import TaskListPage from 'page-objects/tasklist.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
 import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
-import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
+import {
+  completePrnBusinessPlanSamplingPlan,
+  startDisposableGlassExporterApplication
+} from '../helpers/accreditation-journey.js'
 import { completeOverseasSites } from '../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
@@ -47,25 +49,8 @@ describe('RA-619: uploads with filenames outside Latin-1 @docker-only', () => {
   })
 
   it('lists a Vietnamese-named sampling plan and a CJK-named BES evidence file exactly as uploaded', async () => {
-    await OperatorPage.navigateToExporterAccreditationGlass()
-    const [, organisationId, registrationId, materialType] = new URL(
-      await browser.getUrl()
-    ).pathname
-      .split('/')
-      .filter(Boolean)
-    const year = String(3000 + (Date.now() % 1000))
-    await browser.url(
-      `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
-    )
-
-    await OperatorAccreditationPage.clickContinue()
-    await browser.waitUntil(
-      async () => (await browser.getUrl()).includes(TASK_LIST_PATH),
-      { timeout: 10000, timeoutMsg: 'Did not reach task list' }
-    )
-    const applicationId = (await browser.getUrl())
-      .split(TASK_LIST_PATH)[1]
-      .split('?')[0]
+    const { organisationId, applicationId } =
+      await startDisposableGlassExporterApplication()
 
     // Sampling plan flow: the page object asserts the name is listed as given.
     await completePrnBusinessPlanSamplingPlan({

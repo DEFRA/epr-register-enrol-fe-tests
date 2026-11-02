@@ -30,6 +30,10 @@ class SamplingPlanPage extends Page {
     return $('[data-testid="upload-another-file-link"]')
   }
 
+  get fileError() {
+    return $('[data-testid="file-error"]')
+  }
+
   get fileRows() {
     return $$('[data-testid="file-row"]')
   }
@@ -38,9 +42,12 @@ class SamplingPlanPage extends Page {
     return $(`[data-testid="file-document-type"]*=${text}`)
   }
 
-  // `baseName` (RA-619) uploads the fixture under that name instead of its own, and
-  // then asserts the results page shows it exactly as chosen.
-  async uploadFile(filename, documentType = 'SamplingPlan', { baseName } = {}) {
+  // Selects the document type and file and submits, without asserting an outcome.
+  async attemptUpload(
+    filename,
+    documentType = 'SamplingPlan',
+    { baseName } = {}
+  ) {
     const filePath = uniqueFixtureCopy(filename, { baseName })
     let uploadPath
     try {
@@ -53,6 +60,12 @@ class SamplingPlanPage extends Page {
     await this.fileInput.waitForExist()
     await this.fileInput.setValue(uploadPath)
     await this.clickReliably(this.uploadFileButton)
+  }
+
+  // `baseName` (RA-619) uploads the fixture under that name instead of its own, and
+  // then asserts the results page shows it exactly as chosen.
+  async uploadFile(filename, documentType = 'SamplingPlan', { baseName } = {}) {
+    await this.attemptUpload(filename, documentType, { baseName })
     // RA-290 AC04: upload -> checking -> results is now three separate pages.
     // The browser follows the checking page's meta-refresh redirects on its
     // own. Wait for a positive success signal (a listed file, no error

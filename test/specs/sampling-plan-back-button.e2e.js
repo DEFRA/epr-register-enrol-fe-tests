@@ -136,7 +136,7 @@ describe('RA-436: S&I plan upload page vs the browser back button @docker-only',
     // claims — so clicking upload with nothing (re-)selected must be
     // rejected, not silently resubmit the previous file.
     await SamplingPlanPage.uploadFileButton.click()
-    await expect($('[data-testid="file-error"]')).toBeDisplayed()
+    await expect(SamplingPlanPage.fileError).toBeDisplayed()
 
     // Confirm no duplicate ever landed: exactly the one file uploaded
     // before the back navigation is on the results page.
