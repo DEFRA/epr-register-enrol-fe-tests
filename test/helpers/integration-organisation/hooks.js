@@ -9,6 +9,11 @@ import {
   recordCreatedOrganisation
 } from './seeding/created-organisations.js'
 import { registerWithRegisterEnrolDefraId } from './seeding/register-enrol-defra-id.js'
+import {
+  logRunOrganisation,
+  startRunOrganisationsLog,
+  writeRunOrganisationsToAllure
+} from './seeding/run-organisations.js'
 
 // Only test has everything seeding needs: the dev endpoints that migrate,
 // approve and delete an organisation, and the Defra ID stubs to sign in
@@ -31,6 +36,7 @@ const seedsHere = () => SEEDS_IN.includes(process.env.ENVIRONMENT)
  */
 export async function prepareSeededOrganisation() {
   const environment = process.env.ENVIRONMENT
+  startRunOrganisationsLog()
   if (!seedsHere()) {
     return
   }
@@ -52,6 +58,9 @@ export async function prepareSeededOrganisation() {
     organisation.defraOrganisation
   )
   writeSnapshot(organisation)
+  if (reuseId) {
+    logRunOrganisation('reused', organisation)
+  }
 
   process.stdout.write(
     `${reuseId ? 'Reusing' : 'Seeded'} organisation ${organisation.orgId} ` +
@@ -84,6 +93,22 @@ export async function deleteSeededOrganisations() {
     process.stdout.write(
       `Could not delete seeded organisation ${organisation.orgId} (${organisation.id}); ` +
         `it stays in ${CREATED_ORGANISATIONS_FILE} for the next run: ${error}\n`
+    )
+  }
+}
+
+/**
+ * wdio onComplete hook, after deleteSeededOrganisations: lists every
+ * organisation the run created or reused, and whether it was deleted, in the
+ * Allure report's Environment section, and says the same on the console.
+ *
+ * @param {string} resultsDir the allure-results directory
+ */
+export function reportRunOrganisations(resultsDir) {
+  for (const organisation of writeRunOrganisationsToAllure(resultsDir)) {
+    process.stdout.write(
+      `Organisation ${organisation.orgId} (${organisation.id}) on ${organisation.environment}, ` +
+        `Defra ID user ${organisation.email}: ${organisation.status}\n`
     )
   }
 }

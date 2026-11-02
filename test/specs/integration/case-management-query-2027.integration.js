@@ -9,6 +9,7 @@ import ReexRegistrationPage from 'page-objects/reex-registration.page'
 import { QUERY_SECTIONS } from 'page-objects/cm-query.page'
 import {
   approveWorkItem,
+  confirmApplicantContact,
   dulyMakeWorkItem,
   findWorkItem,
   queryWorkItem,
@@ -243,9 +244,17 @@ describe(`Case management query and determination ${accreditationYear} - integra
       note: 'All queried sections were updated and are satisfactory.'
     })
 
+    // The determination is two steps: approving leaves it Approved, pending
+    // contact, and confirming the applicant has been contacted grants it.
+    await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.approved)
+    await expect(CmWorkItemPage.pendingContactBanner).toBeDisplayed()
+
+    await confirmApplicantContact()
     await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.granted)
     await expect(CmWorkItemPage.flashBanner).toHaveText(
-      expect.stringContaining('Decision logged: Approved')
+      expect.stringContaining(
+        'The applicant has been contacted and accreditation is granted.'
+      )
     )
     await expect(CmWorkItemPage.decisionMetadata).toBeDisplayed()
 

@@ -1,4 +1,5 @@
 import { browser, expect } from '@wdio/globals'
+import allureReporter from '@wdio/allure-reporter'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import CmWorkItemPage from 'page-objects/cm-work-item.page'
 import CmWorkItemsPage from 'page-objects/cm-work-items.page'
@@ -11,6 +12,7 @@ import { accreditationYear } from '../../config.js'
 import {
   WORK_ITEM_STATES,
   approveWorkItem,
+  confirmApplicantContact,
   dulyMakeWorkItem,
   findWorkItem,
   queryWorkItem,
@@ -56,10 +58,16 @@ import {
 //   Test 2         apply for exporter accreditation, record the application
 //   Test 3         case management: duly make and query the reprocessor
 //                  application; operator: update the queried sections and
-//                  resubmit; case management: see the changes and approve
+//                  resubmit; case management: see the changes, approve it
+//                  (Approved) and confirm the applicant has been contacted
+//                  (Granted); operator: the application reads Granted
 //   Test 4         the same for the exporter application, querying its
 //                  overseas sites and BES evidence
 //   Clean up       delete the organisation
+//
+// The organisation, and each application as it is submitted, is attached to
+// the Allure report; the run's onComplete also lists every organisation it
+// touched, and whether it was deleted, in the report's Environment section.
 //
 // The tests share the organisation and run in order: each skips when the one
 // it builds on did not get as far as it needs. Every application is appended
@@ -115,9 +123,7 @@ const INTERIM_SITE = {
   }
 }
 
-const APPROVAL_NOTE =
-  'All queried sections were updated and are satisfactory. ' +
-  'The operator has been contacted to confirm the decision.'
+const APPROVAL_NOTE = 'All queried sections were updated and are satisfactory.'
 
 const timestamp = () => new Date().toISOString().replace(/\D/g, '').slice(0, 14)
 
@@ -179,6 +185,21 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
       applicationId,
       applicationReference
     }
+    allureReporter.addAttachment(
+      `${registration.wasteProcessingType} application`,
+      JSON.stringify(
+        {
+          applicationId,
+          applicationReference,
+          material: registration.glassRecyclingProcess ?? registration.material,
+          registrationNumber: registration.registrationNumber,
+          orgId: organisation.orgId
+        },
+        null,
+        2
+      ),
+      'application/json'
+    )
   }
 
   /**
@@ -220,6 +241,9 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
       organisation
     )
     expect(status).toBe('QUERIED')
+    // The landing page, to come back to once the application is granted,
+    // when the registration may no longer offer the hand-off link to it.
+    application.landingUrl = await browser.getUrl()
     await OperatorAccreditationPage.clickContinue()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/query-task-list/')
@@ -245,14 +269,58 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
     await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.updated)
   }
 
-  /** Case management: approves the work item, which is then Granted. */
-  async function approve() {
+  /**
+   * Case management: the two-step determination. Approving leaves the work
+   * item Approved, pending contact; confirming the applicant has been
+   * contacted then grants it.
+   */
+  async function approveAndConfirmContact() {
     await approveWorkItem({ note: APPROVAL_NOTE })
+    await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.approved)
+    await expect(CmWorkItemPage.pendingContactBanner).toBeDisplayed()
+
+    await confirmApplicantContact()
     await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.granted)
     await expect(CmWorkItemPage.flashBanner).toHaveText(
-      expect.stringContaining('Decision logged: Approved')
+      expect.stringContaining(
+        'The applicant has been contacted and accreditation is granted.'
+      )
     )
+    await expect(CmWorkItemPage.pendingContactBanner).not.toBeExisting()
     await expect(CmWorkItemPage.decisionMetadata).toBeDisplayed()
+  }
+
+  /**
+   * Operator: the application reads Granted on its landing page. Case
+   * management pushes the status to the operator side, so it is read again
+   * until it arrives.
+   */
+  async function expectGrantedForOperator(application) {
+    let status
+    await browser.waitUntil(
+      async () => {
+        status = await openSeededAccreditation(
+          application.registration,
+          organisation
+        )
+        if (status === null) {
+          await browser.url(application.landingUrl)
+          await OperatorAccreditationPage.applicationStatus.waitForDisplayed({
+            timeout: 30000
+          })
+          status = await OperatorAccreditationPage.applicationStatus.getText()
+        }
+        return status.includes('GRANTED')
+      },
+      {
+        timeout: 2 * 60 * 1000,
+        interval: 10000,
+        timeoutMsg: `${application.applicationReference} did not read GRANTED for the operator`
+      }
+    )
+    await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
+      expect.stringContaining('GRANTED')
+    )
   }
 
   before(async function () {
@@ -271,6 +339,25 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
       defraOrganisation: { id: seeded.defraOrgId, name: seeded.defraOrgName }
     })
     defraIdUserId = seeded.defraUserId
+    allureReporter.addAttachment(
+      'Organisation',
+      JSON.stringify(
+        {
+          orgId: seeded.orgId,
+          id: seeded.refNo,
+          environment: process.env.ENVIRONMENT,
+          defraIdEmail: email,
+          defraIdUserId: seeded.defraUserId,
+          defraOrganisation: {
+            id: seeded.defraOrgId,
+            name: seeded.defraOrgName
+          }
+        },
+        null,
+        2
+      ),
+      'application/json'
+    )
     process.stdout.write(
       `Seeded organisation ${seeded.orgId} (${seeded.refNo}) linked to Defra ID ` +
         `user ${email} and organisation ${seeded.defraOrgId}\n`
@@ -309,7 +396,7 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
     )
   })
 
-  it('Test 3: should query, update and approve the reprocessor application', async function () {
+  it('Test 3: should query, update and grant the reprocessor application', async function () {
     const application = applications.reprocessor
     if (!application) {
       this.skip()
@@ -340,10 +427,11 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
       $('[data-testid="app-detail-value-sampling-inspection-plan"]')
     ).toHaveText(expect.stringContaining(UPDATED_SAMPLING_PLAN))
 
-    await approve()
+    await approveAndConfirmContact()
+    await expectGrantedForOperator(application)
   })
 
-  it('Test 4: should query, update and approve the exporter application', async function () {
+  it('Test 4: should query, update and grant the exporter application', async function () {
     const application = applications.exporter
     if (!application) {
       this.skip()
@@ -384,7 +472,8 @@ describe(`Accreditation workflow ${accreditationYear} on a new organisation - te
       expect.stringContaining(NEW_SITE.name)
     )
 
-    await approve()
+    await approveAndConfirmContact()
+    await expectGrantedForOperator(application)
   })
 
   // ── Clean up ────────────────────────────────────────────────────────────

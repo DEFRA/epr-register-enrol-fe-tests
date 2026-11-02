@@ -9,6 +9,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { ReexApi, assertSuccessResponse } from './api.js'
+import { logRunOrganisation } from './run-organisations.js'
 
 // A flat file of every organisation an integrated run has seeded and not yet
 // deleted, one JSON object per line. Seeding appends to it as soon as an
@@ -19,6 +20,9 @@ import { ReexApi, assertSuccessResponse } from './api.js'
 // clean-up retries it, as does one left behind by a run that died before it
 // got to clean up. Organisations reused through SEEDED_ORGANISATION_ID are
 // never listed: only what a run created is a run's to delete.
+//
+// Each organisation created or deleted is also logged for the run's Allure
+// report (run-organisations.js).
 
 export const CREATED_ORGANISATIONS_FILE = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -57,6 +61,7 @@ export function recordCreatedOrganisation(organisation) {
       createdAt: new Date().toISOString()
     })}\n`
   )
+  logRunOrganisation('created', organisation)
 }
 
 /**
@@ -85,9 +90,11 @@ export async function deleteCreatedOrganisations() {
         `DELETE /v1/dev/organisations/${organisation.orgId}`
       )
       deleted.push(organisation)
+      logRunOrganisation('deleted', organisation)
     } catch (err) {
       failed.push({ organisation, error: err.message })
       kept.push(organisation)
+      logRunOrganisation('delete-failed', organisation, err.message)
     }
   }
 
@@ -107,10 +114,16 @@ export async function deleteCreatedOrganisations() {
  * @param {number} orgId
  */
 export async function deleteCreatedOrganisation(orgId) {
-  await assertSuccessResponse(
-    await new ReexApi().delete(`/v1/dev/organisations/${orgId}`),
-    `DELETE /v1/dev/organisations/${orgId}`
-  )
+  try {
+    await assertSuccessResponse(
+      await new ReexApi().delete(`/v1/dev/organisations/${orgId}`),
+      `DELETE /v1/dev/organisations/${orgId}`
+    )
+  } catch (err) {
+    logRunOrganisation('delete-failed', { orgId }, err.message)
+    throw err
+  }
+  logRunOrganisation('deleted', { orgId })
   const kept = readCreatedOrganisations().filter(
     (organisation) =>
       organisation.orgId !== orgId ||

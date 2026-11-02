@@ -3,7 +3,8 @@ import allure from 'allure-commandline'
 import { reexFrontendUrl } from './test/config.js'
 import {
   deleteSeededOrganisations,
-  prepareSeededOrganisation
+  prepareSeededOrganisation,
+  reportRunOrganisations
 } from './test/helpers/integration-organisation/hooks.js'
 
 // Local integration run against a deployed environment (ENVIRONMENT, dev by
@@ -158,6 +159,9 @@ export const config = {
   onComplete: async function () {
     // Before the report, which rejects when it cannot be generated.
     await deleteSeededOrganisations()
+    // Every organisation the run touched, and whether it is still there to
+    // delete, in the report's Environment section.
+    reportRunOrganisations('allure-results')
 
     const reportError = new Error('Could not generate Allure report')
     const generation = allure(['generate', 'allure-results', '--clean'])

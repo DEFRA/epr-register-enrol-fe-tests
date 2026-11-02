@@ -5,6 +5,7 @@ import CmWorkItemPage from 'page-objects/cm-work-item.page'
 import CmDulyMakePage from 'page-objects/cm-duly-make.page'
 import CmQueryPage from 'page-objects/cm-query.page'
 import CmDecisionPage from 'page-objects/cm-decision.page'
+import CmConfirmContactPage from 'page-objects/cm-confirm-contact.page'
 
 // Work item states as the case management list and case header render them.
 // "Not started" is the state a freshly submitted application arrives in — the
@@ -15,6 +16,8 @@ export const WORK_ITEM_STATES = {
   dulyMade: 'Duly made',
   queried: 'Queried',
   updated: 'Updated',
+  // An approved determination still waiting on "Confirm applicant contact".
+  approved: 'Approved',
   granted: 'Granted'
 }
 
@@ -95,14 +98,29 @@ export async function queryWorkItem({ sections, reason }) {
 }
 
 /**
- * Logs the final determination on the work item. Approving issues the
- * accreditation and moves the work item to Granted; it cannot be undone.
+ * Logs the determination on the work item, the first of its two steps.
+ * Approving mints the accreditation and moves the work item to Approved, where
+ * it waits for confirmApplicantContact; it cannot be undone.
  */
 export async function approveWorkItem({ note } = {}) {
   await CmWorkItemPage.startDetermination()
   await expect(browser).toHaveUrl(expect.stringContaining('/decision'))
 
   await CmDecisionPage.approve({ note })
+
+  await CmWorkItemPage.waitUntilLoaded()
+}
+
+/**
+ * The second step of the determination: confirms the applicant has been
+ * contacted about it, which applies it. An Approved work item moves to
+ * Granted. Leaves the browser on the work item.
+ */
+export async function confirmApplicantContact() {
+  await CmWorkItemPage.startConfirmApplicantContact()
+  await expect(browser).toHaveUrl(expect.stringContaining('/confirm-contact'))
+
+  await CmConfirmContactPage.confirmContacted()
 
   await CmWorkItemPage.waitUntilLoaded()
 }
