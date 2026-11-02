@@ -8,11 +8,13 @@ import { seededMaterial, seededOrganisation } from './seeded-organisation.js'
  * Signs in to the Re-Ex frontend through the Defra ID stub as the seeded
  * organisation's operator, and lands on its home page.
  *
+ * @param {import('./seeded-organisation.js').SeededOrganisation} [organisation]
+ *   another organisation to sign in to instead, e.g. one a spec seeded itself
  * @returns {Promise<import('./seeded-organisation.js').SeededOrganisation>}
  */
-export async function signInAsSeededOperator() {
-  const organisation = seededOrganisation()
-
+export async function signInAsSeededOperator(
+  organisation = seededOrganisation()
+) {
   await ReexStartPage.open()
   await ReexStartPage.clickStart()
   await DefraIdStubPage.signIn(organisation.email)

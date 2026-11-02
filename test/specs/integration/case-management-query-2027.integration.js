@@ -22,9 +22,18 @@ import {
   uploadOutstandingBesEvidence
 } from '../../helpers/query-response-journey.js'
 import { signInToReex } from '../../helpers/reex-reaccreditation.js'
+import {
+  handOffToRegisterEnrol,
+  hasSeededOrganisation,
+  seededOrganisation
+} from '../../helpers/integration-organisation/index.js'
 import { accreditationYear } from '../../config.js'
 
-const ORGANISATION = process.env.CASE_MANAGEMENT_ORGANISATION || 'Feeney'
+// The organisation whose work item is worked: on test, the one seeded for the
+// run, whose exporter application the earlier specs submitted.
+const caseManagementOrganisation = () =>
+  process.env.CASE_MANAGEMENT_ORGANISATION ||
+  (hasSeededOrganisation() ? seededOrganisation().name : 'Feeney')
 
 // Case management and the Re-Ex grid name the same material differently, and
 // not just in punctuation: "Paper or board" against "Paper and board",
@@ -103,7 +112,7 @@ describe(`Case management query and determination ${accreditationYear} - integra
     await signInToCaseManagement()
 
     const workItem = await findWorkItem({
-      organisation: ORGANISATION,
+      organisation: caseManagementOrganisation(),
       applicantType: 'Exporter',
       state: WORK_ITEM_STATES.notStarted
     })
@@ -148,7 +157,11 @@ describe(`Case management query and determination ${accreditationYear} - integra
     }
 
     await ReexHomePage.openMaterial(row)
-    await ReexRegistrationPage.applyForAccreditation(accreditationYear)
+    if (hasSeededOrganisation()) {
+      await handOffToRegisterEnrol(accreditationYear)
+    } else {
+      await ReexRegistrationPage.applyForAccreditation(accreditationYear)
+    }
 
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       'QUERIED'

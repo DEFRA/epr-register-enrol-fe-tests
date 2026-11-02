@@ -20,11 +20,16 @@ const SNAPSHOT_FILE = resolve(
   '../../../.integration/seeded-organisation.json'
 )
 
+// The exporter material given a full page of overseas reprocessing sites (200,
+// as an operator migrating a large export network would have), which the
+// exporter scenario completes, adds to and submits.
+export const MANY_SITES_MATERIAL = 'plastic'
+
 // Exporter materials given overseas reprocessing sites, so the accreditation
 // journey's select-overseas-sites page has accredited sites to show and
 // registered ones to add.
 const OVERSEAS_SITES = [
-  { material: 'plastic', accredited: 2, registered: 1 },
+  { material: MANY_SITES_MATERIAL, accredited: 120, registered: 80 },
   { material: 'paper', accredited: 2, registered: 1 },
   { material: 'aluminium', accredited: 1, registered: 2 },
   {
@@ -40,17 +45,27 @@ const timestamp = () => new Date().toISOString().replace(/\D/g, '').slice(0, 14)
 /**
  * Seeds a Companies House organisation approved to reprocess and export every
  * material, linked to a Defra ID user, with overseas sites on a few of its
- * exporter registrations.
+ * exporter registrations (200 on MANY_SITES_MATERIAL).
  *
  * @param {object} [options]
  * @param {string} [options.email] the Defra ID user's email; a new
  *   example.com address when unset
+ * @param {(organisation: {orgId: number, id: string, email: string, defraOrganisation: {id: string, name: string}}) => void} [options.onCreated]
+ *   called as soon as the organisation exists, before its overseas sites are
+ *   added, so a caller can record it for clean-up even if the rest fails
  * @returns {Promise<SeededOrganisation>}
  */
 export async function seedOrganisation({
-  email = `reex-operator-${timestamp()}@example.com`
+  email = `reex-operator-${timestamp()}@example.com`,
+  onCreated = () => {}
 } = {}) {
   const seeded = await seedDefraLinkedOrganisation({ email })
+  onCreated({
+    orgId: seeded.orgId,
+    id: seeded.refNo,
+    email,
+    defraOrganisation: { id: seeded.defraOrgId, name: seeded.defraOrgName }
+  })
   await addOverseasSites(seeded.refNo, OVERSEAS_SITES)
   return loadOrganisation(seeded.refNo)
 }
@@ -82,6 +97,7 @@ export async function loadOrganisation(id) {
   return {
     id: data.id,
     orgId: data.orgId,
+    name: data.companyDetails?.name ?? null,
     status: data.status,
     email: data.submitterContactDetails.email,
     defraOrganisation: data.linkedDefraOrganisation
@@ -199,6 +215,7 @@ export function seededMaterial({
  * @typedef {object} SeededOrganisation
  * @property {string} id
  * @property {number} orgId
+ * @property {string | null} name the company name, as case management lists it
  * @property {string} status
  * @property {string} email the linked Defra ID user's
  * @property {{id: string, name: string} | null} defraOrganisation

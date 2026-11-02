@@ -5,6 +5,11 @@ class BusinessPlanCheckAnswersPage extends Page {
     return $('h1')
   }
 
+  // The percentage given to each spending category.
+  get summaryList() {
+    return $('[data-testid="percent-summary-list"]')
+  }
+
   get confirmAndContinueButton() {
     return $('button=Confirm and continue')
   }

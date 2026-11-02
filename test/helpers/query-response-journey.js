@@ -19,6 +19,10 @@ import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-l
 import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
 import AddInterimSiteRecyclingOperationPage from 'page-objects/add-interim-site-recycling-operation.page'
 import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
+import BusinessPlanPage from 'page-objects/business-plan.page'
+import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
+import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
+import SamplingPlanPage from 'page-objects/sampling-plan.page'
 
 const EVIDENCE_FIXTURE = 'business-plan.pdf'
 
@@ -39,7 +43,7 @@ export async function addOverseasSiteWithInterimSite({
   site,
   interimSite,
   additionalCodes = ['R12', 'R13'],
-  interimRecyclingOperationCodes,
+  interimRecyclingOperationCodes = ['R12'],
   baselCodes = ['B1010'],
   repatriatedLoads = 'No repatriated loads are expected for this site.'
 }) {
@@ -153,6 +157,62 @@ export async function confirmOverseasSites() {
     expect.stringContaining('/confirm-overseas-sites')
   )
   await ConfirmOverseasSitesPage.confirmAndContinue()
+}
+
+const waitForQueryTaskList = () =>
+  browser.waitUntil(
+    async () =>
+      (await browser.getUrl()).includes('/accreditation/query-task-list/'),
+    { timeout: 30000, timeoutMsg: 'Did not return to the query task list' }
+  )
+
+/**
+ * From the query task list, answers a queried business plan again with the
+ * given percentages (one per spending category, adding up to 100). Saving it
+ * goes back through the classic task list, which redirects to the query task
+ * list while the application is Queried; leaves the browser there.
+ *
+ * @param {number[]} percentages
+ */
+export async function updateQueriedBusinessPlan(percentages) {
+  await QueryTaskListPage.taskLink('task-business-plan').click()
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/accreditation/business-plan/')
+  )
+  await BusinessPlanPage.fillPercentages(percentages)
+  await BusinessPlanPage.saveAndContinue()
+
+  // The details and check-your-answers pages follow only when the section
+  // asks for them again.
+  let heading = await $('h1').getText()
+  if (heading === "Add more details about how you'll spend the PRN income") {
+    await BusinessPlanDetailPage.fillDescriptions()
+    await BusinessPlanDetailPage.saveAndContinue()
+    heading = await $('h1').getText()
+  }
+  if (heading === 'Check your answers before continuing') {
+    await BusinessPlanCheckAnswersPage.confirmAndContinue()
+  }
+  await waitForQueryTaskList()
+}
+
+/**
+ * From the query task list, uploads a further sampling and inspection plan
+ * under `baseName` (made unique by a suffix), so the regulator can tell it
+ * from the one first submitted. Leaves the browser on the query task list.
+ *
+ * @param {string} baseName
+ */
+export async function updateQueriedSamplingPlan(baseName) {
+  await QueryTaskListPage.taskLink('task-sampling-plan').click()
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/accreditation/sampling-plan/')
+  )
+  await SamplingPlanPage.uploadFile(EVIDENCE_FIXTURE, 'SamplingPlan', {
+    baseName
+  })
+  await SamplingPlanPage.saveAndContinue()
+  await waitForQueryTaskList()
 }
 
 /** Uploads BES evidence for every site still showing "Not uploaded". */

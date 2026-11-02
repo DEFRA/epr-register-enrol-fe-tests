@@ -30,17 +30,26 @@ export async function signInToCaseManagement() {
  * @param {string} options.organisation   Organisation name to search for.
  * @param {string} options.applicantType  e.g. 'Exporter'.
  * @param {string} options.state          One of WORK_ITEM_STATES.
+ * @param {string} [options.reference]    The application reference, to pick
+ *   out one particular application rather than the first of its type.
  * @returns {Promise<{workItemId: string, reference: string, state: string,
  *   material: string, applicantType: string}>}
  */
-export async function findWorkItem({ organisation, applicantType, state }) {
+export async function findWorkItem({
+  organisation,
+  applicantType,
+  state,
+  reference
+}) {
   await CmWorkItemsPage.open()
   await CmWorkItemsPage.filterByOrganisation(organisation)
 
   const workItems = await CmWorkItemsPage.workItems()
   const match = workItems.find(
     (workItem) =>
-      workItem.applicantType.includes(applicantType) && workItem.state === state
+      workItem.applicantType.includes(applicantType) &&
+      workItem.state === state &&
+      (!reference || workItem.reference === reference)
   )
 
   if (!match) {
@@ -48,7 +57,7 @@ export async function findWorkItem({ organisation, applicantType, state }) {
       .map((w) => `${w.reference} ${w.applicantType} ${w.state}`)
       .join('\n  ')
     throw new Error(
-      `No ${applicantType} work item for "${organisation}" is in ${state}. ` +
+      `No ${applicantType} work item${reference ? ` ${reference}` : ''} for "${organisation}" is in ${state}. ` +
         `The list holds:\n  ${listed || '(nothing)'}`
     )
   }
