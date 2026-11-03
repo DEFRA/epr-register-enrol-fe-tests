@@ -34,8 +34,10 @@ import {
 // through the platform's chromedriver (CHROMEDRIVER_URL) and egress proxy
 // (HTTP_PROXY), adding to the same allure-results and FAILED.
 
-const debug = process.env.DEBUG
-const headed = process.env.HEADED === 'true' || Boolean(debug)
+// Only "true" counts: any other value set in the environment (DEBUG=false,
+// or a debug-module pattern such as DEBUG=*) leaves the run headless.
+const debug = process.env.DEBUG === 'true'
+const headed = process.env.HEADED === 'true' || debug
 const oneMinute = 60 * 1000
 
 const execArgv = ['--loader', 'esm-module-alias/loader']
@@ -63,8 +65,9 @@ if (!headed) {
 export const config = {
   runner: 'local',
 
-  // The CDP test-suite container's chromedriver. Left unset locally, so wdio
-  // starts a driver for the installed Chrome.
+  // A remote chromedriver: the CDP test-suite container's (entrypoint.sh sets
+  // CHROMEDRIVER_URL there). Left unset locally, so wdio starts a driver for
+  // the installed Chrome.
   ...(process.env.CHROMEDRIVER_URL && {
     hostname: process.env.CHROMEDRIVER_URL,
     port: Number(process.env.CHROMEDRIVER_PORT) || 4444
