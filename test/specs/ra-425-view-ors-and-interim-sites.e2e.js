@@ -27,7 +27,7 @@ import {
  * rather than "the first row" or a page-wide count (see ra-603's warnings about
  * shared state): mongo is not reset between runs.
  *
- * Needs MANAGE_OVERSEAS_SITES_ENABLED on the frontend, and docker-only because
+ * Needs IN_YEAR_CHANGES_ENABLED on the frontend, and docker-only because
  * deployed environments have no such seed.
  */
 

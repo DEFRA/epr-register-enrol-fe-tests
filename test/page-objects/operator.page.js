@@ -125,7 +125,7 @@ class OperatorPage extends Page {
   // specifically for ra-425.e2e.js. The backend's dev seed gives it an
   // Approved accreditation for the current year, with ORSs and interim sites,
   // and no other spec drives it. The link is only listed while the RA-425
-  // flag (MANAGE_OVERSEAS_SITES_ENABLED) is on.
+  // flag (IN_YEAR_CHANGES_ENABLED) is on.
   async navigateToManageDashboardExporter() {
     await this.clickAndWaitForNextPage(
       $('[data-testid="manage-dashboard-exporter-link"]')
