@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+
 import allure from 'allure-commandline'
 
 import { reexFrontendUrl } from './test/config.js'
@@ -27,6 +29,10 @@ import {
 // Requires network access to *.cdp-int.defra.cloud (Defra VPN). Unlike every
 // other config here it needs no local stack, so there is no service health
 // check before the run.
+//
+// On CDP, entrypoint.sh runs it after the main suite when ENVIRONMENT is test,
+// through the platform's chromedriver (CHROMEDRIVER_URL) and egress proxy
+// (HTTP_PROXY), adding to the same allure-results and FAILED.
 
 const debug = process.env.DEBUG
 const headed = process.env.HEADED === 'true' || Boolean(debug)
@@ -57,6 +63,13 @@ if (!headed) {
 export const config = {
   runner: 'local',
 
+  // The CDP test-suite container's chromedriver. Left unset locally, so wdio
+  // starts a driver for the installed Chrome.
+  ...(process.env.CHROMEDRIVER_URL && {
+    hostname: process.env.CHROMEDRIVER_URL,
+    port: Number(process.env.CHROMEDRIVER_PORT) || 4444
+  }),
+
   // Listed in order rather than globbed: the case management journey acts on a
   // work item that the exporter reapplication creates by submitting, and a
   // glob sorts case-management-* ahead of reaccreditation-*, so it used to run
@@ -83,6 +96,13 @@ export const config = {
   capabilities: [
     {
       maxInstances: 1,
+      ...(process.env.HTTP_PROXY && {
+        proxy: {
+          proxyType: 'manual',
+          httpProxy: new URL(process.env.HTTP_PROXY).host,
+          sslProxy: new URL(process.env.HTTP_PROXY).host
+        }
+      }),
       browserName: 'chrome',
       // No pinned chromedriver binary, unlike wdio.local.conf.js: this config
       // runs on a developer machine against whatever Chrome is installed
@@ -143,7 +163,29 @@ export const config = {
 
   // Seeding takes a few minutes of API calls, so it is done once, before any
   // worker starts, rather than per spec.
-  onPrepare: prepareSeededOrganisation,
+  //
+  // wdio only logs an error thrown here and runs the specs anyway, which then
+  // all skip for want of an organisation and pass. So stop the run instead,
+  // first deleting whatever seeding got as far as creating. (Throwing wdio's
+  // SevereServiceError would stop it too, but only the copy of webdriverio
+  // nested under @wdio/cli, not the one this config can import.)
+  onPrepare: async function () {
+    try {
+      await prepareSeededOrganisation()
+    } catch (err) {
+      process.stdout.write(
+        `Seeding the organisation failed, so no tests were run: ${err?.stack ?? err}\n`
+      )
+      try {
+        await deleteSeededOrganisations()
+      } catch (cleanupErr) {
+        process.stdout.write(
+          `Deleting the seeded organisations failed: ${cleanupErr}\n`
+        )
+      }
+      process.exit(1)
+    }
+  },
 
   afterTest: async function (_test, _context, { error }) {
     if (error) {
@@ -151,7 +193,13 @@ export const config = {
     }
   },
 
-  onComplete: async function () {
+  onComplete: async function (_exitCode, _config, _capabilities, results) {
+    // Required for test status to show correctly in the CDP portal. Appended,
+    // as on CDP the main suite may already have written one.
+    if (results?.failed && results.failed > 0) {
+      fs.appendFileSync('FAILED', JSON.stringify(results) + '\n')
+    }
+
     // Before the report, which rejects when it cannot be generated.
     // Runs whether or not the tests passed. A clean-up that throws still
     // leaves the organisations listed for the next run's clean-up, and the

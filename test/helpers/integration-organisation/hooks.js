@@ -38,9 +38,9 @@ const seedsHere = () => SEEDS_IN.includes(process.env.ENVIRONMENT)
 export async function prepareSeededOrganisation() {
   const environment = process.env.ENVIRONMENT
   startRunOrganisationsLog()
-  // Whatever an earlier run left: off test, or should seeding fail part-way,
-  // the specs then find no organisation and skip rather than sign in as one
-  // that has been deleted.
+  // Whatever an earlier run left: off test the specs then find no
+  // organisation and skip rather than sign in as one that has been deleted.
+  // Should seeding fail, wdio.integration.conf.js stops the run.
   removeSnapshot()
   if (!seedsHere()) {
     return
