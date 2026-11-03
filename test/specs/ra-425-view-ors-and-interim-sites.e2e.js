@@ -18,9 +18,9 @@ import {
  * for this spec. The backend's dev seed (DevExporterAccreditationSeedService,
  * on in this stack via DevSeedData__Enabled) gives its Plastic registration an
  * Approved accreditation for the current calendar year:
- *   - ORS 001 Rotterdam: Calais (current), Antwerp (shared with 002) and
+ *   - ORS 001 Rotterdam: Calais (current), Antwerp (also used by 002) and
  *     Old Depot (removed - must never show)
- *   - ORS 002 Bharat: Antwerp
+ *   - ORS 002 Bharat: its own copy of Antwerp
  *   - ORS 003 Berlin: no interim sites, so no disclosure
  *   - ORS 004 Dragon: registered, not accredited
  * Nothing here writes, but every read is still scoped to these seeded site ids
@@ -46,12 +46,16 @@ const ORS = {
   berlin: 901806,
   dragon: 901807
 }
-const INTERIM = { calais: 901802, antwerp: 901803, oldDepot: 901804 }
+const INTERIM = {
+  calais: 901802,
+  antwerpForRotterdam: 901803,
+  oldDepot: 901804,
+  antwerpForBharat: 901808
+}
 
-// The references are derived per environment (and differ slightly between the
-// backend seed and the frontend stub), so check their shape, not their value.
-const REGISTRATION_NUMBER = /^R\d{2}EX\d+PL$/
-const ACCREDITATION_NUMBER = /^A\d{2}EX\d+PL$/
+// The registration keeps the year it was issued; the accreditation is for YEAR.
+const REGISTRATION_NUMBER = 'R26EX0500180001PL'
+const ACCREDITATION_NUMBER = `A${String(YEAR).slice(-2)}EX0500180001PL`
 
 const urlEndingWith = (path) =>
   expect.stringMatching(new RegExp(`${path.replaceAll('/', '\\/')}(\\?.*)?$`))
@@ -184,7 +188,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       ).toHaveText('Show interim sites (2)')
       expect(
         await ManageOverseasSitesPage.interimSiteIdsIn(ORS.rotterdam)
-      ).toEqual([String(INTERIM.calais), String(INTERIM.antwerp)])
+      ).toEqual([String(INTERIM.calais), String(INTERIM.antwerpForRotterdam)])
       await expectInterimSite(
         ORS.rotterdam,
         INTERIM.calais,
@@ -192,23 +196,23 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       )
       await expectInterimSite(
         ORS.rotterdam,
-        INTERIM.antwerp,
+        INTERIM.antwerpForRotterdam,
         'Antwerp Transfer Hub, Belgium, R3, R13'
       )
       await expect(
         ManageOverseasSitesPage.interimSiteRow(INTERIM.oldDepot)
       ).not.toBeExisting()
 
-      // ORS 002: the interim site it shares with ORS 001 shows here too.
+      // ORS 002: its own copy of the site ORS 001 also uses.
       await expect(
         ManageOverseasSitesPage.interimSiteDisclosureSummary(ORS.bharat)
       ).toHaveText('Show interim sites (1)')
       expect(
         await ManageOverseasSitesPage.interimSiteIdsIn(ORS.bharat)
-      ).toEqual([String(INTERIM.antwerp)])
+      ).toEqual([String(INTERIM.antwerpForBharat)])
       await expectInterimSite(
         ORS.bharat,
-        INTERIM.antwerp,
+        INTERIM.antwerpForBharat,
         'Antwerp Transfer Hub, Belgium, R3, R13'
       )
 

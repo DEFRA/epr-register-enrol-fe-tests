@@ -7,9 +7,8 @@ import { browser } from '@wdio/globals'
 // duplicated so the two can't drift apart.
 //
 // The disclosure selectors take the PARENT ORS's id; the row selectors take
-// the INTERIM site's own id. An interim site shared between ORSs renders once
-// under each of them with the same id, so a spec that needs a particular
-// ORS's copy reads it within that ORS's disclosure (interimSiteRowIn).
+// the INTERIM site's own id, which is unique application-wide. A physical site
+// used by several ORSs has a separate copy, with its own id, under each.
 const withInterimSiteDisclosure = (Base) =>
   class extends Base {
     interimSiteRow(interimSiteId) {
@@ -36,8 +35,10 @@ const withInterimSiteDisclosure = (Base) =>
     }
 
     // The interim-site ids listed under ONE ORS, in page order. Read within
-    // that ORS's own <details>, never page-wide: other ORSs' interim sites
-    // (and a shared site's other copies) would otherwise be counted too.
+    // that ORS's own <details>, never page-wide: the accreditation is shared
+    // between specs and mongo is not reset between runs, so a page-wide read
+    // also counts other ORSs' and other tests' interim sites - which is what
+    // once made ra-603's `toHaveLength(2)` receive 4, then 8 on a second run.
     async interimSiteIdsIn(siteId) {
       await this.openInterimSiteDisclosure(siteId)
 
