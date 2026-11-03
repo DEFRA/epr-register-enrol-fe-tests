@@ -1,12 +1,11 @@
 import { browser, expect } from '@wdio/globals'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import TaskListPage from 'page-objects/tasklist.page'
-import SubmitApplicationPage from 'page-objects/submit-application.page'
-import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import {
   completeOutstandingTasks,
   findApplicableMaterial,
-  signInToReex
+  signInToReex,
+  submitAndAssertConfirmation
 } from '../../helpers/reex-reaccreditation.js'
 import { accreditationYear } from '../../config.js'
 
@@ -95,53 +94,3 @@ describe(`Re-Ex reaccreditation ${accreditationYear} - integration`, () => {
     await submitAndAssertConfirmation(material)
   })
 })
-
-async function submitAndAssertConfirmation(material) {
-  await expect(browser).toHaveUrl(
-    expect.stringContaining('/accreditation/submit-declaration/')
-  )
-  await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
-  await SubmitApplicationPage.submitApplication()
-
-  // A rejected submission re-renders on the declaration URL, either with a
-  // validation summary or as the generic "Sorry, there is a problem with the
-  // service" page, so a bare URL assertion would only report "still on
-  // submit-declaration". Wait for the page to change, then say what it shows.
-  await browser.waitUntil(
-    async () =>
-      (await SubmitApplicationPage.pageHeading.getText()) !== 'Declaration' ||
-      (await $('.govuk-error-summary').isExisting()),
-    { timeout: 60000, timeoutMsg: 'Submitting the declaration did nothing' }
-  )
-  const url = await browser.getUrl()
-  if (!url.includes('/accreditation/submit-confirmation/')) {
-    const heading = await SubmitApplicationPage.pageHeading.getText()
-    const body = await $('main').getText()
-    throw new Error(
-      `Submission was rejected at ${new Date().toISOString()} (${url}):\n` +
-        `${heading}\n${body}`
-    )
-  }
-  await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
-    'Now pay the application charge'
-  )
-  await expect(ApplicationSubmittedPage.panel).toHaveText(
-    expect.stringContaining(`Application reference for ${material}`)
-  )
-
-  const reference = await ApplicationSubmittedPage.referenceNumber.getText()
-  expect(reference).toMatch(
-    new RegExp(`^AP${accreditationYear.slice(-2)}[A-Z]{2}`)
-  )
-
-  // Payment details are rendered inline on the confirmation page (RA-290 AC06),
-  // with the charge and the regulator's bank details filled in for whichever
-  // nation the registration belongs to.
-  await expect(ApplicationSubmittedPage.amountDue).toBeDisplayed()
-  await expect(ApplicationSubmittedPage.bankSortCode).toBeDisplayed()
-  await expect(ApplicationSubmittedPage.bankAccountNumber).toBeDisplayed()
-  await expect(ApplicationSubmittedPage.bankPaymentReference).not.toHaveText('')
-  await expect(ApplicationSubmittedPage.contactRegulatorHeading).toHaveText(
-    'Contact your regulator'
-  )
-}

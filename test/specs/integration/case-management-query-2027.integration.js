@@ -9,6 +9,7 @@ import ReexRegistrationPage from 'page-objects/reex-registration.page'
 import { QUERY_SECTIONS } from 'page-objects/cm-query.page'
 import {
   approveWorkItem,
+  confirmApplicantContact,
   dulyMakeWorkItem,
   findWorkItem,
   queryWorkItem,
@@ -22,9 +23,18 @@ import {
   uploadOutstandingBesEvidence
 } from '../../helpers/query-response-journey.js'
 import { signInToReex } from '../../helpers/reex-reaccreditation.js'
+import {
+  handOffToRegisterEnrol,
+  hasSeededOrganisation,
+  seededOrganisation
+} from '../../helpers/integration-organisation/index.js'
 import { accreditationYear } from '../../config.js'
 
-const ORGANISATION = process.env.CASE_MANAGEMENT_ORGANISATION || 'Feeney'
+// The organisation whose work item is worked: on test, the one seeded for the
+// run, whose exporter application the earlier specs submitted.
+const caseManagementOrganisation = () =>
+  process.env.CASE_MANAGEMENT_ORGANISATION ||
+  (hasSeededOrganisation() ? seededOrganisation().name : 'Feeney')
 
 // Case management and the Re-Ex grid name the same material differently, and
 // not just in punctuation: "Paper or board" against "Paper and board",
@@ -103,7 +113,7 @@ describe(`Case management query and determination ${accreditationYear} - integra
     await signInToCaseManagement()
 
     const workItem = await findWorkItem({
-      organisation: ORGANISATION,
+      organisation: caseManagementOrganisation(),
       applicantType: 'Exporter',
       state: WORK_ITEM_STATES.notStarted
     })
@@ -148,7 +158,11 @@ describe(`Case management query and determination ${accreditationYear} - integra
     }
 
     await ReexHomePage.openMaterial(row)
-    await ReexRegistrationPage.applyForAccreditation(accreditationYear)
+    if (hasSeededOrganisation()) {
+      await handOffToRegisterEnrol(accreditationYear)
+    } else {
+      await ReexRegistrationPage.applyForAccreditation(accreditationYear)
+    }
 
     await expect(OperatorAccreditationPage.applicationStatus).toHaveText(
       'QUERIED'
@@ -230,9 +244,17 @@ describe(`Case management query and determination ${accreditationYear} - integra
       note: 'All queried sections were updated and are satisfactory.'
     })
 
+    // The determination is two steps: approving leaves it Approved, pending
+    // contact, and confirming the applicant has been contacted grants it.
+    await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.approved)
+    await expect(CmWorkItemPage.pendingContactBanner).toBeDisplayed()
+
+    await confirmApplicantContact()
     await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.granted)
     await expect(CmWorkItemPage.flashBanner).toHaveText(
-      expect.stringContaining('Decision logged: Approved')
+      expect.stringContaining(
+        'The applicant has been contacted and accreditation is granted.'
+      )
     )
     await expect(CmWorkItemPage.decisionMetadata).toBeDisplayed()
 

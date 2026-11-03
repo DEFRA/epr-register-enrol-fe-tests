@@ -13,12 +13,11 @@ import AddOrsBaselCodesPage from 'page-objects/add-ors-basel-codes.page'
 import AddOrsRepatriatedLoadsPage from 'page-objects/add-ors-repatriated-loads.page'
 import AddOrsConditionsOfExportPage from 'page-objects/add-ors-conditions-of-export.page'
 import AddOrsCyaPage from 'page-objects/add-ors-cya.page'
-import AddInterimSiteCountryPage from 'page-objects/add-interim-site-country.page'
-import AddInterimSiteSiteNamePage from 'page-objects/add-interim-site-site-name.page'
-import AddInterimSiteSiteLocationPage from 'page-objects/add-interim-site-site-location.page'
-import AddInterimSiteSiteContactPage from 'page-objects/add-interim-site-site-contact.page'
-import AddInterimSiteRecyclingOperationPage from 'page-objects/add-interim-site-recycling-operation.page'
-import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
+import BusinessPlanPage from 'page-objects/business-plan.page'
+import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
+import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
+import SamplingPlanPage from 'page-objects/sampling-plan.page'
+import { addInterimSite } from './interim-site-journey.js'
 
 const EVIDENCE_FIXTURE = 'business-plan.pdf'
 
@@ -39,7 +38,7 @@ export async function addOverseasSiteWithInterimSite({
   site,
   interimSite,
   additionalCodes = ['R12', 'R13'],
-  interimRecyclingOperationCodes,
+  interimRecyclingOperationCodes = ['R12'],
   baselCodes = ['B1010'],
   repatriatedLoads = 'No repatriated loads are expected for this site.'
 }) {
@@ -76,7 +75,9 @@ export async function addOverseasSiteWithInterimSite({
 
   await expect(browser).toHaveUrl(expect.stringContaining('/repatriated-loads'))
   await AddOrsRepatriatedLoadsPage.enterDescription(repatriatedLoads)
+  const repatriatedLoadsUrl = await browser.getUrl()
   await AddOrsRepatriatedLoadsPage.continue()
+  await AddOrsRepatriatedLoadsPage.waitToLeave(repatriatedLoadsUrl)
 
   // Only asked for materials that can meet them (aluminium and steel), so this
   // page is stepped over when it isn't part of the wizard.
@@ -94,52 +95,12 @@ export async function addOverseasSiteWithInterimSite({
   await AddOrsCyaPage.saveAndAddInterimSite()
 
   await addInterimSite({
-    interimSite,
-    recyclingOperationCodes: interimRecyclingOperationCodes
+    siteName: interimSite.name,
+    country: interimSite.country,
+    location: interimSite.location,
+    contact: interimSite.contact,
+    operationCodes: interimRecyclingOperationCodes
   })
-}
-
-async function addInterimSite({ interimSite, recyclingOperationCodes }) {
-  await expect(browser).toHaveUrl(expect.stringContaining('/country'))
-  await AddInterimSiteCountryPage.enterCountry(interimSite.country)
-  await AddInterimSiteCountryPage.continue()
-
-  await expect(browser).toHaveUrl(expect.stringContaining('/site-name'))
-  await AddInterimSiteSiteNamePage.enterSiteName(interimSite.name)
-  await AddInterimSiteSiteNamePage.continue()
-
-  await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
-  await AddInterimSiteSiteLocationPage.enterLocation(interimSite.location)
-  await AddInterimSiteSiteLocationPage.continue()
-
-  await expect(browser).toHaveUrl(
-    expect.stringContaining('/site-contact-details')
-  )
-  await AddInterimSiteSiteContactPage.enterContactDetails(interimSite.contact)
-  await AddInterimSiteSiteContactPage.continue()
-
-  await expect(browser).toHaveUrl(
-    expect.stringContaining('/recycling-operation-details')
-  )
-  await AddInterimSiteRecyclingOperationPage.selectOperationCodes(
-    recyclingOperationCodes
-  )
-  await AddInterimSiteRecyclingOperationPage.continue()
-
-  await expect(browser).toHaveUrl(
-    expect.stringContaining('/check-your-answers')
-  )
-  // The row, not value-recycling-operation: the deployed interim
-  // check-your-answers page renders only row-recycling-operation, and the row
-  // text carries the codes.
-  await expect(AddInterimSiteCyaPage.recyclingOperationRow).toHaveText(
-    expect.stringContaining(recyclingOperationCodes.join(', '))
-  )
-  await AddInterimSiteCyaPage.submit()
-
-  await expect(browser).toHaveUrl(
-    expect.stringContaining('/select-overseas-sites')
-  )
   await expect(
     OverseasReprocessingSitesPage.interimSiteSuccessBanner
   ).toBeDisplayed()
@@ -153,6 +114,66 @@ export async function confirmOverseasSites() {
     expect.stringContaining('/confirm-overseas-sites')
   )
   await ConfirmOverseasSitesPage.confirmAndContinue()
+}
+
+const waitForQueryTaskList = () =>
+  browser.waitUntil(
+    async () =>
+      (await browser.getUrl()).includes('/accreditation/query-task-list/'),
+    { timeout: 30000, timeoutMsg: 'Did not return to the query task list' }
+  )
+
+/**
+ * From the query task list, answers a queried business plan again with the
+ * given percentages (one per spending category, adding up to 100). Saving it
+ * goes back through the classic task list, which redirects to the query task
+ * list while the application is Queried; leaves the browser there.
+ *
+ * @param {number[]} percentages
+ */
+export async function updateQueriedBusinessPlan(percentages) {
+  await QueryTaskListPage.taskLink('task-business-plan').click()
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/accreditation/business-plan/')
+  )
+  await BusinessPlanPage.fillPercentages(percentages)
+  const businessPlanUrl = await browser.getUrl()
+  await BusinessPlanPage.saveAndContinue()
+  await BusinessPlanPage.waitToLeave(businessPlanUrl)
+
+  // The details and check-your-answers pages follow only when the section
+  // asks for them again.
+  let heading = await $('h1').getText()
+  if (heading === "Add more details about how you'll spend the PRN income") {
+    await BusinessPlanDetailPage.fillDescriptions()
+    const detailUrl = await browser.getUrl()
+    await BusinessPlanDetailPage.saveAndContinue()
+    await BusinessPlanDetailPage.waitToLeave(detailUrl)
+    heading = await $('h1').getText()
+  }
+  if (heading === 'Check your answers before continuing') {
+    await BusinessPlanCheckAnswersPage.confirmAndContinue()
+  }
+  await waitForQueryTaskList()
+}
+
+/**
+ * From the query task list, uploads a further sampling and inspection plan
+ * under `baseName` (made unique by a suffix), so the regulator can tell it
+ * from the one first submitted. Leaves the browser on the query task list.
+ *
+ * @param {string} baseName
+ */
+export async function updateQueriedSamplingPlan(baseName) {
+  await QueryTaskListPage.taskLink('task-sampling-plan').click()
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/accreditation/sampling-plan/')
+  )
+  await SamplingPlanPage.uploadFile(EVIDENCE_FIXTURE, 'SamplingPlan', {
+    baseName
+  })
+  await SamplingPlanPage.saveAndContinue()
+  await waitForQueryTaskList()
 }
 
 /** Uploads BES evidence for every site still showing "Not uploaded". */

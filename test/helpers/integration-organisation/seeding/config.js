@@ -81,9 +81,22 @@ function defraIdUri() {
     : `http://localhost:${process.env.DEFRA_ID_STUB_PORT || 3200}`
 }
 
+// epr-register-enrol-frontend signs operators in through a Defra ID stub of
+// its own, separate from the Re-Ex one above, so a seeded user has to be
+// registered with both to follow the hand-off into the accreditation journey.
+function registerEnrolDefraIdUri() {
+  return environment
+    ? `https://epr-register-enrol-defra-id-stub.${environment}.cdp-int.defra.cloud`
+    : null
+}
+
 export default {
   adminUri: adminUri(),
   defraIdUri: defraIdUri(),
+  registerEnrolDefraIdUri: registerEnrolDefraIdUri(),
+  registerEnrolFrontendUri: environment
+    ? `https://epr-register-enrol-frontend.${environment}.cdp-int.defra.cloud`
+    : null,
   apiUri: apiUri(),
   apiHeaders: xApiKey ? { 'x-api-key': xApiKey } : {},
   authUri: authUri(),

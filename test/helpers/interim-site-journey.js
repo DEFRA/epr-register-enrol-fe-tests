@@ -171,6 +171,17 @@ export async function createOrsWithInterimSite({
 export async function addInterimSite({
   siteName,
   country = 'Germany',
+  location = {
+    addressLine1: 'Entkopplungsweg 2',
+    townOrCity: 'Munich',
+    stateOrRegion: 'Bavaria',
+    postcode: '80331'
+  },
+  contact = {
+    name: 'Interim Contact',
+    email: 'interim@ra603.example.com',
+    phone: '+49 89 7654322'
+  },
   operationCodes = ['R12']
 }) {
   await expect(browser).toHaveUrl(expect.stringContaining('/country'))
@@ -182,22 +193,13 @@ export async function addInterimSite({
   await AddInterimSiteSiteNamePage.continue()
 
   await expect(browser).toHaveUrl(expect.stringContaining('/site-location'))
-  await AddInterimSiteSiteLocationPage.enterLocation({
-    addressLine1: 'Entkopplungsweg 2',
-    townOrCity: 'Munich',
-    stateOrRegion: 'Bavaria',
-    postcode: '80331'
-  })
+  await AddInterimSiteSiteLocationPage.enterLocation(location)
   await AddInterimSiteSiteLocationPage.continue()
 
   await expect(browser).toHaveUrl(
     expect.stringContaining('/site-contact-details')
   )
-  await AddInterimSiteSiteContactPage.enterContactDetails({
-    name: 'Interim Contact',
-    email: 'interim@ra603.example.com',
-    phone: '+49 89 7654322'
-  })
+  await AddInterimSiteSiteContactPage.enterContactDetails(contact)
   await AddInterimSiteSiteContactPage.continue()
 
   await expect(browser).toHaveUrl(
@@ -210,6 +212,12 @@ export async function addInterimSite({
 
   await expect(browser).toHaveUrl(
     expect.stringContaining('/check-your-answers')
+  )
+  // The row, not value-recycling-operation: the deployed interim
+  // check-your-answers page renders only row-recycling-operation, and the row
+  // text carries the codes.
+  await expect(AddInterimSiteCyaPage.recyclingOperationRow).toHaveText(
+    expect.stringContaining(operationCodes.join(', '))
   )
   await AddInterimSiteCyaPage.submit()
 

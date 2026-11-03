@@ -39,6 +39,23 @@ class AddOrsRecyclingOperationPage extends Page {
     }
   }
 
+  // The page offers one primary code, R3, R4 or R5, depending on the
+  // material (R12 and R13 on their own are rejected), so it is read off the
+  // page rather than passed in. Returns the code selected.
+  async selectPrimaryOperationCode() {
+    for (const code of ['R3', 'R4', 'R5']) {
+      if (
+        await $(`#recycling-operation-code-${code.toLowerCase()}`).isExisting()
+      ) {
+        await this.selectOperationCode(code)
+        return code
+      }
+    }
+    throw new Error(
+      'No primary recycling operation code (R3, R4 or R5) offered'
+    )
+  }
+
   async continue() {
     await this.clickReliably(this.continueButton)
   }

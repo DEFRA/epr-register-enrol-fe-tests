@@ -32,13 +32,16 @@ class ReexHomePage extends Page {
     await this.tabPanel.waitForDisplayed({ timeout: 30000 })
   }
 
+  // The tabs are separate pages, and the tab panel is on both, so waiting for
+  // the panel alone passes on the page being left, and the rows read would be
+  // the other tab's (or, clicking the tab already open, a page mid-reload).
   async openReprocessing() {
-    await this.clickReliably(this.reprocessingTab)
+    await this.clickAndWaitForNextPage(this.reprocessingTab)
     await this.waitUntilLoaded()
   }
 
   async openExporting() {
-    await this.clickReliably(this.exportingTab)
+    await this.clickAndWaitForNextPage(this.exportingTab)
     await this.waitUntilLoaded()
   }
 

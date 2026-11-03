@@ -15,20 +15,21 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
 import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
+import SubmitApplicationPage from 'page-objects/submit-application.page'
+import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import { accreditationYear, reexPassword, reexUsername } from '../config.js'
 import {
+  handOffToRegisterEnrol,
   hasSeededOrganisation,
   signInAsSeededOperator
 } from './integration-organisation/index.js'
+import {
+  APPLICABLE_STATUSES,
+  completeIncompleteOverseasSites
+} from './integration-organisation/seeded-accreditation-journey.js'
 
 const BUSINESS_PLAN_PERCENTAGES = [15, 15, 15, 15, 15, 15, 10]
 const EVIDENCE_FIXTURE = 'business-plan.pdf'
-
-// Statuses a 2027 application can already be in on the shared dev tier. Only
-// the first two can be driven through to submission — SUBMITTED, UPDATED and
-// QUERIED all mean somebody (a previous run, or a regulator) has moved the
-// application past the point this journey starts from.
-const APPLICABLE_STATUSES = ['NOT STARTED', 'IN PROGRESS']
 
 /**
  * Signs in to the Re-Ex frontend and lands on the organisation home page: as
@@ -93,10 +94,14 @@ export async function findApplicableMaterial({ isExporter }) {
       continue
     }
 
-    await ReexRegistrationPage.applyForAccreditation(accreditationYear)
-    await OperatorAccreditationPage.pageHeading.waitForDisplayed({
-      timeout: 30000
-    })
+    if (hasSeededOrganisation()) {
+      await handOffToRegisterEnrol(accreditationYear)
+    } else {
+      await ReexRegistrationPage.applyForAccreditation(accreditationYear)
+      await OperatorAccreditationPage.pageHeading.waitForDisplayed({
+        timeout: 30000
+      })
+    }
 
     const status = await OperatorAccreditationPage.applicationStatus.getText()
     if (!APPLICABLE_STATUSES.includes(status)) {
@@ -154,6 +159,25 @@ async function accreditationMaterial() {
 }
 
 /**
+ * Whether a task is still to do, read only once the browser is back on the
+ * task list. Each task ends on a JavaScript click (clickReliably) that returns
+ * before the next page loads, so checking the link straight away can read the
+ * task's own last page, find no link and skip a task that is not done.
+ *
+ * @param {ChainablePromiseElement} link the task's task-list link
+ */
+async function outstandingTask(link) {
+  await browser.waitUntil(
+    async () =>
+      (await browser.getUrl()).includes('/accreditation/task-list/') &&
+      (await browser.execute(() => document.readyState)) === 'complete',
+    { timeout: 30000, timeoutMsg: 'Did not return to the task list' }
+  )
+  await TaskListPage.pageCaption.waitForDisplayed({ timeout: 30000 })
+  return link.isExisting()
+}
+
+/**
  * Completes every outstanding task on the task list, leaving the browser back
  * on the task list with everything COMPLETED and ready to submit.
  *
@@ -164,33 +188,39 @@ async function accreditationMaterial() {
  *
  * @param {object}  options
  * @param {boolean} options.isExporter  Also complete the two exporter-only tasks.
+ * @param {(pageName: string) => Promise<void>} [options.checkPage]  Called on
+ *   each page of each task as it is reached, e.g. to run an accessibility check.
  * @returns {Promise<string>} The material, as this journey names it.
  */
-export async function completeOutstandingTasks({ isExporter }) {
+export async function completeOutstandingTasks({
+  isExporter,
+  checkPage = async () => {}
+}) {
   await expect(browser).toHaveUrl(
     expect.stringContaining('/accreditation/task-list/')
   )
 
   const material = await accreditationMaterial()
+  await checkPage('Task list')
 
-  if (await TaskListPage.PRNTonnageLink.isExisting()) {
-    await completeTonnage()
+  if (await outstandingTask(TaskListPage.PRNTonnageLink)) {
+    await completeTonnage(checkPage)
   }
 
-  if (await TaskListPage.businessPlanLink.isExisting()) {
-    await completeBusinessPlan()
+  if (await outstandingTask(TaskListPage.businessPlanLink)) {
+    await completeBusinessPlan(checkPage)
   }
 
-  if (await TaskListPage.SIPlanLink.isExisting()) {
-    await completeSamplingPlan(material)
+  if (await outstandingTask(TaskListPage.SIPlanLink)) {
+    await completeSamplingPlan(material, checkPage)
   }
 
   if (isExporter) {
-    if (await TaskListPage.overseasSitesLink.isExisting()) {
-      await completeOverseasSites()
+    if (await outstandingTask(TaskListPage.overseasSitesLink)) {
+      await completeOverseasSites(checkPage)
     }
-    if (await TaskListPage.besLink.isExisting()) {
-      await completeBesEvidence()
+    if (await outstandingTask(TaskListPage.besLink)) {
+      await completeBesEvidence(checkPage)
     }
   }
 
@@ -201,17 +231,19 @@ export async function completeOutstandingTasks({ isExporter }) {
   return material
 }
 
-async function completeTonnage() {
+async function completeTonnage(checkPage) {
   await TaskListPage.PRNTonnageLink.click()
   await expect(browser).toHaveUrl(
     expect.stringContaining('/accreditation/tonnage')
   )
+  await checkPage('PRN tonnage')
   const tonnageBand = await PrnTonnagePage.selectRandomOption()
   await PrnTonnagePage.saveAndContinue()
 
   await expect(browser).toHaveUrl(
     expect.stringContaining('/accreditation/tonnage-authority')
   )
+  await checkPage('PRN authority')
   await PrnAuthorityPage.addAuthoriser()
   await PrnAuthorityPage.saveAndContinue()
 
@@ -222,12 +254,14 @@ async function completeTonnage() {
   // authoriser that silently failed to save only surfaces at submission.
   await expect(PrnCheckAnswersPage.tonnageValue).toHaveText(tonnageBand)
   await expect(PrnCheckAnswersPage.authorisersValue).not.toHaveText('')
+  await checkPage('PRN check your answers')
   await PrnCheckAnswersPage.confirmAndContinue()
 }
 
-async function completeBusinessPlan() {
+async function completeBusinessPlan(checkPage) {
   await TaskListPage.businessPlanLink.click()
   await expect(BusinessPlanPage.pageHeading).toHaveText('Business plan')
+  await checkPage('Business plan')
 
   await BusinessPlanPage.fillPercentages(BUSINESS_PLAN_PERCENTAGES)
   await BusinessPlanPage.saveAndContinue()
@@ -236,6 +270,7 @@ async function completeBusinessPlan() {
   await expect(BusinessPlanDetailPage.pageHeading).toHaveText(
     expect.stringContaining("Add more details about how you'll spend the")
   )
+  await checkPage('Business plan details')
   await BusinessPlanDetailPage.fillDescriptions()
   for (const area of await BusinessPlanDetailPage.textareas) {
     if (await area.isDisplayed()) {
@@ -252,23 +287,35 @@ async function completeBusinessPlan() {
       expect.stringContaining(`${percentage}%`)
     )
   }
+  await checkPage('Business plan check your answers')
   await BusinessPlanCheckAnswersPage.confirmAndContinue()
 }
 
-async function completeSamplingPlan(material) {
+async function completeSamplingPlan(material, checkPage) {
   await TaskListPage.SIPlanLink.click()
   await expect(SamplingPlanPage.pageHeading).toHaveText(
     `Upload sampling and inspection plan - part 2 - ${material}`
   )
+  await checkPage('Sampling and inspection plan')
   await SamplingPlanPage.uploadFile(EVIDENCE_FIXTURE)
   await SamplingPlanPage.saveAndContinue()
 }
 
-async function completeOverseasSites() {
+async function completeOverseasSites(checkPage) {
   await TaskListPage.overseasSitesLink.click()
   await expect(browser).toHaveUrl(
     expect.stringContaining('/accreditation/select-overseas-sites')
   )
+  await checkPage('Select overseas sites')
+  // The list will not continue while any site is tagged Incomplete (RA-597),
+  // which every site an organisation is seeded with is: migrated sites come
+  // without contact details, recycling operations or Basel codes.
+  if (await $('[data-testid*="-incomplete-"]').isExisting()) {
+    const applicationId = (await browser.getUrl())
+      .split('/accreditation/select-overseas-sites/')[1]
+      .split(/[/?]/)[0]
+    await completeIncompleteOverseasSites(applicationId, { checkPage })
+  }
   // Keeps whichever sites the registration is already accredited against —
   // adding one is its own journey, covered by exporter-accreditation.e2e.js.
   await OverseasReprocessingSitesPage.continue()
@@ -276,16 +323,84 @@ async function completeOverseasSites() {
   await expect(browser).toHaveUrl(
     expect.stringContaining('/confirm-overseas-sites')
   )
+  await checkPage('Confirm overseas sites')
   await ConfirmOverseasSitesPage.confirmAndContinue()
 }
 
-async function completeBesEvidence() {
+async function completeBesEvidence(checkPage) {
   await TaskListPage.besLink.click()
   await expect(browser).toHaveUrl(
     expect.stringContaining('/accreditation/upload-evidence-for-overseas-site/')
   )
+  await checkPage('BES evidence sites')
   // Uploads for every site still showing "Not uploaded", then continues.
   // EU/OECD sites read "Not required for application" and are left alone, so
   // an accreditation whose sites are all EU/OECD uploads nothing at all.
   await BesEvidencePage.uploadAllEvidence(EVIDENCE_FIXTURE)
+}
+
+/**
+ * From the declaration page, submits the application and checks the
+ * confirmation page: its reference, and the charge and bank details to pay it.
+ *
+ * @param {string} material as the journey names it (completeOutstandingTasks)
+ * @param {object} [options]
+ * @param {(pageName: string) => Promise<void>} [options.checkPage]
+ * @returns {Promise<string>} the application reference
+ */
+export async function submitAndAssertConfirmation(
+  material,
+  { checkPage = async () => {} } = {}
+) {
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/accreditation/submit-declaration/')
+  )
+  await expect(SubmitApplicationPage.pageHeading).toHaveText('Declaration')
+  await checkPage('Declaration')
+  await SubmitApplicationPage.submitApplication()
+
+  // A rejected submission re-renders on the declaration URL, either with a
+  // validation summary or as the generic "Sorry, there is a problem with the
+  // service" page, so a bare URL assertion would only report "still on
+  // submit-declaration". Wait for the page to change, then say what it shows.
+  await browser.waitUntil(
+    async () =>
+      (await SubmitApplicationPage.pageHeading.getText()) !== 'Declaration' ||
+      (await $('.govuk-error-summary').isExisting()),
+    { timeout: 60000, timeoutMsg: 'Submitting the declaration did nothing' }
+  )
+  const url = await browser.getUrl()
+  if (!url.includes('/accreditation/submit-confirmation/')) {
+    const heading = await SubmitApplicationPage.pageHeading.getText()
+    const body = await $('main').getText()
+    throw new Error(
+      `Submission was rejected at ${new Date().toISOString()} (${url}):\n` +
+        `${heading}\n${body}`
+    )
+  }
+  await expect(ApplicationSubmittedPage.panelTitle).toHaveText(
+    'Now pay the application charge'
+  )
+  await expect(ApplicationSubmittedPage.panel).toHaveText(
+    expect.stringContaining(`Application reference for ${material}`)
+  )
+
+  const reference = await ApplicationSubmittedPage.referenceNumber.getText()
+  expect(reference).toMatch(
+    new RegExp(`^AP${accreditationYear.slice(-2)}[A-Z]{2}`)
+  )
+
+  // Payment details are rendered inline on the confirmation page (RA-290 AC06),
+  // with the charge and the regulator's bank details filled in for whichever
+  // nation the registration belongs to.
+  await expect(ApplicationSubmittedPage.amountDue).toBeDisplayed()
+  await expect(ApplicationSubmittedPage.bankSortCode).toBeDisplayed()
+  await expect(ApplicationSubmittedPage.bankAccountNumber).toBeDisplayed()
+  await expect(ApplicationSubmittedPage.bankPaymentReference).not.toHaveText('')
+  await expect(ApplicationSubmittedPage.contactRegulatorHeading).toHaveText(
+    'Contact your regulator'
+  )
+  await checkPage('Application submitted')
+
+  return reference
 }

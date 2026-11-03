@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -20,11 +20,16 @@ const SNAPSHOT_FILE = resolve(
   '../../../.integration/seeded-organisation.json'
 )
 
+// The exporter material the exporter scenario applies for: a few accredited
+// overseas reprocessing sites to complete and registered ones to add, before
+// it adds a new site of its own.
+export const OVERSEAS_SITES_MATERIAL = 'plastic'
+
 // Exporter materials given overseas reprocessing sites, so the accreditation
 // journey's select-overseas-sites page has accredited sites to show and
 // registered ones to add.
 const OVERSEAS_SITES = [
-  { material: 'plastic', accredited: 2, registered: 1 },
+  { material: OVERSEAS_SITES_MATERIAL, accredited: 3, registered: 2 },
   { material: 'paper', accredited: 2, registered: 1 },
   { material: 'aluminium', accredited: 1, registered: 2 },
   {
@@ -45,12 +50,30 @@ const timestamp = () => new Date().toISOString().replace(/\D/g, '').slice(0, 14)
  * @param {object} [options]
  * @param {string} [options.email] the Defra ID user's email; a new
  *   example.com address when unset
+ * @param {(organisation: {orgId: number, id: string, email: string, defraOrganisation: null}) => void} [options.onCreated]
+ *   called as soon as the organisation exists, before it is approved, linked
+ *   or given overseas sites, so a caller can record it for clean-up even if
+ *   the rest fails
+ * @param {(organisation: {orgId: number, id: string, email: string, defraOrganisation: {id: string, name: string}}) => void} [options.onLinked]
+ *   called once it is linked to its Defra ID user and organisation
  * @returns {Promise<SeededOrganisation>}
  */
 export async function seedOrganisation({
-  email = `reex-operator-${timestamp()}@example.com`
+  email = `reex-operator-${timestamp()}@example.com`,
+  onCreated = () => {},
+  onLinked = () => {}
 } = {}) {
-  const seeded = await seedDefraLinkedOrganisation({ email })
+  const seeded = await seedDefraLinkedOrganisation({
+    email,
+    onCreated: ({ orgId, refNo }) =>
+      onCreated({ orgId, id: refNo, email, defraOrganisation: null })
+  })
+  onLinked({
+    orgId: seeded.orgId,
+    id: seeded.refNo,
+    email,
+    defraOrganisation: { id: seeded.defraOrgId, name: seeded.defraOrgName }
+  })
   await addOverseasSites(seeded.refNo, OVERSEAS_SITES)
   return loadOrganisation(seeded.refNo)
 }
@@ -82,6 +105,7 @@ export async function loadOrganisation(id) {
   return {
     id: data.id,
     orgId: data.orgId,
+    name: data.companyDetails?.name ?? null,
     status: data.status,
     email: data.submitterContactDetails.email,
     defraOrganisation: data.linkedDefraOrganisation
@@ -112,6 +136,14 @@ export async function loadOrganisation(id) {
 export function writeSnapshot(organisation) {
   mkdirSync(dirname(SNAPSHOT_FILE), { recursive: true })
   writeFileSync(SNAPSHOT_FILE, `${JSON.stringify(organisation, null, 2)}\n`)
+}
+
+/**
+ * Removes the snapshot, so nothing reads back an organisation from an earlier
+ * run, one that has since been deleted or belongs to another environment.
+ */
+export function removeSnapshot() {
+  rmSync(SNAPSHOT_FILE, { force: true })
 }
 
 /**
@@ -199,6 +231,7 @@ export function seededMaterial({
  * @typedef {object} SeededOrganisation
  * @property {string} id
  * @property {number} orgId
+ * @property {string | null} name the company name, as case management lists it
  * @property {string} status
  * @property {string} email the linked Defra ID user's
  * @property {{id: string, name: string} | null} defraOrganisation

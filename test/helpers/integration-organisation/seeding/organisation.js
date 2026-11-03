@@ -40,9 +40,17 @@ function wasteProcessingTypeAnswer(dataRows) {
  * Applies for an organisation, then a registration (and accreditation) per
  * data row, then migrates the submission into an organisation.
  *
+ * @param {object[]} dataRows
+ * @param {object} [options]
+ * @param {(organisation: {orgId: number, refNo: string}) => void} [options.onCreated]
+ *   called as soon as the organisation exists, before anything else is
+ *   applied for, so a caller can record it for clean-up even if the rest fails
  * @returns {Promise<{orgId: number, refNo: string, organisation: Organisation, registrations: Registration[]}>}
  */
-export async function createLinkedOrganisation(dataRows) {
+export async function createLinkedOrganisation(
+  dataRows,
+  { onCreated = () => {} } = {}
+) {
   const api = new ReexApi()
 
   // A reprocessor applies as a sole trader unless the first row asks for a
@@ -64,6 +72,7 @@ export async function createLinkedOrganisation(dataRows) {
   const { orgId, referenceNumber: refNo } = JSON.parse(
     await assertStatus(response, 200, 'POST /v1/apply/organisation')
   )
+  onCreated({ orgId, refNo })
 
   const registrations = []
 
@@ -128,16 +137,17 @@ export async function migrateOrganisation(refNo) {
 // of a freshly migrated organisation can miss it.
 async function readOrganisationOnceMigrated(api, authHeader, refNo) {
   const deadline = Date.now() + 5000
-  let response
-  while (Date.now() < deadline) {
-    response = await api.get(`/v1/organisations/${refNo}`, authHeader)
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      break
+  for (;;) {
+    const response = await api.get(`/v1/organisations/${refNo}`, authHeader)
+    const succeeded = response.statusCode >= 200 && response.statusCode < 300
+    // The last response is left unread, so a failure reports its status and
+    // body rather than a body already consumed.
+    if (succeeded || Date.now() >= deadline) {
+      return assertSuccessResponse(response, `GET /v1/organisations/${refNo}`)
     }
     await response.body.dump()
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
-  return assertSuccessResponse(response, `GET /v1/organisations/${refNo}`)
 }
 
 // Statuses and numbers seed through the non-prod twin of the organisation
@@ -329,14 +339,17 @@ export async function approveMigratedRegistration(
  * Creates, migrates and approves an organisation in one call: one approved
  * registration and accreditation per data row, numbered in the Re/Ex format.
  * The organisation is given contactEmail (a random address when unset).
+ * onCreated is called as soon as it exists (see createLinkedOrganisation).
  *
  * @returns {Promise<{orgId: number, refNo: string, email: string, numbers: {regNumber: string, accNumber: string}[], registrationIds: string[], accreditationIds: string[]}>}
  */
 export async function createApprovedOrganisation(
   dataRows = [{ wasteProcessingType: 'Reprocessor', material: 'Plastic (R3)' }],
-  { contactEmail = process.env.ORG_CONTACT_EMAIL } = {}
+  { contactEmail = process.env.ORG_CONTACT_EMAIL, onCreated } = {}
 ) {
-  const { orgId, refNo } = await createLinkedOrganisation(dataRows)
+  const { orgId, refNo } = await createLinkedOrganisation(dataRows, {
+    onCreated
+  })
   const approved = await approveSeededOrganisation(refNo, dataRows, {
     contactEmail
   })

@@ -24,6 +24,10 @@ export class ReexApi {
     return this.#call('PUT', endpoint, data, headers)
   }
 
+  delete(endpoint, headers = {}) {
+    return this.#call('DELETE', endpoint, undefined, headers)
+  }
+
   async #call(method, endpoint, data, headers) {
     const { statusCode, body } = await request(`${this.baseUrl}${endpoint}`, {
       method,

@@ -33,19 +33,24 @@ export const ALL_MATERIAL_ROWS = WASTE_PROCESSING_TYPES.flatMap(
  *   to; a random company name when unset
  * @param {object[]} [options.dataRows] registrations to seed; every material as
  *   reprocessor and exporter when unset
+ * @param {(organisation: {orgId: number, refNo: string}) => void} [options.onCreated]
+ *   called as soon as the organisation exists, before it is approved and
+ *   linked, so a caller can record it for clean-up even if the rest fails
  * @returns {Promise<{orgId: number, refNo: string, email: string, defraOrgName: string, defraOrgId: string, defraUserId: string, registrations: {wasteProcessingType: string, material: string, glassRecyclingProcess?: string, regNumber: string, accNumber: string}[]}>}
  */
 export async function seedDefraLinkedOrganisation({
   email,
   defraOrgName = `${fakerEnGb.company.name()} Ltd`,
-  dataRows = ALL_MATERIAL_ROWS
+  dataRows = ALL_MATERIAL_ROWS,
+  onCreated
 }) {
   if (!email) {
     throw new Error('An email is needed for the Defra ID user')
   }
 
   const approved = await createApprovedOrganisation(dataRows, {
-    contactEmail: email
+    contactEmail: email,
+    onCreated
   })
   const linked = await linkOrganisationToDefraId(
     approved.refNo,

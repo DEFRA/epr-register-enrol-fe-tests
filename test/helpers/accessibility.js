@@ -57,21 +57,64 @@ async function reportToAllure(pageName, url, results) {
   )
 }
 
-// Runs axe-core against whatever page is currently loaded and fails the
-// assertion with the rule descriptions + offending selectors, rather than
-// leaving the caller to unpack the raw results object.
-export async function expectNoAccessibilityViolations(pageName = 'page') {
+async function analyse(pageName) {
   const url = await browser.getUrl()
   const results = await new AxeBuilder({ client: browser })
     .withTags(WCAG_TAGS)
     .analyze()
 
   await reportToAllure(pageName, url, results)
+  return { url, results }
+}
+
+// Runs axe-core against whatever page is currently loaded and fails the
+// assertion with the rule descriptions + offending selectors, rather than
+// leaving the caller to unpack the raw results object.
+export async function expectNoAccessibilityViolations(pageName = 'page') {
+  const { url, results } = await analyse(pageName)
 
   if (results.violations.length > 0) {
     const summary = results.violations
       .map((v) => `- ${describeViolation(v)}`)
       .join('\n')
     throw new Error(`Accessibility violations found on ${url}:\n${summary}`)
+  }
+}
+
+/**
+ * For a long journey that should not stop at its first accessibility failure:
+ * check(pageName) runs axe on the current page the first time it is called
+ * for that name, and collects any violations rather than throwing. A journey
+ * through several overseas sites passes the same few pages once per site,
+ * and one check of each is enough. assertNoViolations() then fails with
+ * everything collected, from a test of its own.
+ */
+export function createAccessibilityAudit() {
+  const checked = new Set()
+  const failures = []
+
+  return {
+    async check(pageName) {
+      if (checked.has(pageName)) {
+        return
+      }
+      checked.add(pageName)
+      const { url, results } = await analyse(pageName)
+      for (const violation of results.violations) {
+        failures.push(`${pageName} (${url}): ${describeViolation(violation)}`)
+      }
+    },
+
+    get checkedPages() {
+      return [...checked]
+    },
+
+    assertNoViolations() {
+      if (failures.length > 0) {
+        throw new Error(
+          `Accessibility violations on ${failures.length} check(s):\n- ${failures.join('\n- ')}`
+        )
+      }
+    }
   }
 }

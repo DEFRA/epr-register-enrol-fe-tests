@@ -76,6 +76,20 @@ class CmWorkItemPage extends Page {
     return $('[data-testid="re-accreditation-decision-metadata"]')
   }
 
+  // Shown while an approved determination waits for the applicant to be
+  // contacted (the work item reads Approved), with the accreditation id.
+  get pendingContactBanner() {
+    return $('[data-testid="re-accreditation-pending-contact-banner"]')
+  }
+
+  get confirmApplicantContactLink() {
+    return $('[data-testid="confirm-applicant-contact-cta"]')
+  }
+
+  async startConfirmApplicantContact() {
+    await this.clickReliably(this.confirmApplicantContactLink)
+  }
+
   async startDetermination() {
     await this.clickReliably(this.makeDeterminationLink)
   }

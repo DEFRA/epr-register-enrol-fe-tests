@@ -5,6 +5,7 @@ import CmWorkItemPage from 'page-objects/cm-work-item.page'
 import CmDulyMakePage from 'page-objects/cm-duly-make.page'
 import CmQueryPage from 'page-objects/cm-query.page'
 import CmDecisionPage from 'page-objects/cm-decision.page'
+import CmConfirmContactPage from 'page-objects/cm-confirm-contact.page'
 
 // Work item states as the case management list and case header render them.
 // "Not started" is the state a freshly submitted application arrives in — the
@@ -15,6 +16,8 @@ export const WORK_ITEM_STATES = {
   dulyMade: 'Duly made',
   queried: 'Queried',
   updated: 'Updated',
+  // An approved determination still waiting on "Confirm applicant contact".
+  approved: 'Approved',
   granted: 'Granted'
 }
 
@@ -30,17 +33,26 @@ export async function signInToCaseManagement() {
  * @param {string} options.organisation   Organisation name to search for.
  * @param {string} options.applicantType  e.g. 'Exporter'.
  * @param {string} options.state          One of WORK_ITEM_STATES.
+ * @param {string} [options.reference]    The application reference, to pick
+ *   out one particular application rather than the first of its type.
  * @returns {Promise<{workItemId: string, reference: string, state: string,
  *   material: string, applicantType: string}>}
  */
-export async function findWorkItem({ organisation, applicantType, state }) {
+export async function findWorkItem({
+  organisation,
+  applicantType,
+  state,
+  reference
+}) {
   await CmWorkItemsPage.open()
   await CmWorkItemsPage.filterByOrganisation(organisation)
 
   const workItems = await CmWorkItemsPage.workItems()
   const match = workItems.find(
     (workItem) =>
-      workItem.applicantType.includes(applicantType) && workItem.state === state
+      workItem.applicantType.includes(applicantType) &&
+      workItem.state === state &&
+      (!reference || workItem.reference === reference)
   )
 
   if (!match) {
@@ -48,7 +60,7 @@ export async function findWorkItem({ organisation, applicantType, state }) {
       .map((w) => `${w.reference} ${w.applicantType} ${w.state}`)
       .join('\n  ')
     throw new Error(
-      `No ${applicantType} work item for "${organisation}" is in ${state}. ` +
+      `No ${applicantType} work item${reference ? ` ${reference}` : ''} for "${organisation}" is in ${state}. ` +
         `The list holds:\n  ${listed || '(nothing)'}`
     )
   }
@@ -86,14 +98,29 @@ export async function queryWorkItem({ sections, reason }) {
 }
 
 /**
- * Logs the final determination on the work item. Approving issues the
- * accreditation and moves the work item to Granted; it cannot be undone.
+ * Logs the determination on the work item, the first of its two steps.
+ * Approving mints the accreditation and moves the work item to Approved, where
+ * it waits for confirmApplicantContact; it cannot be undone.
  */
 export async function approveWorkItem({ note } = {}) {
   await CmWorkItemPage.startDetermination()
   await expect(browser).toHaveUrl(expect.stringContaining('/decision'))
 
   await CmDecisionPage.approve({ note })
+
+  await CmWorkItemPage.waitUntilLoaded()
+}
+
+/**
+ * The second step of the determination: confirms the applicant has been
+ * contacted about it, which applies it. An Approved work item moves to
+ * Granted. Leaves the browser on the work item.
+ */
+export async function confirmApplicantContact() {
+  await CmWorkItemPage.startConfirmApplicantContact()
+  await expect(browser).toHaveUrl(expect.stringContaining('/confirm-contact'))
+
+  await CmConfirmContactPage.confirmContacted()
 
   await CmWorkItemPage.waitUntilLoaded()
 }

@@ -1,16 +1,25 @@
 import allure from 'allure-commandline'
 
 import { reexFrontendUrl } from './test/config.js'
-import { prepareSeededOrganisation } from './test/helpers/integration-organisation/hooks.js'
+import {
+  deleteSeededOrganisations,
+  prepareSeededOrganisation,
+  reportRunOrganisations
+} from './test/helpers/integration-organisation/hooks.js'
 
 // Local integration run against a deployed environment (ENVIRONMENT, dev by
 // default), driving the real Re-Ex frontend and epr-register-enrol-frontend
 // rather than this repo's docker-compose sandbox.
 //
 // On test, onPrepare first seeds an organisation with every material, linked
-// to a Defra ID user, and each test signs in as that user through the Defra ID
-// stub (test/helpers/integration-organisation). Elsewhere it signs in through
-// GOV.UK One Login as REEX_USERNAME.
+// to a Defra ID user, with a few overseas sites on some of its exporter
+// registrations, and lists it in .integration/created-organisations.jsonl.
+// Each test signs in as that user through the Defra ID stubs
+// (test/helpers/integration-organisation), and onComplete deletes every
+// organisation the file lists. SEEDED_ORGANISATION_ID reuses an organisation
+// instead, which is then never deleted. Elsewhere tests sign in through
+// GOV.UK One Login as REEX_USERNAME, and the test-environment scenarios skip.
+
 //
 //   npm run test:integration          # headless
 //   npm run test:integration:headed   # watch it run
@@ -33,7 +42,12 @@ const chromeArgs = [
   '--no-sandbox',
   '--disable-gpu',
   '--window-size=1920,1080',
-  '--disable-dev-shm-usage'
+  '--disable-dev-shm-usage',
+  // Chrome's built-in DNS client would intermittently fail to resolve the
+  // *.cdp-int.defra.cloud hosts over the Defra VPN's split DNS
+  // (net::ERR_NAME_NOT_RESOLVED for minutes at a time) while the system
+  // resolver answered them. Use the system resolver.
+  '--disable-features=AsyncDns,DnsOverHttps'
 ]
 
 if (!headed) {
@@ -47,8 +61,15 @@ export const config = {
   // work item that the exporter reapplication creates by submitting, and a
   // glob sorts case-management-* ahead of reaccreditation-*, so it used to run
   // first and find nothing to work on. maxInstances below keeps it sequential.
+  //
+  // The test-environment scenarios go before reaccreditation-2027, which takes
+  // whichever material is first still open, so that they get the ones they
+  // ask for (aluminium, and plastic for the overseas sites scenario).
   specs: [
     './test/specs/integration/seeded-organisation.integration.js',
+    './test/specs/integration/reprocessor-submission.integration.js',
+    './test/specs/integration/accreditation-workflow.integration.js',
+    './test/specs/integration/exporter-overseas-sites-submission.integration.js',
     './test/specs/integration/reaccreditation-2027.integration.js',
     './test/specs/integration/case-management-query-2027.integration.js'
   ],
@@ -81,6 +102,12 @@ export const config = {
   },
 
   bail: 0,
+
+  // The deployed environment is reached over the Defra VPN, which now and then
+  // drops out from under a run. The seeded-organisation journeys resume where
+  // they stopped (the same in-progress application, finished tasks skipped),
+  // so one rerun in a fresh browser carries them through.
+  specFileRetries: 1,
 
   // The Re-Ex frontend, where the journey starts. The register-enrol frontend
   // is reached only by following the in-page hand-off link, so it needs no
@@ -124,7 +151,20 @@ export const config = {
     }
   },
 
-  onComplete: function () {
+  onComplete: async function () {
+    // Before the report, which rejects when it cannot be generated.
+    // Runs whether or not the tests passed. A clean-up that throws still
+    // leaves the organisations listed for the next run's clean-up, and the
+    // report below says which are still there.
+    try {
+      await deleteSeededOrganisations()
+    } catch (err) {
+      process.stdout.write(`Deleting the seeded organisations failed: ${err}\n`)
+    }
+    // Every organisation the run touched, and whether it is still there to
+    // delete, in the report's Environment section.
+    reportRunOrganisations('allure-results')
+
     const reportError = new Error('Could not generate Allure report')
     const generation = allure(['generate', 'allure-results', '--clean'])
 
