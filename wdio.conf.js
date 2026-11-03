@@ -1,19 +1,28 @@
 import fs from 'node:fs'
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
-import { TEST_ENVIRONMENT_INTEGRATION_SPECS } from './test/helpers/integration-organisation/integration-specs.js'
+import { applyIntegrationSettings } from './test/helpers/integration-organisation/integration-settings.js'
+import {
+  TEST_ENVIRONMENT_INTEGRATION_SPECS,
+  isIntegrationSpec,
+  selectsIntegrationSpecs
+} from './test/helpers/integration-organisation/integration-specs.js'
 
 const oneMinute = 60 * 1000
 
 // On test, the integration specs that run there (the `integration` suite
-// below) run as part of this suite, on an organisation onPrepare seeds for
-// the run and onComplete deletes. They set their own timeouts (see
-// integration-organisation/integration-settings.js). Elsewhere none run.
+// below) run as part of this suite, after the standard specs, on an
+// organisation onPrepare seeds for the run and onComplete deletes. Their
+// workers get their own timeouts (beforeSession). Elsewhere none run.
 const runsIntegration = process.env.ENVIRONMENT === 'test'
 
 // Imported only then: seeding refuses to load at all against prod.
 const integrationHooks = runsIntegration
   ? await import('./test/helpers/integration-organisation/hooks.js')
   : null
+
+// Whether onPrepare seeded (or tried to), for onComplete. Both run in the
+// launcher process.
+let seeds = false
 
 const integrationSpecsDir = new URL(
   './test/specs/integration/',
@@ -46,10 +55,16 @@ export const config = {
   hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
   port: process.env.CHROMEDRIVER_PORT || 4444,
 
-  // Tests to run
-  specs: ['./test/specs/**/*.js'],
+  // Tests to run: the standard specs, then on test the integration specs in
+  // the order listed (seeded-organisation checks the registrations before
+  // accreditation-workflow applies for and works them).
+  specs: [
+    './test/specs/*.js',
+    './test/specs/!(integration)/**/*.js',
+    ...(runsIntegration ? TEST_ENVIRONMENT_INTEGRATION_SPECS : [])
+  ],
   // Tests to exclude: every integration spec but, on test, the ones that run
-  // there. Any of them alone: --suite integration.
+  // there, should --spec name one. Those alone: --suite integration.
   exclude: integrationSpecsNotRun,
   suites: {
     integration: TEST_ENVIRONMENT_INTEGRATION_SPECS
@@ -98,10 +113,8 @@ export const config = {
   bail: 0,
   waitforTimeout: 10000,
   waitforInterval: 200,
-  // Longer on test, where the integration journeys' page loads (sign-in
-  // through Defra ID, uploads through the CDP uploader) can outlast 6s. It
-  // only slows a request that hangs.
-  connectionRetryTimeout: runsIntegration ? 2 * oneMinute : 6000,
+  // Longer for the integration specs: see beforeSession.
+  connectionRetryTimeout: 6000,
   connectionRetryCount: 3,
   framework: 'mocha',
 
@@ -147,10 +160,14 @@ export const config = {
    * @param {Array.<Object>} capabilities list of capabilities details
    */
   // On test, seeds the integration specs' organisation, once, before any
-  // worker starts. Should that fail, those specs fail saying why, and the
-  // rest run as usual.
-  onPrepare: async function () {
-    await integrationHooks?.prepareSeededOrganisationOrRecordFailure()
+  // worker starts, unless --spec or --suite leaves them out. Should that
+  // fail, those specs fail saying why, the rest run as usual, and onComplete
+  // fails the run.
+  onPrepare: async function (config) {
+    seeds = Boolean(integrationHooks) && selectsIntegrationSpecs(config)
+    if (seeds) {
+      await integrationHooks.prepareSeededOrganisationOrRecordFailure()
+    }
   },
   /**
    * Gets executed before a worker process is spawned and can be used to initialise specific service
@@ -178,7 +195,13 @@ export const config = {
    * @param {Array.<String>} specs List of spec file paths that are to be run
    * @param {string} cid worker id (e.g. 0-0)
    */
-  // beforeSession: function (config, capabilities, specs, cid) {},
+  // An integration spec's worker (each spec file has its own) gets the longer
+  // waits and timeouts its journeys need; the standard specs' keep these.
+  beforeSession: function (config, _capabilities, specs) {
+    if (specs.some(isIntegrationSpec)) {
+      applyIntegrationSettings(config)
+    }
+  },
   /**
    * Gets executed before test execution begins. At this point you can access to all global
    * variables like `browser`. It is the perfect place to define custom commands.
@@ -187,8 +210,13 @@ export const config = {
    * @param {object}         browser      instance of created browser/device session
    */
   // Answer the cookie banner up front so it doesn't sit over every journey.
-  before: function () {
-    seedCookieConsentOnNavigation(browser)
+  // Not for the integration specs: seeding it is by way of register-enrol's
+  // /health, which on the Re-Ex and case management frontends would be every
+  // navigation.
+  before: function (_capabilities, specs) {
+    if (!specs.some(isIntegrationSpec)) {
+      seedCookieConsentOnNavigation(browser)
+    }
   },
   /**
    * Runs before a WebdriverIO command gets executed.
@@ -277,7 +305,16 @@ export const config = {
       fs.writeFileSync('FAILED', JSON.stringify(results))
     }
 
-    if (integrationHooks) {
+    if (seeds) {
+      // Fails the run whatever the specs made of it.
+      const seedingError = integrationHooks.seedingFailure()
+      if (seedingError) {
+        fs.appendFileSync(
+          'FAILED',
+          `\nSeeding the integration specs' organisation failed: ${seedingError}\n`
+        )
+      }
+
       // Whether or not the tests passed. A clean-up that throws still leaves
       // the organisations listed for the next run's clean-up, and the report
       // says which are still there.

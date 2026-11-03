@@ -2,6 +2,10 @@
 
 echo "run_id: $RUN_ID"
 
+# Only this run's: a FAILED left in /app by an earlier run (a local docker
+# run reusing its container) would fail this one, or say the wrong thing.
+rm -f FAILED
+
 # Generate data instead of testing, based on PROFILE. GenerateOrgs seeds a
 # Re/Ex organisation with every material, linked to a Defra ID user, and logs
 # the Defra ID and the accreditation link for each reprocessor and exporter

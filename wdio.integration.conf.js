@@ -6,7 +6,8 @@ import { reexFrontendUrl } from './test/config.js'
 import {
   deleteSeededOrganisations,
   prepareSeededOrganisationOrRecordFailure,
-  reportRunOrganisations
+  reportRunOrganisations,
+  seedingFailure
 } from './test/helpers/integration-organisation/hooks.js'
 import {
   ONE_LOGIN_INTEGRATION_SPECS,
@@ -179,6 +180,13 @@ export const config = {
     // the same directory have written one.
     if (results?.failed && results.failed > 0) {
       fs.appendFileSync('FAILED', JSON.stringify(results) + '\n')
+    }
+    // Fails the run whatever the specs made of it.
+    if (seedingFailure()) {
+      fs.appendFileSync(
+        'FAILED',
+        `Seeding the integration specs' organisation failed: ${seedingFailure()}\n`
+      )
     }
 
     // Before the report, which rejects when it cannot be generated.

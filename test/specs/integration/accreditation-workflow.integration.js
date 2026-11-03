@@ -22,11 +22,7 @@ import {
   ACCREDITATION_APPLICATIONS_FILE,
   recordAccreditationApplication
 } from '../../helpers/integration-organisation/accreditation-applications.js'
-import {
-  integrationTimeout,
-  requireSeededOrganisation,
-  useIntegrationSettings
-} from '../../helpers/integration-organisation/index.js'
+import { requireSeededOrganisation } from '../../helpers/integration-organisation/index.js'
 import {
   addNewSiteWithInterimSites,
   addRegisteredSitesToAccreditation,
@@ -173,8 +169,6 @@ const QUERY_INTERIM_SITE = {
 const APPROVAL_NOTE = 'All queried sections were updated and are satisfactory.'
 
 describe(`Accreditation workflow ${accreditationYear} on the run's organisation - test environment`, function () {
-  this.timeout(integrationTimeout())
-
   let organisation
   // The names of the paper exporter's overseas sites the organisation is
   // seeded with.
@@ -523,12 +517,13 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
   // The organisation onPrepare seeded, and registered with
   // epr-register-enrol-frontend's own Defra ID stub, for the run.
   before(function () {
+    // Only test is seeded. Reachable with wdio.integration.conf.js and
+    // --spec naming this file off test.
     if (process.env.ENVIRONMENT !== 'test') {
       this.skip()
     }
     // Fails, saying why, should seeding have failed.
     organisation = requireSeededOrganisation()
-    useIntegrationSettings()
 
     const exporter = organisation.registrations.find(
       (registration) =>

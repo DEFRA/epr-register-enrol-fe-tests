@@ -27,3 +27,35 @@ export const ONE_LOGIN_INTEGRATION_SPECS = [
   './test/specs/integration/reaccreditation-2027.integration.js',
   './test/specs/integration/case-management-query-2027.integration.js'
 ]
+
+/**
+ * Whether a spec as wdio hands it to a hook (an absolute path or a file://
+ * URL) is an integration spec.
+ *
+ * @param {string} spec
+ */
+export const isIntegrationSpec = (spec) =>
+  spec.includes('/test/specs/integration/')
+
+/**
+ * Whether a run, as its launcher config says, includes an integration spec:
+ * the default run does, as does --suite integration or a --spec naming one
+ * (or their directory). Any other --spec or --suite does not.
+ *
+ * @param {{ spec?: string[], suite?: string[] }} config
+ */
+export function selectsIntegrationSpecs({ spec = [], suite = [] }) {
+  if (spec.length === 0 && suite.length === 0) {
+    return true
+  }
+  return (
+    suite.includes('integration') ||
+    spec.some(
+      (path) =>
+        /\/test\/specs\/integration\/?$/.test(path) ||
+        TEST_ENVIRONMENT_INTEGRATION_SPECS.some((listed) =>
+          path.endsWith(listed.slice(1))
+        )
+    )
+  )
+}
