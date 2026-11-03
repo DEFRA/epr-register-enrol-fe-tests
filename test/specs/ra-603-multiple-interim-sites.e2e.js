@@ -39,20 +39,8 @@ import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
  * this test's - which is what made a `toHaveLength(2)` here receive 4, then 8 on
  * a second run against the same database.
  */
-async function readInterimSiteIds(orsSiteId) {
-  await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsSiteId)
-
-  const rows = await OverseasReprocessingSitesPage.interimSiteDisclosure(
-    orsSiteId
-  ).$$('[data-testid^="interim-site-row-"]')
-
-  const interimSiteIds = []
-  for (const row of [...rows]) {
-    interimSiteIds.push(
-      (await row.getAttribute('data-testid')).replace('interim-site-row-', '')
-    )
-  }
-  return interimSiteIds
+function readInterimSiteIds(orsSiteId) {
+  return OverseasReprocessingSitesPage.interimSiteIdsIn(orsSiteId)
 }
 
 describe('RA-603: several interim sites on one overseas reprocessing site @docker-only', () => {
