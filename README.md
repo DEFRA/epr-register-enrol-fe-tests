@@ -59,6 +59,8 @@ You can check the progress of the build under the actions section of this reposi
 
 The results of the test run are made available in the portal.
 
+A portal run executes only the specs listed in [test/cdp-specs.js](test/cdp-specs.js): the ones that sign in through the stub login and need no ReEx data. The rest depend on the stub ReEx fixture organisations and the compose stack's Development backend, so they run on GitHub only.
+
 ## Requirements of CDP Environment Tests
 
 1. Your service builds as a docker container using the `.github/workflows/publish.yml`
