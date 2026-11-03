@@ -1,5 +1,6 @@
 import {
   loadOrganisation,
+  recordSeedingFailure,
   removeSnapshot,
   seedOrganisation,
   writeSnapshot
@@ -40,7 +41,7 @@ export async function prepareSeededOrganisation() {
   startRunOrganisationsLog()
   // Whatever an earlier run left: off test the specs then find no
   // organisation and skip rather than sign in as one that has been deleted.
-  // Should seeding fail, wdio.integration.conf.js stops the run.
+  // Should seeding fail, prepareSeededOrganisationOrRecordFailure records why.
   removeSnapshot()
   if (!seedsHere()) {
     return
@@ -72,6 +73,56 @@ export async function prepareSeededOrganisation() {
     `${reuseId ? 'Reusing' : 'Seeded'} organisation ${organisation.orgId} ` +
       `(${organisation.id}) on ${environment}, signing in as ${organisation.email}\n`
   )
+}
+
+// Why seeding failed, for the launcher's onComplete: set in the launcher
+// process, which runs both hooks.
+let seedingError
+
+/**
+ * Why this run's seeding failed, if it did, for onComplete to fail the run
+ * with: the specs' failures alone would not say so should the record they
+ * read not have been written.
+ *
+ * @returns {unknown} the error, or undefined
+ */
+export const seedingFailure = () => seedingError
+
+/**
+ * wdio onPrepare hook: prepareSeededOrganisation, and should it fail, records
+ * why and deletes whatever it got as far as creating, rather than throwing.
+ * wdio would only log the error and run every spec anyway, and the specs that
+ * need the organisation (see requireSeededOrganisation) then fail with why,
+ * while those that do not, the standard suite alongside them on test, run as
+ * usual. Never throws.
+ */
+export async function prepareSeededOrganisationOrRecordFailure() {
+  seedingError = undefined
+  try {
+    await prepareSeededOrganisation()
+  } catch (err) {
+    seedingError = err
+    process.stdout.write(
+      `Seeding the organisation failed, so the integration specs will fail: ${err?.stack ?? err}\n`
+    )
+    try {
+      await deleteSeededOrganisations()
+    } catch (cleanupErr) {
+      process.stdout.write(
+        `Deleting the seeded organisations failed: ${cleanupErr}\n`
+      )
+    }
+    // After the clean-up, which removes the snapshot and any record of this.
+    // Should it not be written, the specs fail finding no organisation, and
+    // onComplete still says why (seedingFailure).
+    try {
+      recordSeedingFailure(err)
+    } catch (recordErr) {
+      process.stdout.write(
+        `Recording why seeding failed failed too: ${recordErr}\n`
+      )
+    }
+  }
 }
 
 /**
