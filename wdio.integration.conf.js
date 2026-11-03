@@ -163,7 +163,29 @@ export const config = {
 
   // Seeding takes a few minutes of API calls, so it is done once, before any
   // worker starts, rather than per spec.
-  onPrepare: prepareSeededOrganisation,
+  //
+  // wdio only logs an error thrown here and runs the specs anyway, which then
+  // all skip for want of an organisation and pass. So stop the run instead,
+  // first deleting whatever seeding got as far as creating. (Throwing wdio's
+  // SevereServiceError would stop it too, but only the copy of webdriverio
+  // nested under @wdio/cli, not the one this config can import.)
+  onPrepare: async function () {
+    try {
+      await prepareSeededOrganisation()
+    } catch (err) {
+      process.stdout.write(
+        `Seeding the organisation failed, so no tests were run: ${err?.stack ?? err}\n`
+      )
+      try {
+        await deleteSeededOrganisations()
+      } catch (cleanupErr) {
+        process.stdout.write(
+          `Deleting the seeded organisations failed: ${cleanupErr}\n`
+        )
+      }
+      process.exit(1)
+    }
+  },
 
   afterTest: async function (_test, _context, { error }) {
     if (error) {
