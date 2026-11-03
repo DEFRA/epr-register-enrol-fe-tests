@@ -56,6 +56,35 @@ class AddToAccreditationPage extends Page {
     return $(`[data-testid="error-${rowId}"]`)
   }
 
+  // The bes-evidence row's value cell lists each uploaded file, keyed by the
+  // backend's fileId, each with its own Delete button (a POST form that
+  // returns to this summary).
+  get besEvidenceRows() {
+    return $$('[data-testid^="evidence-row-"]')
+  }
+
+  async besEvidenceFileIds() {
+    const ids = []
+    for (const row of await this.besEvidenceRows) {
+      ids.push(
+        (await row.getAttribute('data-testid')).replace('evidence-row-', '')
+      )
+    }
+    return ids
+  }
+
+  besEvidenceFilename(fileId) {
+    return $(`[data-testid="filename-${fileId}"]`)
+  }
+
+  deleteBesFileButton(fileId) {
+    return $(`[data-testid="delete-file-button-${fileId}"]`)
+  }
+
+  async deleteBesFile(fileId) {
+    await this.clickAndWaitForNextPage(this.deleteBesFileButton(fileId))
+  }
+
   async openRowAction(rowId) {
     await this.clickAndWaitForNextPage(this.rowAction(rowId))
   }

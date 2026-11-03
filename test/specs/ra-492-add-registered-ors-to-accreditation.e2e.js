@@ -87,6 +87,22 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
     )
   }
 
+  // Opens the incomplete site's BES upload, submits the fixture and waits for
+  // the status page, which polls until the virus scan completes, to return
+  // to the summary.
+  async function uploadBesEvidence() {
+    await AddToAccreditationPage.openRowAction('bes-evidence')
+    await waitForPath(`/add/${incompleteSite.siteId}/bes-evidence`)
+    await BesEvidencePage.submitUpload('business-plan.pdf')
+    await browser.waitUntil(
+      async () =>
+        new URL(await browser.getUrl()).pathname.endsWith(
+          `/add/${incompleteSite.siteId}`
+        ),
+      { timeout: 60000, timeoutMsg: 'BES upload did not return to summary' }
+    )
+  }
+
   it('AC01/AC03/AC04: adds a complete registered ORS, with its recorded fields locked, and shows a £328 charge', async () => {
     await openManageOverseasSites()
 
@@ -256,21 +272,37 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
     await AddOrsConditionsOfExportPage.continue()
     await waitForPath(`/add/${incompleteSite.siteId}`)
 
-    await AddToAccreditationPage.openRowAction('bes-evidence')
-    await waitForPath(`/add/${incompleteSite.siteId}/bes-evidence`)
-    await BesEvidencePage.submitUpload('business-plan.pdf')
-    // The status page polls until the virus scan completes, then returns to
-    // the summary.
-    await browser.waitUntil(
-      async () =>
-        new URL(await browser.getUrl()).pathname.endsWith(
-          `/add/${incompleteSite.siteId}`
-        ),
-      { timeout: 60000, timeoutMsg: 'BES upload did not return to summary' }
-    )
+    await uploadBesEvidence()
     await expect(
       AddToAccreditationPage.rowMissingTag('bes-evidence')
     ).not.toExist()
+    const fileIds = await AddToAccreditationPage.besEvidenceFileIds()
+    expect(fileIds).toHaveLength(1)
+    await expect(
+      AddToAccreditationPage.besEvidenceFilename(fileIds[0])
+    ).toHaveText(expect.stringContaining('business-plan'))
+
+    // AC01 correction route: deleting the only file makes the evidence
+    // missing again, so it has to be re-uploaded before the site can continue.
+    await AddToAccreditationPage.deleteBesFile(fileIds[0])
+    await waitForPath(`/add/${incompleteSite.siteId}`)
+    await expect(
+      AddToAccreditationPage.besEvidenceRows
+    ).toBeElementsArrayOfSize(0)
+    await expect(
+      AddToAccreditationPage.rowMissingTag('bes-evidence')
+    ).toHaveText('Missing information')
+    await expect(AddToAccreditationPage.rowAction('bes-evidence')).toHaveText(
+      expect.stringContaining('Add information')
+    )
+
+    await uploadBesEvidence()
+    await expect(
+      AddToAccreditationPage.rowMissingTag('bes-evidence')
+    ).not.toExist()
+    await expect(
+      AddToAccreditationPage.besEvidenceRows
+    ).toBeElementsArrayOfSize(1)
 
     await AddToAccreditationPage.continue()
     await waitForPath('/requests')
