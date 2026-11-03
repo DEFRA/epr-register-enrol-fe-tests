@@ -80,6 +80,16 @@ class OperatorAccreditationPage extends Page {
   async clickContinue() {
     await this.clickReliably(this.firstContinueLink)
   }
+
+  // RA-492: rendered only when the landing application is Approved (a granted
+  // accreditation); opens the in-year Manage overseas reprocessing sites page.
+  get manageOverseasSitesLink() {
+    return $('[data-testid="manage-overseas-sites-link"]')
+  }
+
+  async openManageOverseasSites() {
+    await this.clickAndWaitForNextPage(this.manageOverseasSitesLink)
+  }
 }
 
 export default new OperatorAccreditationPage()

@@ -120,6 +120,18 @@ class OperatorPage extends Page {
     })
     await link.click()
   }
+
+  // Org 50018 ("In-Year Change Exports Ltd", Plastic) exists specifically for
+  // ra-492-add-registered-ors-to-accreditation.e2e.js. Unlike every org above
+  // it lands on an APPROVED (granted) 2026 accreditation, seeded by the
+  // backend's DevSeedData__InYearChange (see compose.yml), whose registered
+  // ORSs that spec adds to the accreditation in-year. Submitting those requests
+  // is one-way (no reset endpoint), so no other spec may share this org.
+  async navigateToInYearChangeTestOrg() {
+    const link = $('a[href*="/operator-accreditation/50018/"]')
+    await link.waitForDisplayed()
+    await link.click()
+  }
 }
 
 export default new OperatorPage()

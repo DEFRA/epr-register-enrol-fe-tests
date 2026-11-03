@@ -198,6 +198,10 @@ services:
       - CdpUploader__Url=http://cdp-uploader:7337
       - App__BaseUrl=http://epr-register-enrol-backend:8080
       - CaseWorking__UseStub=true
+      # RA-492: seeds org 50018's approved (granted) 2026 Plastic accreditation
+      # with one accredited and three registered ORSs, which
+      # ra-492-add-registered-ors-to-accreditation.e2e.js adds to it in-year.
+      - DevSeedData__InYearChange=true
     depends_on:
       redis:
         condition: service_healthy

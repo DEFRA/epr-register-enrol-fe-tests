@@ -25,6 +25,17 @@ class AddOrsSiteLocationPage extends Page {
     return $('[data-testid="coordinates-input"]')
   }
 
+  // RA-492: the in-year add-to-accreditation location step reuses this page's
+  // inputs, but shows a value already recorded on the ORS as locked text in
+  // place of its input.
+  get lockedCountry() {
+    return $('[data-testid="locked-country"]')
+  }
+
+  get lockedCoordinates() {
+    return $('[data-testid="locked-coordinates"]')
+  }
+
   get errorSummary() {
     return $('[data-testid="error-summary"]')
   }

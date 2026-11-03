@@ -282,3 +282,49 @@ export async function patchSection(
   )
   return { statusCode, text: await body.text() }
 }
+
+// RA-492: in-year change requests against an approved (granted) accreditation
+// live under their own backend route, keyed by that approved application.
+function accreditationChangesUrl(organisationId, applicationId, path = '') {
+  return `${backendUrl}/api/v1/accreditation-changes/${organisationId}/${applicationId}${path}`
+}
+
+// The approved application's sites (each with accreditationStatus and any
+// pending request) plus every change request against it, newest first.
+export async function getAccreditationChanges(organisationId, applicationId) {
+  const { statusCode, body } = await request(
+    accreditationChangesUrl(organisationId, applicationId),
+    { headers: frontendAuthHeaders() }
+  )
+  if (statusCode !== 200) {
+    throw new Error(
+      `Failed to fetch accreditation changes for ${applicationId}: HTTP ${statusCode}`
+    )
+  }
+  return body.json()
+}
+
+// Asks the backend to add a registered site to the in-progress change request
+// and returns only the status code, so a spec can prove the server-side guard
+// (AC09: 409 once the site is in a Submitted request) rather than just the UI
+// hiding the link.
+export async function addSiteToChangeRequest(
+  organisationId,
+  applicationId,
+  siteId
+) {
+  const { statusCode, body } = await request(
+    accreditationChangesUrl(
+      organisationId,
+      applicationId,
+      '/requests/current/sites'
+    ),
+    {
+      method: 'POST',
+      headers: { ...frontendAuthHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({ siteId })
+    }
+  )
+  await body.dump()
+  return statusCode
+}
