@@ -20,13 +20,19 @@ export {
 } from './accreditation-links.js'
 export {
   deleteSeededOrganisations,
-  prepareSeededOrganisation
+  prepareSeededOrganisation,
+  prepareSeededOrganisationOrRecordFailure
 } from './hooks.js'
+export {
+  integrationTimeout,
+  useIntegrationSettings
+} from './integration-settings.js'
 export { handOffToRegisterEnrol } from './register-enrol-sign-in.js'
 export {
   OVERSEAS_SITES_MATERIAL,
   hasSeededOrganisation,
   loadOrganisation,
+  requireSeededOrganisation,
   seedOrganisation,
   seededMaterial,
   seededOrganisation

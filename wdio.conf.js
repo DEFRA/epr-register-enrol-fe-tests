@@ -1,7 +1,31 @@
 import fs from 'node:fs'
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
+import { TEST_ENVIRONMENT_INTEGRATION_SPECS } from './test/helpers/integration-organisation/integration-specs.js'
 
 const oneMinute = 60 * 1000
+
+// On test, the integration specs that run there (the `integration` suite
+// below) run as part of this suite, on an organisation onPrepare seeds for
+// the run and onComplete deletes. They set their own timeouts (see
+// integration-organisation/integration-settings.js). Elsewhere none run.
+const runsIntegration = process.env.ENVIRONMENT === 'test'
+
+// Imported only then: seeding refuses to load at all against prod.
+const integrationHooks = runsIntegration
+  ? await import('./test/helpers/integration-organisation/hooks.js')
+  : null
+
+const integrationSpecsDir = new URL(
+  './test/specs/integration/',
+  import.meta.url
+)
+const integrationSpecsNotRun = fs
+  .readdirSync(integrationSpecsDir)
+  .map((file) => `./test/specs/integration/${file}`)
+  .filter(
+    (spec) =>
+      !runsIntegration || !TEST_ENVIRONMENT_INTEGRATION_SPECS.includes(spec)
+  )
 
 export const config = {
   //
@@ -15,7 +39,7 @@ export const config = {
   // with `/`, the base url gets prepended, not including the path portion of your baseUrl.
   // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
   // gets prepended directly.
-  baseUrl: `https://${process.env.TEST_USERNAME}:${process.env.TEST_PASSWORD}@epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
+  baseUrl: `https://epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
 
   apiBaseUrl: `https://epr-register-enrol-backend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
   // Connection to remote chromedriver
@@ -24,11 +48,12 @@ export const config = {
 
   // Tests to run
   specs: ['./test/specs/**/*.js'],
-  // Tests to exclude
-  // test/specs/integration/** has its own wdio.integration.conf.js (seeding,
-  // ordered specs, longer timeouts), which entrypoint.sh runs after this one
-  // when ENVIRONMENT is test.
-  exclude: ['./test/specs/integration/**'],
+  // Tests to exclude: every integration spec but, on test, the ones that run
+  // there. Any of them alone: --suite integration.
+  exclude: integrationSpecsNotRun,
+  suites: {
+    integration: TEST_ENVIRONMENT_INTEGRATION_SPECS
+  },
   maxInstances: 1,
 
   capabilities: [
@@ -73,7 +98,10 @@ export const config = {
   bail: 0,
   waitforTimeout: 10000,
   waitforInterval: 200,
-  connectionRetryTimeout: 6000,
+  // Longer on test, where the integration journeys' page loads (sign-in
+  // through Defra ID, uploads through the CDP uploader) can outlast 6s. It
+  // only slows a request that hangs.
+  connectionRetryTimeout: runsIntegration ? 2 * oneMinute : 6000,
   connectionRetryCount: 3,
   framework: 'mocha',
 
@@ -91,7 +119,10 @@ export const config = {
       // Allure is used to generate the final HTML report
       'allure',
       {
-        outputDir: 'allure-results'
+        outputDir: 'allure-results',
+        // Each test's console output (for the integration journeys, their
+        // progress and the ids of what they created) as an attachment.
+        addConsoleLogs: true
       }
     ]
   ],
@@ -115,7 +146,12 @@ export const config = {
    * @param {object} config wdio configuration object
    * @param {Array.<Object>} capabilities list of capabilities details
    */
-  // onPrepare: function (config, capabilities) {},
+  // On test, seeds the integration specs' organisation, once, before any
+  // worker starts. Should that fail, those specs fail saying why, and the
+  // rest run as usual.
+  onPrepare: async function () {
+    await integrationHooks?.prepareSeededOrganisationOrRecordFailure()
+  },
   /**
    * Gets executed before a worker process is spawned and can be used to initialise specific service
    * for that worker as well as modify runtime environments in an async fashion.
@@ -235,10 +271,26 @@ export const config = {
    * @param {Array.<Object>} capabilities list of capabilities details
    * @param {<Object>} results object containing test results
    */
-  onComplete: function (_exitCode, _config, _capabilities, results) {
+  onComplete: async function (_exitCode, _config, _capabilities, results) {
     // !Do Not Remove! Required for test status to show correctly in portal.
     if (results?.failed && results.failed > 0) {
       fs.writeFileSync('FAILED', JSON.stringify(results))
+    }
+
+    if (integrationHooks) {
+      // Whether or not the tests passed. A clean-up that throws still leaves
+      // the organisations listed for the next run's clean-up, and the report
+      // says which are still there.
+      try {
+        await integrationHooks.deleteSeededOrganisations()
+      } catch (err) {
+        process.stdout.write(
+          `Deleting the seeded organisations failed: ${err}\n`
+        )
+      }
+      // Every organisation the run touched, and whether it is still there to
+      // delete, in the report's Environment section.
+      integrationHooks.reportRunOrganisations('allure-results')
     }
   }
   /**

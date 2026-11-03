@@ -1,18 +1,25 @@
 import { browser, expect } from '@wdio/globals'
 import ReexHomePage from 'page-objects/reex-home.page'
 import {
-  hasSeededOrganisation,
-  signInForMaterial
+  integrationTimeout,
+  requireSeededOrganisation,
+  signInForMaterial,
+  useIntegrationSettings
 } from '../../helpers/integration-organisation/index.js'
 
 // Checks the organisation seeded for the run (on test only) is one an operator
 // can use: signing in as its Defra ID user lands on it, and each material's
 // registration is listed on the tab for its waste processing type.
-describe('Seeded organisation - integration', () => {
+describe('Seeded organisation - integration', function () {
+  this.timeout(integrationTimeout())
+
   before(function () {
-    if (!hasSeededOrganisation()) {
+    if (process.env.ENVIRONMENT !== 'test') {
       this.skip()
     }
+    // Fails, saying why, should seeding have failed.
+    requireSeededOrganisation()
+    useIntegrationSettings()
   })
 
   const materials = [
