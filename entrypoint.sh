@@ -15,6 +15,14 @@ if [ "$PROFILE" = "GenerateOrgs" ]; then
 fi
 npm test
 
+# On test, the integrated journeys (test/specs/integration) run as well, into
+# the same allure-results and FAILED. Not through npm run test:integration,
+# whose clean would wipe the results above. Their seeding needs the same
+# secrets as GenerateOrgs.
+if [ "$ENVIRONMENT" = "test" ]; then
+  ./node_modules/.bin/wdio run wdio.integration.conf.js
+fi
+
 npm run report:publish
 publish_exit_code=$?
 
