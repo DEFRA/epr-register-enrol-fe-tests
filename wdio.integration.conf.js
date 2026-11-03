@@ -20,7 +20,8 @@ import {
 // (test/helpers/integration-organisation), and onComplete deletes every
 // organisation the file lists. SEEDED_ORGANISATION_ID reuses an organisation
 // instead, which is then never deleted. Elsewhere tests sign in through
-// GOV.UK One Login as REEX_USERNAME, and the test-environment scenarios skip.
+// GOV.UK One Login as REEX_USERNAME. Which specs run depends on which of the
+// two it is: see specs below.
 
 //
 //   npm run test:integration          # headless
@@ -73,22 +74,28 @@ export const config = {
     port: Number(process.env.CHROMEDRIVER_PORT) || 4444
   }),
 
-  // Listed in order rather than globbed: the case management journey acts on a
-  // work item that the exporter reapplication creates by submitting, and a
-  // glob sorts case-management-* ahead of reaccreditation-*, so it used to run
-  // first and find nothing to work on. maxInstances below keeps it sequential.
+  // On test, the run's one organisation gets one reprocessor and one exporter
+  // application: accreditation-workflow submits both and works them through
+  // case management. reprocessor-submission and
+  // exporter-overseas-sites-submission (test only), and reaccreditation-2027
+  // with case-management-query-2027 (which on test would act as the same
+  // organisation), would each submit more, so they do not run there.
   //
-  // The test-environment scenarios go before reaccreditation-2027, which takes
-  // whichever material is first still open, so that they get the ones they
-  // ask for (aluminium, and plastic for the overseas sites scenario).
-  specs: [
-    './test/specs/integration/seeded-organisation.integration.js',
-    './test/specs/integration/reprocessor-submission.integration.js',
-    './test/specs/integration/accreditation-workflow.integration.js',
-    './test/specs/integration/exporter-overseas-sites-submission.integration.js',
-    './test/specs/integration/reaccreditation-2027.integration.js',
-    './test/specs/integration/case-management-query-2027.integration.js'
-  ],
+  // Elsewhere, in order rather than globbed: the case management journey acts
+  // on a work item that the exporter reapplication creates by submitting, and
+  // a glob sorts case-management-* ahead of reaccreditation-*, so it used to
+  // run first and find nothing to work on. maxInstances below keeps it
+  // sequential.
+  specs:
+    process.env.ENVIRONMENT === 'test'
+      ? [
+          './test/specs/integration/seeded-organisation.integration.js',
+          './test/specs/integration/accreditation-workflow.integration.js'
+        ]
+      : [
+          './test/specs/integration/reaccreditation-2027.integration.js',
+          './test/specs/integration/case-management-query-2027.integration.js'
+        ],
   exclude: [],
 
   // One at a time on purpose. The journey picks the first material on the
@@ -152,7 +159,10 @@ export const config = {
     [
       'allure',
       {
-        outputDir: 'allure-results'
+        outputDir: 'allure-results',
+        // Each test's console output (the journey's progress, and the ids of
+        // what it created) as an attachment, beside its steps.
+        addConsoleLogs: true
       }
     ]
   ],

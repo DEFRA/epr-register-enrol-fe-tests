@@ -106,13 +106,22 @@ export async function addOverseasSiteWithInterimSite({
   ).toBeDisplayed()
 }
 
-/** Confirms the overseas sites, completing the queried ORS section. */
-export async function confirmOverseasSites() {
+/**
+ * Confirms the overseas sites, completing the queried ORS section.
+ *
+ * @param {object} [options]
+ * @param {(pageName: string) => Promise<void>} [options.checkPage] e.g. an
+ *   accessibility audit's check, run on the confirm page
+ */
+export async function confirmOverseasSites({
+  checkPage = async () => {}
+} = {}) {
   await OverseasReprocessingSitesPage.continue()
 
   await expect(browser).toHaveUrl(
     expect.stringContaining('/confirm-overseas-sites')
   )
+  await checkPage('Confirm overseas sites')
   await ConfirmOverseasSitesPage.confirmAndContinue()
 }
 

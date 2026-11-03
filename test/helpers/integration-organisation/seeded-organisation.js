@@ -74,8 +74,22 @@ export async function seedOrganisation({
     email,
     defraOrganisation: { id: seeded.defraOrgId, name: seeded.defraOrgName }
   })
-  await addOverseasSites(seeded.refNo, OVERSEAS_SITES)
-  return loadOrganisation(seeded.refNo)
+  const sites = await addOverseasSites(seeded.refNo, OVERSEAS_SITES)
+  const organisation = await loadOrganisation(seeded.refNo)
+  // What the organisation's API record does not say, but the tests check
+  // case management for: the seeded sites' names, and who they were for.
+  return {
+    ...organisation,
+    defraUserId: seeded.defraUserId,
+    registrations: organisation.registrations.map((registration) => ({
+      ...registration,
+      overseasSiteNames: sites
+        .filter(
+          (site) => site.registrationNumber === registration.registrationNumber
+        )
+        .map(({ name }) => name)
+    }))
+  }
 }
 
 /**
@@ -227,6 +241,8 @@ export function seededMaterial({
  * @property {string | null} accreditationId
  * @property {string | null} accreditationNumber
  * @property {Record<string, string>} overseasSites overseas site id by ORS id
+ * @property {string[]} [overseasSiteNames] the overseas sites' names; only
+ *   for an organisation seeded by this run, not one reused by id
  *
  * @typedef {object} SeededOrganisation
  * @property {string} id
@@ -234,6 +250,8 @@ export function seededMaterial({
  * @property {string | null} name the company name, as case management lists it
  * @property {string} status
  * @property {string} email the linked Defra ID user's
+ * @property {string} [defraUserId] the linked Defra ID user's id; only for an
+ *   organisation seeded by this run
  * @property {{id: string, name: string} | null} defraOrganisation
  * @property {SeededRegistration[]} registrations
  *
