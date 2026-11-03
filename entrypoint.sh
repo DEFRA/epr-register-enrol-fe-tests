@@ -22,8 +22,14 @@ npm test
 #
 # Its exit code is checked as well as FAILED: a run that stops before its
 # onComplete (seeding failed, no browser, a broken config) writes no FAILED.
+#
+# CHROMEDRIVER_URL defaults as in wdio.conf.js: CDP leaves it unset and serves
+# Chrome on 127.0.0.1:4444, and the integration config otherwise launches its
+# own, which this image does not have. Always headless here, whatever HEADED
+# or DEBUG the environment carries.
 if [ "$ENVIRONMENT" = "test" ]; then
-  ./node_modules/.bin/wdio run wdio.integration.conf.js
+  CHROMEDRIVER_URL="${CHROMEDRIVER_URL:-127.0.0.1}" HEADED=false DEBUG= \
+    ./node_modules/.bin/wdio run wdio.integration.conf.js
   integration_exit_code=$?
   if [ $integration_exit_code -ne 0 ]; then
     echo "integration suite exited with code $integration_exit_code" >> FAILED
