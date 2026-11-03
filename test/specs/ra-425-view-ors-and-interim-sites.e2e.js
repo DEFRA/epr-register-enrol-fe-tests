@@ -53,9 +53,9 @@ const INTERIM = {
   antwerpForBharat: 901808
 }
 
-// The registration keeps the year it was issued; the accreditation is for YEAR.
-const REGISTRATION_NUMBER = 'R26EX0500180001PL'
-const ACCREDITATION_NUMBER = `A${String(YEAR).slice(-2)}EX0500180001PL`
+const YEAR_SUFFIX = String(YEAR).slice(-2)
+const REGISTRATION_NUMBER = `R${YEAR_SUFFIX}EX0500180001PL`
+const ACCREDITATION_NUMBER = `A${YEAR_SUFFIX}EX0500180001PL`
 
 const urlEndingWith = (path) =>
   expect.stringMatching(new RegExp(`${path.replaceAll('/', '\\/')}(\\?.*)?$`))
