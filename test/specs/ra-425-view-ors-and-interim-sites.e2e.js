@@ -25,8 +25,9 @@ import {
  *
  * Runs against org 50018 ("Manage Accreditation Test Ltd"), which exists only
  * for this spec. The backend's dev seed (DevExporterAccreditationSeedService,
- * on in this stack via DevSeedData__Enabled) gives its Plastic registration an
- * Approved accreditation for the calendar year the stack started in:
+ * on in this stack via DevSeedData__ManageExporterEnabled, which seeds only org
+ * 50018) gives its Plastic registration an Approved accreditation for the
+ * calendar year the stack started in:
  *   - ORS 001 Rotterdam: Calais (current), Antwerp (also used by 002) and
  *     Old Depot (removed - must never show)
  *   - ORS 002 Bharat: its own copy of Antwerp
@@ -36,8 +37,12 @@ import {
  * rather than "the first row" or a page-wide count (see ra-603's warnings about
  * shared state): mongo is not reset between runs.
  *
- * Needs IN_YEAR_CHANGES_ENABLED on the frontend, and docker-only because
- * deployed environments have no such seed.
+ * Needs, all set in docker/config:
+ *   - DevSeedData__ManageExporterEnabled on the backend (the seed above)
+ *   - FeatureFlags__InYearChangesEnabled on the backend (the registration
+ *     status endpoint)
+ *   - IN_YEAR_CHANGES_ENABLED on the frontend
+ * Docker-only because deployed environments have no such seed.
  */
 
 const MANAGE_PATH = `${DASHBOARD_PATH}/registration-accreditation`
@@ -112,7 +117,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     await OperatorPage.navigateToManageDashboardExporter()
 
     await expect(browser).toHaveUrl(urlEndingWith(DASHBOARD_PATH))
-    await expect(ManageDashboardPage.pageHeading).toHaveText('Plastic')
+    await expect(ManageDashboardPage.pageHeading).toHaveText(MATERIAL)
     await expect(ManageDashboardPage.registrationStatusTag).toHaveText(
       'Approved'
     )
@@ -269,7 +274,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       await ManageOverseasSitesPage.returnToHome()
 
       await expect(browser).toHaveUrl(urlEndingWith(DASHBOARD_PATH))
-      await expect(ManageDashboardPage.pageHeading).toHaveText('Plastic')
+      await expect(ManageDashboardPage.pageHeading).toHaveText(MATERIAL)
     })
   })
 })

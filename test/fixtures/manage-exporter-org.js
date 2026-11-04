@@ -2,9 +2,9 @@
 // only for ra-425-view-ors-and-interim-sites.e2e.js.
 // The backend dev seed (epr-register-enrol-backend DevExporterAccreditationSeedService) and the frontend stub (stub-manage-accreditations.js) define the same org.
 
-export const ORGANISATION_ID = '50018'
+const ORGANISATION_ID = '50018'
 export const ORGANISATION_NAME = 'Manage Accreditation Test Ltd'
-export const REGISTRATION_ID = 'aaa000000000000000050018'
+const REGISTRATION_ID = 'aaa000000000000000050018'
 export const MATERIAL = 'Plastic'
 
 // The material dashboard, as linked from the operator page.
