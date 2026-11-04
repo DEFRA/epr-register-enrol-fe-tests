@@ -8,10 +8,14 @@ import {
   setCookieConsentSeeding
 } from '../helpers/cookie-consent.js'
 import { skipUnlessAnalyticsIsOn } from '../helpers/analytics.js'
+import { skipUnlessStubSignIn } from '../helpers/stub-sign-in.js'
 
 // Every other spec has the banner answered up front; this one turns that off.
 // It runs on the operator stub sign-in page, which is signed out and needs no
-// backend.
+// backend. Where there is none (dev signs in through the real Defra ID) only
+// the Welsh cookies-page test runs: the only other signed-out pages are
+// /cookies, with no banner, and the not-found page, whose banner form has no
+// crumb to post.
 const PAGE = '/auth/stub/login'
 
 const banner = () => $('[data-testid="cookie-banner"]')
@@ -54,7 +58,8 @@ describe('analytics cookie consent', () => {
     setCookieConsentSeeding(true)
   })
 
-  it('asks a visitor who has not answered, before the skip link', async () => {
+  it('asks a visitor who has not answered, before the skip link', async function () {
+    await skipUnlessStubSignIn(this)
     await startUnanswered()
 
     await expect(banner()).toBeDisplayed()
@@ -71,7 +76,8 @@ describe('analytics cookie consent', () => {
     expect(bannerFirst).toBe(true)
   })
 
-  it('rejecting from the banner records the choice and confirms it once', async () => {
+  it('rejecting from the banner records the choice and confirms it once', async function () {
+    await skipUnlessStubSignIn(this)
     await startUnanswered()
 
     await $('[data-testid="cookie-banner-reject"]').click()
@@ -88,7 +94,8 @@ describe('analytics cookie consent', () => {
     await expect(banner()).not.toBeExisting()
   })
 
-  it('accepting from the banner records the choice', async () => {
+  it('accepting from the banner records the choice', async function () {
+    await skipUnlessStubSignIn(this)
     await startUnanswered()
 
     await $('[data-testid="cookie-banner-accept"]').click()
@@ -100,7 +107,8 @@ describe('analytics cookie consent', () => {
   })
 
   for (const choice of ['accepted', 'rejected']) {
-    it(`saving ${choice} on the cookies page, without using the banner, records the choice`, async () => {
+    it(`saving ${choice} on the cookies page, without using the banner, records the choice`, async function () {
+      await skipUnlessStubSignIn(this)
       await startUnanswered()
 
       await $('[data-testid="footer-cookies"]').click()
@@ -117,7 +125,8 @@ describe('analytics cookie consent', () => {
     ['accepted', 'rejected'],
     ['rejected', 'accepted']
   ]) {
-    it(`${first} on the banner can be changed to ${second} on the cookies page`, async () => {
+    it(`${first} on the banner can be changed to ${second} on the cookies page`, async function () {
+      await skipUnlessStubSignIn(this)
       await startUnanswered()
       await $(
         `[data-testid="cookie-banner-${first === 'accepted' ? 'accept' : 'reject'}"]`
@@ -145,7 +154,8 @@ describe('analytics cookie consent', () => {
     expect(await consentCookieValue()).toBe('accepted')
   })
 
-  it('the cookies page keeps a signed-in operator signed in', async () => {
+  it('the cookies page keeps a signed-in operator signed in', async function () {
+    await skipUnlessStubSignIn(this)
     // Sign-in clicks the first button on the page, which the banner would
     // otherwise be.
     setCookieConsentSeeding(true)
