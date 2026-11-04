@@ -8,6 +8,15 @@ import {
   DOCKER_ONLY_TAG,
   skipDockerOnlyOnDeployedEnvironment
 } from '../helpers/docker-only.js'
+import {
+  ORGANISATION_NAME,
+  MATERIAL,
+  DASHBOARD_PATH,
+  ORS,
+  INTERIM,
+  registrationNumber,
+  accreditationNumber
+} from '../fixtures/manage-exporter-org.js'
 
 /**
  * RA-425: an exporter views the overseas reprocessing sites (ORSs) and interim
@@ -17,7 +26,7 @@ import {
  * Runs against org 50018 ("Manage Accreditation Test Ltd"), which exists only
  * for this spec. The backend's dev seed (DevExporterAccreditationSeedService,
  * on in this stack via DevSeedData__Enabled) gives its Plastic registration an
- * Approved accreditation for the current calendar year:
+ * Approved accreditation for the calendar year the stack started in:
  *   - ORS 001 Rotterdam: Calais (current), Antwerp (also used by 002) and
  *     Old Depot (removed - must never show)
  *   - ORS 002 Bharat: its own copy of Antwerp
@@ -31,34 +40,34 @@ import {
  * deployed environments have no such seed.
  */
 
-const ORGANISATION_ID = '50018'
-const REGISTRATION_ID = 'aaa000000000000000050018'
-const DASHBOARD_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/Plastic`
 const MANAGE_PATH = `${DASHBOARD_PATH}/registration-accreditation`
 const OVERSEAS_SITES_PATH = `${DASHBOARD_PATH}/overseas-sites`
 
-// The seed's year comes from the backend's clock, in UTC.
-const YEAR = new Date().getUTCFullYear()
-
-const ORS = {
-  rotterdam: 901801,
-  bharat: 901805,
-  berlin: 901806,
-  dragon: 901807
-}
-const INTERIM = {
-  calais: 901802,
-  antwerpForRotterdam: 901803,
-  oldDepot: 901804,
-  antwerpForBharat: 901808
-}
-
-const YEAR_SUFFIX = String(YEAR).slice(-2)
-const REGISTRATION_NUMBER = `R${YEAR_SUFFIX}EX0500180001PL`
-const ACCREDITATION_NUMBER = `A${YEAR_SUFFIX}EX0500180001PL`
+const caption = (year) => `${ORGANISATION_NAME} (${year}, ${MATERIAL})`
+const CAPTION_PATTERN = new RegExp(
+  `^${ORGANISATION_NAME} \\((\\d{4}), ${MATERIAL}\\)$`
+)
 
 const urlEndingWith = (path) =>
   expect.stringMatching(new RegExp(`${path.replaceAll('/', '\\/')}(\\?.*)?$`))
+
+// The seed's year follows the backend's clock when the stack started, which
+// is not this runner's clock if the stack was started before 1 January, so it
+// is read off the manage page's caption ("orgName (year, material)") rather
+// than worked out here.
+async function readSeededYear() {
+  await ManageRegistrationAccreditationPage.open(MANAGE_PATH)
+  const pageCaption = ManageRegistrationAccreditationPage.pageCaption
+  await pageCaption.waitForDisplayed()
+  const text = await pageCaption.getText()
+  expect(text).toMatch(CAPTION_PATTERN)
+  const year = Number(text.match(CAPTION_PATTERN)[1])
+  // Sanity check: seeded this year, or last year for a stack started before
+  // 1 January (UTC, as the backend's clock is).
+  const thisYear = new Date().getUTCFullYear()
+  expect([thisYear - 1, thisYear]).toContain(year)
+  return year
+}
 
 async function expectSite(tab, siteId, { orsId, name, address }) {
   await expect(ManageOverseasSitesPage.siteOrsId(tab, siteId)).toHaveText(orsId)
@@ -97,6 +106,8 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
   })
 
   it('follows the dashboard and manage page through to the overseas sites', async () => {
+    const year = await readSeededYear()
+
     await OperatorPage.open()
     await OperatorPage.navigateToManageDashboardExporter()
 
@@ -106,13 +117,13 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       'Approved'
     )
     await expect(ManageDashboardPage.registrationNumber).toHaveText(
-      REGISTRATION_NUMBER
+      registrationNumber(year)
     )
     await expect(ManageDashboardPage.accreditationStatusTag).toHaveText(
       'GRANTED'
     )
     await expect(ManageDashboardPage.accreditationNumber).toHaveText(
-      ACCREDITATION_NUMBER
+      accreditationNumber(year)
     )
 
     await ManageDashboardPage.openManageRegistrationAccreditation()
@@ -122,16 +133,16 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     await expect(managePage.pageHeading).toHaveText(
       'Manage your registration and accreditation'
     )
-    await expect(managePage.pageCaption).toHaveText(
-      `Manage Accreditation Test Ltd (${YEAR}, Plastic)`
-    )
+    await expect(managePage.pageCaption).toHaveText(caption(year))
     await expect(managePage.applicationStatusTag).toHaveText('GRANTED')
     await expect(managePage.accreditationNumber).toHaveText(
-      ACCREDITATION_NUMBER
+      accreditationNumber(year)
     )
-    await expect(managePage.registrationNumber).toHaveText(REGISTRATION_NUMBER)
+    await expect(managePage.registrationNumber).toHaveText(
+      registrationNumber(year)
+    )
     // An accreditation runs to the end of the calendar year it is for.
-    await expect(managePage.expiryDate).toHaveText(`31 Dec ${YEAR}`)
+    await expect(managePage.expiryDate).toHaveText(`31 Dec ${year}`)
     await expect(managePage.manageAccreditationCard).toBeDisplayed()
     await expect(managePage.upgradeTonnageLink).toHaveText('Upgrade tonnage')
     await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
@@ -146,9 +157,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     await expect(ManageOverseasSitesPage.pageHeading).toHaveText(
       'Manage overseas reprocessing sites'
     )
-    await expect(ManageOverseasSitesPage.pageCaption).toHaveText(
-      `Manage Accreditation Test Ltd (${YEAR}, Plastic)`
-    )
+    await expect(ManageOverseasSitesPage.pageCaption).toHaveText(caption(year))
   })
 
   describe('Manage overseas reprocessing sites', () => {

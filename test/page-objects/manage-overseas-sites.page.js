@@ -9,10 +9,6 @@ import { withInterimSiteDisclosure } from 'page-objects/interim-site-disclosure.
 // The row selectors take the tab's name ('accredited' or 'registered') and
 // the ORS's own site id, so a spec reads only the sites it knows about.
 class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
-  get pageHeading() {
-    return $('[data-testid="page-heading"]')
-  }
-
   get backLink() {
     return $('[data-testid="back-link"]')
   }

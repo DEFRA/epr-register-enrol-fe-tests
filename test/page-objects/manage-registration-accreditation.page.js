@@ -3,10 +3,6 @@ import { Page } from 'page-objects/page'
 // RA-425: "Manage your registration and accreditation", reached from the
 // material dashboard's "Registration and accreditation" card.
 class ManageRegistrationAccreditationPage extends Page {
-  get pageHeading() {
-    return $('[data-testid="page-heading"]')
-  }
-
   get applicationStatusTag() {
     return $('[data-testid="application-status-tag"]')
   }
