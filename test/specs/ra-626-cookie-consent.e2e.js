@@ -58,94 +58,7 @@ describe('analytics cookie consent', () => {
     setCookieConsentSeeding(true)
   })
 
-  it('asks a visitor who has not answered, before the skip link', async function () {
-    await skipUnlessStubSignIn(this)
-    await startUnanswered()
-
-    await expect(banner()).toBeDisplayed()
-    const bannerFirst = await browser.execute(() => {
-      const cookieBanner = document.querySelector(
-        '[data-testid="cookie-banner"]'
-      )
-      const skipLink = document.querySelector('.govuk-skip-link')
-      return Boolean(
-        cookieBanner.compareDocumentPosition(skipLink) &
-          window.Node.DOCUMENT_POSITION_FOLLOWING
-      )
-    })
-    expect(bannerFirst).toBe(true)
-  })
-
-  it('rejecting from the banner records the choice and confirms it once', async function () {
-    await skipUnlessStubSignIn(this)
-    await startUnanswered()
-
-    await $('[data-testid="cookie-banner-reject"]').click()
-
-    const { pathname, search } = new URL(await browser.getUrl())
-    expect(`${pathname}${search}`).toBe(PAGE)
-    await expect(confirmation()).toHaveText(
-      expect.stringContaining("You've rejected analytics cookies.")
-    )
-    expect(await consentCookieValue()).toBe('rejected')
-
-    await $('[data-testid="cookie-banner-hide"]').click()
-    await expect(confirmation()).not.toBeExisting()
-    await expect(banner()).not.toBeExisting()
-  })
-
-  it('accepting from the banner records the choice', async function () {
-    await skipUnlessStubSignIn(this)
-    await startUnanswered()
-
-    await $('[data-testid="cookie-banner-accept"]').click()
-
-    await expect(confirmation()).toHaveText(
-      expect.stringContaining("You've accepted analytics cookies.")
-    )
-    expect(await consentCookieValue()).toBe('accepted')
-  })
-
-  for (const choice of ['accepted', 'rejected']) {
-    it(`saving ${choice} on the cookies page, without using the banner, records the choice`, async function () {
-      await skipUnlessStubSignIn(this)
-      await startUnanswered()
-
-      await $('[data-testid="footer-cookies"]').click()
-      await expect($('input[name="analytics"]:checked')).not.toBeExisting()
-      await saveOnCookiesPage(choice)
-
-      expect(await consentCookieValue()).toBe(choice)
-      await browser.url(PAGE)
-      await expect(banner()).not.toBeExisting()
-    })
-  }
-
-  for (const [first, second] of [
-    ['accepted', 'rejected'],
-    ['rejected', 'accepted']
-  ]) {
-    it(`${first} on the banner can be changed to ${second} on the cookies page`, async function () {
-      await skipUnlessStubSignIn(this)
-      await startUnanswered()
-      await $(
-        `[data-testid="cookie-banner-${first === 'accepted' ? 'accept' : 'reject'}"]`
-      ).click()
-      expect(await consentCookieValue()).toBe(first)
-
-      await $('[data-testid="footer-cookies"]').click()
-      await expect(banner()).not.toBeExisting()
-      await expect(
-        $(`input[name="analytics"][value="${first}"]`)
-      ).toBeSelected()
-      await saveOnCookiesPage(second)
-
-      expect(await consentCookieValue()).toBe(second)
-      await browser.url(PAGE)
-      await expect(banner()).not.toBeExisting()
-    })
-  }
-
+  // Needs no stub sign-in page, so this also runs on dev.
   it('saving on the Welsh cookies page records the choice and stays in Welsh', async () => {
     await startUnanswered('/cy/cookies')
 
@@ -154,18 +67,106 @@ describe('analytics cookie consent', () => {
     expect(await consentCookieValue()).toBe('accepted')
   })
 
-  it('the cookies page keeps a signed-in operator signed in', async function () {
-    await skipUnlessStubSignIn(this)
-    // Sign-in clicks the first button on the page, which the banner would
-    // otherwise be.
-    setCookieConsentSeeding(true)
-    await browser.deleteCookies()
-    await LoginPage.openOperatorLogin()
-    await LoginPage.loginAsOperator()
+  describe('on the operator stub sign-in page', () => {
+    before(async function () {
+      await skipUnlessStubSignIn(this)
+    })
 
-    await browser.url('/cookies')
-    await expect(LoginPage.signOutNavLink).toBeDisplayed()
+    it('asks a visitor who has not answered, before the skip link', async () => {
+      await startUnanswered()
 
-    await LoginPage.signOut()
+      await expect(banner()).toBeDisplayed()
+      const bannerFirst = await browser.execute(() => {
+        const cookieBanner = document.querySelector(
+          '[data-testid="cookie-banner"]'
+        )
+        const skipLink = document.querySelector('.govuk-skip-link')
+        return Boolean(
+          cookieBanner.compareDocumentPosition(skipLink) &
+            window.Node.DOCUMENT_POSITION_FOLLOWING
+        )
+      })
+      expect(bannerFirst).toBe(true)
+    })
+
+    it('rejecting from the banner records the choice and confirms it once', async () => {
+      await startUnanswered()
+
+      await $('[data-testid="cookie-banner-reject"]').click()
+
+      const { pathname, search } = new URL(await browser.getUrl())
+      expect(`${pathname}${search}`).toBe(PAGE)
+      await expect(confirmation()).toHaveText(
+        expect.stringContaining("You've rejected analytics cookies.")
+      )
+      expect(await consentCookieValue()).toBe('rejected')
+
+      await $('[data-testid="cookie-banner-hide"]').click()
+      await expect(confirmation()).not.toBeExisting()
+      await expect(banner()).not.toBeExisting()
+    })
+
+    it('accepting from the banner records the choice', async () => {
+      await startUnanswered()
+
+      await $('[data-testid="cookie-banner-accept"]').click()
+
+      await expect(confirmation()).toHaveText(
+        expect.stringContaining("You've accepted analytics cookies.")
+      )
+      expect(await consentCookieValue()).toBe('accepted')
+    })
+
+    for (const choice of ['accepted', 'rejected']) {
+      it(`saving ${choice} on the cookies page, without using the banner, records the choice`, async () => {
+        await startUnanswered()
+
+        await $('[data-testid="footer-cookies"]').click()
+        await expect($('input[name="analytics"]:checked')).not.toBeExisting()
+        await saveOnCookiesPage(choice)
+
+        expect(await consentCookieValue()).toBe(choice)
+        await browser.url(PAGE)
+        await expect(banner()).not.toBeExisting()
+      })
+    }
+
+    for (const [first, second] of [
+      ['accepted', 'rejected'],
+      ['rejected', 'accepted']
+    ]) {
+      it(`${first} on the banner can be changed to ${second} on the cookies page`, async () => {
+        await startUnanswered()
+        await $(
+          `[data-testid="cookie-banner-${first === 'accepted' ? 'accept' : 'reject'}"]`
+        ).click()
+        expect(await consentCookieValue()).toBe(first)
+
+        await $('[data-testid="footer-cookies"]').click()
+        await expect(banner()).not.toBeExisting()
+        await expect(
+          $(`input[name="analytics"][value="${first}"]`)
+        ).toBeSelected()
+        await saveOnCookiesPage(second)
+
+        expect(await consentCookieValue()).toBe(second)
+        await browser.url(PAGE)
+        await expect(banner()).not.toBeExisting()
+      })
+    }
+
+    it('the cookies page keeps a signed-in operator signed in', async () => {
+      // Sign-in clicks the first button on the page, which the banner would
+      // otherwise be.
+      setCookieConsentSeeding(true)
+      await browser.deleteCookies()
+      await LoginPage.openOperatorLogin()
+      await LoginPage.loginAsOperator()
+
+      await browser.url('/cookies')
+      await expect(LoginPage.signOutNavLink).toBeDisplayed()
+
+      await LoginPage.signOut()
+    })
   })
 })
