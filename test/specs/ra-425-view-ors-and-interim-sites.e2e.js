@@ -33,7 +33,8 @@ import {
  *     Old Depot (removed - must never show)
  *   - ORS 002 Bharat: its own copy of Antwerp
  *   - ORS 003 Berlin: no interim sites, so no disclosure
- *   - ORS 004 Dragon: registered, not accredited
+ *   - ORS 004 Dragon: registered, not accredited; its registration lists an
+ *     interim site (Saigon), which must never show
  * Nothing here writes, but every read is still scoped to these seeded site ids
  * rather than "the first row" or a page-wide count (see ra-603's warnings about
  * shared state): mongo is not reset between runs.
@@ -236,6 +237,9 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       })
       await expect(
         ManageOverseasSitesPage.interimSiteDisclosure(ORS.dragon)
+      ).not.toBeExisting()
+      await expect(
+        ManageOverseasSitesPage.interimSiteRow(INTERIM.saigonForDragon)
       ).not.toBeExisting()
       for (const siteId of [ORS.rotterdam, ORS.bharat, ORS.berlin]) {
         await expect(

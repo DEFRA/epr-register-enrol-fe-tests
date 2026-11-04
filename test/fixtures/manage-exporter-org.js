@@ -30,7 +30,9 @@ export const INTERIM = {
   calais: 901802,
   antwerpForRotterdam: 901803,
   oldDepot: 901804,
-  antwerpForBharat: 901808
+  antwerpForBharat: 901808,
+  // On the registered-only Dragon ORS: the page must never show it.
+  saigonForDragon: 901809
 }
 
 // The seed numbers the registration and accreditation for the year it was
