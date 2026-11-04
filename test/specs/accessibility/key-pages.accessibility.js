@@ -16,8 +16,15 @@ describe('Accessibility — key pages', () => {
     await browser.deleteCookies()
   })
 
-  it('Sign-in page should have no WCAG 2.1 A/AA violations', async () => {
+  it('Sign-in page should have no WCAG 2.1 A/AA violations', async function () {
     await LoginPage.open()
+    // Without the stub (dev), / redirects to the real Defra ID / GOV.UK One
+    // Login sign-in, which is not part of this service, so it isn't ours to
+    // check.
+    const { host } = new URL(await browser.getUrl())
+    if (host !== new URL(browser.options.baseUrl).host) {
+      this.skip()
+    }
     await expectNoAccessibilityViolations()
   })
 
