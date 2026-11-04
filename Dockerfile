@@ -35,7 +35,7 @@ RUN npm ci --ignore-scripts
 COPY bin ./bin
 COPY test ./test
 COPY entrypoint.sh loader.mjs ./
-COPY wdio.conf.js wdio.local.conf.js wdio.github.conf.js wdio.integration.conf.js ./
+COPY wdio.conf.js wdio.local.conf.js wdio.github.conf.js ./
 COPY wdio.browserstack.conf.js wdio.github.browserstack.conf.js ./
 
 # The suite writes allure-results/, allure-report/ and FAILED into /app, so

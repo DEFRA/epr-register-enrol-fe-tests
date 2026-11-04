@@ -20,6 +20,13 @@ const SNAPSHOT_FILE = resolve(
   '../../../.integration/seeded-organisation.json'
 )
 
+// Why seeding failed, for the specs to fail with: it is done in the launcher,
+// before any worker starts, and wdio only logs an error thrown there.
+const SEEDING_FAILURE_FILE = resolve(
+  dirname(SNAPSHOT_FILE),
+  'seeding-failure.txt'
+)
+
 // The exporter material the exporter scenario applies for: a few accredited
 // overseas reprocessing sites to complete and registered ones to add, before
 // it adds a new site of its own.
@@ -158,6 +165,34 @@ export function writeSnapshot(organisation) {
  */
 export function removeSnapshot() {
   rmSync(SNAPSHOT_FILE, { force: true })
+  rmSync(SEEDING_FAILURE_FILE, { force: true })
+}
+
+/** Records why seeding the run's organisation failed. */
+export function recordSeedingFailure(err) {
+  mkdirSync(dirname(SEEDING_FAILURE_FILE), { recursive: true })
+  writeFileSync(SEEDING_FAILURE_FILE, `${err?.stack ?? err}\n`)
+}
+
+/**
+ * The organisation seeded for this run, for a spec that cannot run without
+ * one: when there is none, it throws, with why seeding failed if it did.
+ *
+ * @returns {SeededOrganisation}
+ */
+export function requireSeededOrganisation() {
+  if (hasSeededOrganisation()) {
+    return seededOrganisation()
+  }
+  let failure
+  try {
+    failure = readFileSync(SEEDING_FAILURE_FILE, 'utf8')
+  } catch {
+    return seededOrganisation()
+  }
+  throw new Error(
+    `Seeding the run's organisation failed, so this cannot run:\n${failure}`
+  )
 }
 
 /**

@@ -22,10 +22,7 @@ import {
   ACCREDITATION_APPLICATIONS_FILE,
   recordAccreditationApplication
 } from '../../helpers/integration-organisation/accreditation-applications.js'
-import {
-  hasSeededOrganisation,
-  seededOrganisation
-} from '../../helpers/integration-organisation/index.js'
+import { requireSeededOrganisation } from '../../helpers/integration-organisation/index.js'
 import {
   addNewSiteWithInterimSites,
   addRegisteredSitesToAccreditation,
@@ -77,7 +74,8 @@ import { reportDetails, reportStep } from '../../helpers/report-step.js'
 //
 // So the run submits one reprocessor and one exporter application, and works
 // both through case management. It is the only spec that submits on test (see
-// wdio.integration.conf.js), and the run's onComplete deletes the organisation.
+// integration-organisation/integration-specs.js), where it runs as part of the
+// standard suite, and the run's onComplete deletes the organisation.
 //
 // Each step of the journey is a step in the Allure report, with a screenshot
 // and the page's URL on the one that failed. The organisation, each
@@ -170,7 +168,7 @@ const QUERY_INTERIM_SITE = {
 
 const APPROVAL_NOTE = 'All queried sections were updated and are satisfactory.'
 
-describe(`Accreditation workflow ${accreditationYear} on the run's organisation - test environment`, () => {
+describe(`Accreditation workflow ${accreditationYear} on the run's organisation - test environment`, function () {
   let organisation
   // The names of the paper exporter's overseas sites the organisation is
   // seeded with.
@@ -519,10 +517,13 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
   // The organisation onPrepare seeded, and registered with
   // epr-register-enrol-frontend's own Defra ID stub, for the run.
   before(function () {
-    if (!hasSeededOrganisation()) {
+    // Only test is seeded. Reachable with wdio.integration.conf.js and
+    // --spec naming this file off test.
+    if (process.env.ENVIRONMENT !== 'test') {
       this.skip()
     }
-    organisation = seededOrganisation()
+    // Fails, saying why, should seeding have failed.
+    organisation = requireSeededOrganisation()
 
     const exporter = organisation.registrations.find(
       (registration) =>

@@ -1,7 +1,40 @@
 import fs from 'node:fs'
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
+import { applyIntegrationSettings } from './test/helpers/integration-organisation/integration-settings.js'
+import {
+  TEST_ENVIRONMENT_INTEGRATION_SPECS,
+  isIntegrationSpec,
+  selectsIntegrationSpecs
+} from './test/helpers/integration-organisation/integration-specs.js'
 
 const oneMinute = 60 * 1000
+
+// On test, the integration specs that run there (the `integration` suite
+// below) run as part of this suite, after the standard specs, on an
+// organisation onPrepare seeds for the run and onComplete deletes. Their
+// workers get their own timeouts (beforeSession). Elsewhere none run.
+const runsIntegration = process.env.ENVIRONMENT === 'test'
+
+// Imported only then: seeding refuses to load at all against prod.
+const integrationHooks = runsIntegration
+  ? await import('./test/helpers/integration-organisation/hooks.js')
+  : null
+
+// Whether onPrepare seeded (or tried to), for onComplete. Both run in the
+// launcher process.
+let seeds = false
+
+const integrationSpecsDir = new URL(
+  './test/specs/integration/',
+  import.meta.url
+)
+const integrationSpecsNotRun = fs
+  .readdirSync(integrationSpecsDir)
+  .map((file) => `./test/specs/integration/${file}`)
+  .filter(
+    (spec) =>
+      !runsIntegration || !TEST_ENVIRONMENT_INTEGRATION_SPECS.includes(spec)
+  )
 
 export const config = {
   //
@@ -15,20 +48,27 @@ export const config = {
   // with `/`, the base url gets prepended, not including the path portion of your baseUrl.
   // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
   // gets prepended directly.
-  baseUrl: `https://${process.env.TEST_USERNAME}:${process.env.TEST_PASSWORD}@epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
+  baseUrl: `https://epr-register-enrol-frontend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
 
   apiBaseUrl: `https://epr-register-enrol-backend.${process.env.ENVIRONMENT}.cdp-int.defra.cloud`,
   // Connection to remote chromedriver
   hostname: process.env.CHROMEDRIVER_URL || '127.0.0.1',
   port: process.env.CHROMEDRIVER_PORT || 4444,
 
-  // Tests to run
-  specs: ['./test/specs/**/*.js'],
-  // Tests to exclude
-  // test/specs/integration/** has its own wdio.integration.conf.js (seeding,
-  // ordered specs, longer timeouts), which entrypoint.sh runs after this one
-  // when ENVIRONMENT is test.
-  exclude: ['./test/specs/integration/**'],
+  // Tests to run: the standard specs, then on test the integration specs in
+  // the order listed (seeded-organisation checks the registrations before
+  // accreditation-workflow applies for and works them).
+  specs: [
+    './test/specs/*.js',
+    './test/specs/!(integration)/**/*.js',
+    ...(runsIntegration ? TEST_ENVIRONMENT_INTEGRATION_SPECS : [])
+  ],
+  // Tests to exclude: every integration spec but, on test, the ones that run
+  // there, should --spec name one. Those alone: --suite integration.
+  exclude: integrationSpecsNotRun,
+  suites: {
+    integration: TEST_ENVIRONMENT_INTEGRATION_SPECS
+  },
   maxInstances: 1,
 
   capabilities: [
@@ -73,6 +113,7 @@ export const config = {
   bail: 0,
   waitforTimeout: 10000,
   waitforInterval: 200,
+  // Longer for the integration specs: see beforeSession.
   connectionRetryTimeout: 6000,
   connectionRetryCount: 3,
   framework: 'mocha',
@@ -91,7 +132,10 @@ export const config = {
       // Allure is used to generate the final HTML report
       'allure',
       {
-        outputDir: 'allure-results'
+        outputDir: 'allure-results',
+        // Each test's console output (for the integration journeys, their
+        // progress and the ids of what they created) as an attachment.
+        addConsoleLogs: true
       }
     ]
   ],
@@ -115,7 +159,16 @@ export const config = {
    * @param {object} config wdio configuration object
    * @param {Array.<Object>} capabilities list of capabilities details
    */
-  // onPrepare: function (config, capabilities) {},
+  // On test, seeds the integration specs' organisation, once, before any
+  // worker starts, unless --spec or --suite leaves them out. Should that
+  // fail, those specs fail saying why, the rest run as usual, and onComplete
+  // fails the run.
+  onPrepare: async function (config) {
+    seeds = Boolean(integrationHooks) && selectsIntegrationSpecs(config)
+    if (seeds) {
+      await integrationHooks.prepareSeededOrganisationOrRecordFailure()
+    }
+  },
   /**
    * Gets executed before a worker process is spawned and can be used to initialise specific service
    * for that worker as well as modify runtime environments in an async fashion.
@@ -142,7 +195,13 @@ export const config = {
    * @param {Array.<String>} specs List of spec file paths that are to be run
    * @param {string} cid worker id (e.g. 0-0)
    */
-  // beforeSession: function (config, capabilities, specs, cid) {},
+  // An integration spec's worker (each spec file has its own) gets the longer
+  // waits and timeouts its journeys need; the standard specs' keep these.
+  beforeSession: function (config, _capabilities, specs) {
+    if (specs.some(isIntegrationSpec)) {
+      applyIntegrationSettings(config)
+    }
+  },
   /**
    * Gets executed before test execution begins. At this point you can access to all global
    * variables like `browser`. It is the perfect place to define custom commands.
@@ -151,8 +210,13 @@ export const config = {
    * @param {object}         browser      instance of created browser/device session
    */
   // Answer the cookie banner up front so it doesn't sit over every journey.
-  before: function () {
-    seedCookieConsentOnNavigation(browser)
+  // Not for the integration specs: seeding it is by way of register-enrol's
+  // /health, which on the Re-Ex and case management frontends would be every
+  // navigation.
+  before: function (_capabilities, specs) {
+    if (!specs.some(isIntegrationSpec)) {
+      seedCookieConsentOnNavigation(browser)
+    }
   },
   /**
    * Runs before a WebdriverIO command gets executed.
@@ -235,10 +299,35 @@ export const config = {
    * @param {Array.<Object>} capabilities list of capabilities details
    * @param {<Object>} results object containing test results
    */
-  onComplete: function (_exitCode, _config, _capabilities, results) {
+  onComplete: async function (_exitCode, _config, _capabilities, results) {
     // !Do Not Remove! Required for test status to show correctly in portal.
     if (results?.failed && results.failed > 0) {
       fs.writeFileSync('FAILED', JSON.stringify(results))
+    }
+
+    if (seeds) {
+      // Fails the run whatever the specs made of it.
+      const seedingError = integrationHooks.seedingFailure()
+      if (seedingError) {
+        fs.appendFileSync(
+          'FAILED',
+          `\nSeeding the integration specs' organisation failed: ${seedingError}\n`
+        )
+      }
+
+      // Whether or not the tests passed. A clean-up that throws still leaves
+      // the organisations listed for the next run's clean-up, and the report
+      // says which are still there.
+      try {
+        await integrationHooks.deleteSeededOrganisations()
+      } catch (err) {
+        process.stdout.write(
+          `Deleting the seeded organisations failed: ${err}\n`
+        )
+      }
+      // Every organisation the run touched, and whether it is still there to
+      // delete, in the report's Environment section.
+      integrationHooks.reportRunOrganisations('allure-results')
     }
   }
   /**
