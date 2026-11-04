@@ -122,9 +122,9 @@ class OperatorPage extends Page {
   }
 
   // Org 50018 ("Manage Accreditation Test Ltd", Plastic exporter) exists
-  // specifically for ra-425.e2e.js. The backend's dev seed gives it an
-  // Approved accreditation for the current year, with ORSs and interim sites,
-  // and no other spec drives it. The link is only listed while the RA-425
+  // specifically for ra-425-view-ors-and-interim-sites.e2e.js. The backend's
+  // dev seed gives it an Approved accreditation for the current year, with ORSs
+  // and interim sites, and no other spec drives it. The link is only listed while the RA-425
   // flag (IN_YEAR_CHANGES_ENABLED) is on.
   async navigateToManageDashboardExporter() {
     await this.clickAndWaitForNextPage(
