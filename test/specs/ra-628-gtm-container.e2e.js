@@ -8,8 +8,12 @@ import {
   skipUnlessAnalyticsIsOn,
   takeCspViolations
 } from '../helpers/analytics.js'
+import { skipUnlessStubSignIn } from '../helpers/stub-sign-in.js'
 
-// The stub sign-in page is signed out and needs no backend.
+// The stub sign-in page is signed out and needs no backend. Where there is
+// none (dev signs in through the real Defra ID) the suite skips: the only
+// other signed-out pages are /cookies, with no banner, and the not-found page,
+// whose banner form has no crumb to post.
 const PAGE = '/auth/stub/login'
 const GTM_LIBRARY = 'https://www.googletagmanager.com/gtm.js?id='
 
@@ -87,6 +91,7 @@ describe('Google Tag Manager container', () => {
   before(async function () {
     setCookieConsentSeeding(false)
     await skipUnlessAnalyticsIsOn(this)
+    await skipUnlessStubSignIn(this)
   })
 
   beforeEach(async () => {

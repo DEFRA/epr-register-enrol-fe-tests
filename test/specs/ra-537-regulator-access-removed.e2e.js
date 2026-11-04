@@ -2,6 +2,7 @@ import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import ErrorPage from 'page-objects/error.page'
+import { skipUnlessStubSignIn } from '../helpers/stub-sign-in.js'
 
 // RA-537: the OJ frontend no longer has a regulator side. Regulator casework
 // lives in the separate Case Management service, so the frontend's
@@ -37,13 +38,15 @@ describe('RA-537: OJ regulator access removed', () => {
     await browser.deleteCookies()
   })
 
-  it('offers no regulator sign-in on the stub login page', async () => {
+  it('offers no regulator sign-in on the stub login page', async function () {
+    await skipUnlessStubSignIn(this)
     await LoginPage.openOperatorLogin()
     await expect(LoginPage.pageHeading).toHaveText(OPERATOR_CHOOSER_LEGEND)
     await expect(LoginPage.regulatorLinks).toBeElementsArrayOfSize(0)
   })
 
-  it('renders the operator chooser for a stale ?type=regulator stub link', async () => {
+  it('renders the operator chooser for a stale ?type=regulator stub link', async function () {
+    await skipUnlessStubSignIn(this)
     await browser.url('/auth/stub/login?type=regulator')
     // Rendered in place, not redirected: `type` is accepted and ignored.
     await expect(browser).toHaveUrl(
@@ -60,7 +63,8 @@ describe('RA-537: OJ regulator access removed', () => {
     })
   }
 
-  it('shows the not-found page for the regulator URLs to a signed-in operator', async () => {
+  it('shows the not-found page for the regulator URLs to a signed-in operator', async function () {
+    await skipUnlessStubSignIn(this)
     await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     for (const path of REMOVED_PATHS) {
