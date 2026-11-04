@@ -20,6 +20,13 @@ const SNAPSHOT_FILE = resolve(
   '../../../.integration/seeded-organisation.json'
 )
 
+// Why seeding failed, for the specs to fail with: it is done in the launcher,
+// before any worker starts, and wdio only logs an error thrown there.
+const SEEDING_FAILURE_FILE = resolve(
+  dirname(SNAPSHOT_FILE),
+  'seeding-failure.txt'
+)
+
 // The exporter material the exporter scenario applies for: a few accredited
 // overseas reprocessing sites to complete and registered ones to add, before
 // it adds a new site of its own.
@@ -74,8 +81,22 @@ export async function seedOrganisation({
     email,
     defraOrganisation: { id: seeded.defraOrgId, name: seeded.defraOrgName }
   })
-  await addOverseasSites(seeded.refNo, OVERSEAS_SITES)
-  return loadOrganisation(seeded.refNo)
+  const sites = await addOverseasSites(seeded.refNo, OVERSEAS_SITES)
+  const organisation = await loadOrganisation(seeded.refNo)
+  // What the organisation's API record does not say, but the tests check
+  // case management for: the seeded sites' names, and who they were for.
+  return {
+    ...organisation,
+    defraUserId: seeded.defraUserId,
+    registrations: organisation.registrations.map((registration) => ({
+      ...registration,
+      overseasSiteNames: sites
+        .filter(
+          (site) => site.registrationNumber === registration.registrationNumber
+        )
+        .map(({ name }) => name)
+    }))
+  }
 }
 
 /**
@@ -144,6 +165,34 @@ export function writeSnapshot(organisation) {
  */
 export function removeSnapshot() {
   rmSync(SNAPSHOT_FILE, { force: true })
+  rmSync(SEEDING_FAILURE_FILE, { force: true })
+}
+
+/** Records why seeding the run's organisation failed. */
+export function recordSeedingFailure(err) {
+  mkdirSync(dirname(SEEDING_FAILURE_FILE), { recursive: true })
+  writeFileSync(SEEDING_FAILURE_FILE, `${err?.stack ?? err}\n`)
+}
+
+/**
+ * The organisation seeded for this run, for a spec that cannot run without
+ * one: when there is none, it throws, with why seeding failed if it did.
+ *
+ * @returns {SeededOrganisation}
+ */
+export function requireSeededOrganisation() {
+  if (hasSeededOrganisation()) {
+    return seededOrganisation()
+  }
+  let failure
+  try {
+    failure = readFileSync(SEEDING_FAILURE_FILE, 'utf8')
+  } catch {
+    return seededOrganisation()
+  }
+  throw new Error(
+    `Seeding the run's organisation failed, so this cannot run:\n${failure}`
+  )
 }
 
 /**
@@ -227,6 +276,8 @@ export function seededMaterial({
  * @property {string | null} accreditationId
  * @property {string | null} accreditationNumber
  * @property {Record<string, string>} overseasSites overseas site id by ORS id
+ * @property {string[]} [overseasSiteNames] the overseas sites' names; only
+ *   for an organisation seeded by this run, not one reused by id
  *
  * @typedef {object} SeededOrganisation
  * @property {string} id
@@ -234,6 +285,8 @@ export function seededMaterial({
  * @property {string | null} name the company name, as case management lists it
  * @property {string} status
  * @property {string} email the linked Defra ID user's
+ * @property {string} [defraUserId] the linked Defra ID user's id; only for an
+ *   organisation seeded by this run
  * @property {{id: string, name: string} | null} defraOrganisation
  * @property {SeededRegistration[]} registrations
  *

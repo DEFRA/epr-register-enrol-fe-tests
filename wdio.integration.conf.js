@@ -5,9 +5,14 @@ import allure from 'allure-commandline'
 import { reexFrontendUrl } from './test/config.js'
 import {
   deleteSeededOrganisations,
-  prepareSeededOrganisation,
-  reportRunOrganisations
+  prepareSeededOrganisationOrRecordFailure,
+  reportRunOrganisations,
+  seedingFailure
 } from './test/helpers/integration-organisation/hooks.js'
+import {
+  ONE_LOGIN_INTEGRATION_SPECS,
+  TEST_ENVIRONMENT_INTEGRATION_SPECS
+} from './test/helpers/integration-organisation/integration-specs.js'
 
 // Local integration run against a deployed environment (ENVIRONMENT, dev by
 // default), driving the real Re-Ex frontend and epr-register-enrol-frontend
@@ -20,7 +25,8 @@ import {
 // (test/helpers/integration-organisation), and onComplete deletes every
 // organisation the file lists. SEEDED_ORGANISATION_ID reuses an organisation
 // instead, which is then never deleted. Elsewhere tests sign in through
-// GOV.UK One Login as REEX_USERNAME, and the test-environment scenarios skip.
+// GOV.UK One Login as REEX_USERNAME. Which specs run depends on which of the
+// two it is: see specs below.
 
 //
 //   npm run test:integration          # headless
@@ -30,12 +36,14 @@ import {
 // other config here it needs no local stack, so there is no service health
 // check before the run.
 //
-// On CDP, entrypoint.sh runs it after the main suite when ENVIRONMENT is test,
-// through the platform's chromedriver (CHROMEDRIVER_URL) and egress proxy
-// (HTTP_PROXY), adding to the same allure-results and FAILED.
+// On CDP these specs run as part of the standard suite instead (wdio.conf.js,
+// on test); this config runs them on their own. HTTP_PROXY and
+// CHROMEDRIVER_URL, when set, are used as CDP sets them.
 
-const debug = process.env.DEBUG
-const headed = process.env.HEADED === 'true' || Boolean(debug)
+// Only "true" counts: any other value set in the environment (DEBUG=false,
+// or a debug-module pattern such as DEBUG=*) leaves the run headless.
+const debug = process.env.DEBUG === 'true'
+const headed = process.env.HEADED === 'true' || debug
 const oneMinute = 60 * 1000
 
 const execArgv = ['--loader', 'esm-module-alias/loader']
@@ -63,29 +71,21 @@ if (!headed) {
 export const config = {
   runner: 'local',
 
-  // The CDP test-suite container's chromedriver. Left unset locally, so wdio
-  // starts a driver for the installed Chrome.
+  // A remote chromedriver when CHROMEDRIVER_URL is set, e.g. a Selenium Chrome
+  // container. Left unset locally, so wdio starts a driver for the installed
+  // Chrome.
   ...(process.env.CHROMEDRIVER_URL && {
     hostname: process.env.CHROMEDRIVER_URL,
     port: Number(process.env.CHROMEDRIVER_PORT) || 4444
   }),
 
-  // Listed in order rather than globbed: the case management journey acts on a
-  // work item that the exporter reapplication creates by submitting, and a
-  // glob sorts case-management-* ahead of reaccreditation-*, so it used to run
-  // first and find nothing to work on. maxInstances below keeps it sequential.
-  //
-  // The test-environment scenarios go before reaccreditation-2027, which takes
-  // whichever material is first still open, so that they get the ones they
-  // ask for (aluminium, and plastic for the overseas sites scenario).
-  specs: [
-    './test/specs/integration/seeded-organisation.integration.js',
-    './test/specs/integration/reprocessor-submission.integration.js',
-    './test/specs/integration/accreditation-workflow.integration.js',
-    './test/specs/integration/exporter-overseas-sites-submission.integration.js',
-    './test/specs/integration/reaccreditation-2027.integration.js',
-    './test/specs/integration/case-management-query-2027.integration.js'
-  ],
+  // Which ones run where, and why: integration-organisation/integration-specs.js.
+  // On test, wdio.conf.js runs the same ones as part of the standard suite.
+  // maxInstances below keeps them sequential, in the order listed.
+  specs:
+    process.env.ENVIRONMENT === 'test'
+      ? TEST_ENVIRONMENT_INTEGRATION_SPECS
+      : ONE_LOGIN_INTEGRATION_SPECS,
   exclude: [],
 
   // One at a time on purpose. The journey picks the first material on the
@@ -149,7 +149,10 @@ export const config = {
     [
       'allure',
       {
-        outputDir: 'allure-results'
+        outputDir: 'allure-results',
+        // Each test's console output (the journey's progress, and the ids of
+        // what it created) as an attachment, beside its steps.
+        addConsoleLogs: true
       }
     ]
   ],
@@ -162,30 +165,9 @@ export const config = {
   },
 
   // Seeding takes a few minutes of API calls, so it is done once, before any
-  // worker starts, rather than per spec.
-  //
-  // wdio only logs an error thrown here and runs the specs anyway, which then
-  // all skip for want of an organisation and pass. So stop the run instead,
-  // first deleting whatever seeding got as far as creating. (Throwing wdio's
-  // SevereServiceError would stop it too, but only the copy of webdriverio
-  // nested under @wdio/cli, not the one this config can import.)
-  onPrepare: async function () {
-    try {
-      await prepareSeededOrganisation()
-    } catch (err) {
-      process.stdout.write(
-        `Seeding the organisation failed, so no tests were run: ${err?.stack ?? err}\n`
-      )
-      try {
-        await deleteSeededOrganisations()
-      } catch (cleanupErr) {
-        process.stdout.write(
-          `Deleting the seeded organisations failed: ${cleanupErr}\n`
-        )
-      }
-      process.exit(1)
-    }
-  },
+  // worker starts, rather than per spec. Should it fail, the specs that need
+  // the organisation fail, saying why, without running.
+  onPrepare: prepareSeededOrganisationOrRecordFailure,
 
   afterTest: async function (_test, _context, { error }) {
     if (error) {
@@ -194,10 +176,17 @@ export const config = {
   },
 
   onComplete: async function (_exitCode, _config, _capabilities, results) {
-    // Required for test status to show correctly in the CDP portal. Appended,
-    // as on CDP the main suite may already have written one.
+    // As wdio.conf.js writes it. Appended, should a run before this one in
+    // the same directory have written one.
     if (results?.failed && results.failed > 0) {
       fs.appendFileSync('FAILED', JSON.stringify(results) + '\n')
+    }
+    // Fails the run whatever the specs made of it.
+    if (seedingFailure()) {
+      fs.appendFileSync(
+        'FAILED',
+        `Seeding the integration specs' organisation failed: ${seedingFailure()}\n`
+      )
     }
 
     // Before the report, which rejects when it cannot be generated.

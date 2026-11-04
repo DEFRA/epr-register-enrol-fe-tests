@@ -2,6 +2,10 @@
 
 echo "run_id: $RUN_ID"
 
+# Only this run's: a FAILED left in /app by an earlier run (a local docker
+# run reusing its container) would fail this one, or say the wrong thing.
+rm -f FAILED
+
 # Generate data instead of testing, based on PROFILE. GenerateOrgs seeds a
 # Re/Ex organisation with every material, linked to a Defra ID user, and logs
 # the Defra ID and the accreditation link for each reprocessor and exporter
@@ -13,21 +17,16 @@ if [ "$PROFILE" = "GenerateOrgs" ]; then
   echo "GenerateOrgs finished with exit code $generate_exit_code"
   exit $generate_exit_code
 fi
+# On test this includes the integrated journeys (test/specs/integration), on
+# an organisation the run seeds and deletes: see wdio.conf.js. Their seeding
+# needs the same secrets as GenerateOrgs.
 npm test
+test_exit_code=$?
 
-# On test, the integrated journeys (test/specs/integration) run as well, into
-# the same allure-results and FAILED. Not through npm run test:integration,
-# whose clean would wipe the results above. Their seeding needs the same
-# secrets as GenerateOrgs.
-#
 # Its exit code is checked as well as FAILED: a run that stops before its
-# onComplete (seeding failed, no browser, a broken config) writes no FAILED.
-if [ "$ENVIRONMENT" = "test" ]; then
-  ./node_modules/.bin/wdio run wdio.integration.conf.js
-  integration_exit_code=$?
-  if [ $integration_exit_code -ne 0 ]; then
-    echo "integration suite exited with code $integration_exit_code" >> FAILED
-  fi
+# onComplete (no browser, a broken config) writes no FAILED.
+if [ $test_exit_code -ne 0 ] && [ ! -f FAILED ]; then
+  echo "test run exited with code $test_exit_code" > FAILED
 fi
 
 npm run report:publish

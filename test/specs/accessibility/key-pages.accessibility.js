@@ -3,6 +3,7 @@ import { browser } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import { expectNoAccessibilityViolations } from '../../helpers/accessibility.js'
+import { skipUnlessStubSignIn } from '../../helpers/stub-sign-in.js'
 
 // RA-437: `npm run test:accessibility` referenced this directory before any
 // spec existed in it, so accessibility was never actually checked. Covers
@@ -23,7 +24,8 @@ describe('Accessibility — key pages', () => {
   // /about was removed (epr-register-enrol-frontend) — a redundant,
   // never-built scaffold page — so there's nothing left here to check.
 
-  it('Operator home page should have no WCAG 2.1 A/AA violations', async () => {
+  it('Operator home page should have no WCAG 2.1 A/AA violations', async function () {
+    await skipUnlessStubSignIn(this)
     await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
     await OperatorPage.open()
