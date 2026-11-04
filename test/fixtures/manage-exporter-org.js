@@ -1,6 +1,8 @@
 // Org 50018 ("Manage Accreditation Test Ltd", Plastic exporter), which exists
 // only for ra-425-view-ors-and-interim-sites.e2e.js.
-// The backend dev seed (epr-register-enrol-backend DevExporterAccreditationSeedService) and the frontend stub (stub-manage-accreditations.js) define the same org.
+// The backend (DevSeed/ManageExporterOrg.cs) and the frontend
+// (src/server/common/constants/test-orgs.js) define the same org: keep all
+// three in step.
 
 const ORGANISATION_ID = '50018'
 export const ORGANISATION_NAME = 'Manage Accreditation Test Ltd'
