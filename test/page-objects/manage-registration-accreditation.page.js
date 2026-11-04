@@ -1,7 +1,7 @@
 import { Page } from 'page-objects/page'
 
-// RA-425: "Manage your registration and accreditation", reached from the
-// material dashboard's "Registration and accreditation" card.
+// RA-425: "Manage your registration and accreditation", the first /manage
+// page. Re/Ex's material page links to it.
 class ManageRegistrationAccreditationPage extends Page {
   get applicationStatusTag() {
     return $('[data-testid="application-status-tag"]')

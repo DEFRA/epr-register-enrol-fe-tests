@@ -1,5 +1,5 @@
 import { Page } from 'page-objects/page'
-import { DASHBOARD_PATH as MANAGE_EXPORTER_DASHBOARD_PATH } from '../fixtures/manage-exporter-org.js'
+import { MANAGE_PATH as MANAGE_EXPORTER_PATH } from '../fixtures/manage-exporter-org.js'
 
 class OperatorPage extends Page {
   open() {
@@ -122,16 +122,15 @@ class OperatorPage extends Page {
     await link.click()
   }
 
-  // The material dashboard of the org in test/fixtures/manage-exporter-org.js,
-  // which exists specifically for ra-425-view-ors-and-interim-sites.e2e.js:
+  // The manage registration and accreditation page of the org in
+  // test/fixtures/manage-exporter-org.js, which exists specifically for
+  // ra-425-view-ors-and-interim-sites.e2e.js:
   // the backend's dev seed gives it an Approved accreditation, with ORSs and
   // interim sites, and no other spec drives it. The link is only listed while
   // the RA-425 flag (IN_YEAR_CHANGES_ENABLED) is on.
-  async navigateToManageDashboardExporter() {
+  async navigateToManageExporter() {
     await this.clickAndWaitForNextPage(
-      $(
-        `[data-testid="manage-dashboard-exporter-link"][href="${MANAGE_EXPORTER_DASHBOARD_PATH}"]`
-      )
+      $(`[data-testid="manage-exporter-link"][href="${MANAGE_EXPORTER_PATH}"]`)
     )
   }
 }

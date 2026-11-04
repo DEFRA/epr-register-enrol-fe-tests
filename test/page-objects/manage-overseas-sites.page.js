@@ -51,10 +51,6 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     })
   }
 
-  async returnToHome() {
-    await this.clickAndWaitForNextPage(this.returnToHomeLink)
-  }
-
   async goBack() {
     await this.clickAndWaitForNextPage(this.backLink)
   }

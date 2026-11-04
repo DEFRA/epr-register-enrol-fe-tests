@@ -1,7 +1,6 @@
 import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
-import ManageDashboardPage from 'page-objects/manage-dashboard.page'
 import ManageRegistrationAccreditationPage from 'page-objects/manage-registration-accreditation.page'
 import ManageOverseasSitesPage from 'page-objects/manage-overseas-sites.page'
 import {
@@ -11,7 +10,8 @@ import {
 import {
   ORGANISATION_NAME,
   MATERIAL,
-  DASHBOARD_PATH,
+  MANAGE_PATH,
+  REEX_REGISTRATION_PATH,
   ORS,
   INTERIM,
   registrationNumber,
@@ -20,8 +20,9 @@ import {
 
 /**
  * RA-425: an exporter views the overseas reprocessing sites (ORSs) and interim
- * sites on its current accreditation - material dashboard, then "Manage your
- * registration and accreditation", then "Manage overseas reprocessing sites".
+ * sites on its current accreditation - "Manage your registration and
+ * accreditation", then "Manage overseas reprocessing sites". Re/Ex's material
+ * page links to the first; the operator test page stands in for it here.
  *
  * Runs against org 50018 ("Manage Accreditation Test Ltd"), which exists only
  * for this spec. The backend's dev seed (DevExporterAccreditationSeedService,
@@ -45,8 +46,7 @@ import {
  * Docker-only because deployed environments have no such seed.
  */
 
-const MANAGE_PATH = `${DASHBOARD_PATH}/registration-accreditation`
-const OVERSEAS_SITES_PATH = `${DASHBOARD_PATH}/overseas-sites`
+const OVERSEAS_SITES_PATH = `${MANAGE_PATH}/overseas-sites`
 
 const caption = (year) => `${ORGANISATION_NAME} (${year}, ${MATERIAL})`
 const CAPTION_PATTERN = new RegExp(
@@ -110,28 +110,11 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     await LoginPage.signOut()
   })
 
-  it('follows the dashboard and manage page through to the overseas sites', async () => {
+  it('follows the manage page through to the overseas sites', async () => {
     const year = await readSeededYear()
 
     await OperatorPage.open()
-    await OperatorPage.navigateToManageDashboardExporter()
-
-    await expect(browser).toHaveUrl(urlEndingWith(DASHBOARD_PATH))
-    await expect(ManageDashboardPage.pageHeading).toHaveText(MATERIAL)
-    await expect(ManageDashboardPage.registrationStatusTag).toHaveText(
-      'Approved'
-    )
-    await expect(ManageDashboardPage.registrationNumber).toHaveText(
-      registrationNumber(year)
-    )
-    await expect(ManageDashboardPage.accreditationStatusTag).toHaveText(
-      'GRANTED'
-    )
-    await expect(ManageDashboardPage.accreditationNumber).toHaveText(
-      accreditationNumber(year)
-    )
-
-    await ManageDashboardPage.openManageRegistrationAccreditation()
+    await OperatorPage.navigateToManageExporter()
 
     await expect(browser).toHaveUrl(urlEndingWith(MANAGE_PATH))
     const managePage = ManageRegistrationAccreditationPage
@@ -153,7 +136,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
     await expect(managePage.backLink).toHaveAttribute(
       'href',
-      urlEndingWith(DASHBOARD_PATH)
+      urlEndingWith(REEX_REGISTRATION_PATH)
     )
 
     await managePage.openManageOverseasSites()
@@ -270,11 +253,12 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       )
     })
 
-    it('returns to the material dashboard', async () => {
-      await ManageOverseasSitesPage.returnToHome()
-
-      await expect(browser).toHaveUrl(urlEndingWith(DASHBOARD_PATH))
-      await expect(ManageDashboardPage.pageHeading).toHaveText(MATERIAL)
+    // Re/Ex isn't in this stack, so check where the link goes without following it.
+    it('links home to the Re/Ex material page', async () => {
+      await expect(ManageOverseasSitesPage.returnToHomeLink).toHaveAttribute(
+        'href',
+        urlEndingWith(REEX_REGISTRATION_PATH)
+      )
     })
   })
 })

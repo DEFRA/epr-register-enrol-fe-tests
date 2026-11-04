@@ -9,8 +9,13 @@ export const ORGANISATION_NAME = 'Manage Accreditation Test Ltd'
 const REGISTRATION_ID = 'aaa000000000000000050018'
 export const MATERIAL = 'Plastic'
 
-// The material dashboard, as linked from the operator page.
-export const DASHBOARD_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/${MATERIAL}`
+// The manage registration and accreditation page, which Re/Ex and the
+// operator page link to.
+export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/${MATERIAL}`
+
+// The Re/Ex material page the manage pages lead back to. The Re/Ex base URL
+// differs by environment, so match on the end of the href.
+export const REEX_REGISTRATION_PATH = `/organisations/${ORGANISATION_ID}/registrations/${REGISTRATION_ID}`
 
 // Site ids of the seeded overseas reprocessing sites (ORSs).
 export const ORS = {
