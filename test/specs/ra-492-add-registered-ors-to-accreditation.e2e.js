@@ -1,7 +1,7 @@
 import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
-import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
+import ManageRegistrationAccreditationPage from 'page-objects/manage-registration-accreditation.page'
 import ManageOverseasSitesPage from 'page-objects/manage-overseas-sites.page'
 import AddToAccreditationPage from 'page-objects/add-to-accreditation.page'
 import AccreditationRequestsPage from 'page-objects/accreditation-requests.page'
@@ -17,41 +17,59 @@ import {
   getAccreditationChanges,
   getOverseasSites
 } from '../helpers/case-management.js'
-import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import {
+  DOCKER_ONLY_TAG,
+  skipDockerOnlyOnDeployedEnvironment
+} from '../helpers/docker-only.js'
+import { readSeededYear } from '../helpers/seeded-year.js'
+import {
+  ORGANISATION_ID,
+  ORGANISATION_NAME,
+  MATERIAL,
+  MANAGE_PATH,
+  OVERSEAS_SITES_PATH,
+  ORS,
+  accreditationApplicationId
+} from '../fixtures/in-year-change-org.js'
 
 // RA-492: an operator with a GRANTED accreditation applies, in-year, to add
 // ORSs from their registered list to it. This proves end to end what the
-// backend's and frontend's unit tests cannot on their own: that the material
-// landing really offers the in-year route for an approved accreditation; that
-// the summary built from the real ORS record locks what is already recorded
-// and asks only for what is missing (AC01/AC02); that the charge the operator
-// reviews is £328 per site across a multi-site request (AC03/AC04/AC10); that
-// the declaration submits the request (AC05/AC07) and reaches the bank
-// transfer payment page; and that afterwards the sites show as pending and
-// cannot be added again, neither through the UI nor the API (AC08/AC09).
+// backend's and frontend's unit tests cannot on their own: that RA-425's
+// manage pages really offer the in-year route for an approved accreditation;
+// that the summary built from the real ORS record locks what is already
+// recorded and asks only for what is missing (AC01/AC02); that the charge the
+// operator reviews is £328 per site across a multi-site request
+// (AC03/AC04/AC10); that the declaration submits the request (AC05/AC07) and
+// reaches the bank transfer payment page; and that afterwards the sites show
+// as pending and cannot be added again, neither through the UI nor the API
+// (AC08/AC09).
 //
-// Owns org 50018 ("In-Year Change Exports Ltd", Plastic 2026), the only org
-// with an approved accreditation, seeded by the backend's
-// DevSeedData__InYearChange (see compose.yml). Its registered sites:
-//   900182 / ORS 002 - complete, every lockable field already recorded
-//   900183 / ORS 003 - India: coordinates, R code and conditions of export
-//                      missing, and outside the EU/OECD, so BES evidence is
-//                      required unless it meets the conditions of export
-//   900184 / ORS 004 - left alone, to prove an untouched site stays addable
-// ORS 001 is already accredited. Submitting is one-way (there is no reset
-// endpoint), so the `it()` blocks below run in file order against the one
-// request they build up, as ra-481-section-lock.e2e.js does with its org.
-describe('RA-492: add a registered ORS to a granted accreditation @docker-only', () => {
+// Owns org 50019 (test/fixtures/in-year-change-org.js), whose current-year
+// Approved Plastic accreditation is seeded by the backend's
+// DevExporterAccreditationSeedService (DevSeedData__ManageExporterEnabled in
+// docker/config), alongside RA-425's org 50018, which this spec leaves alone.
+// ORS 001 is accredited. Its registered-only sites:
+//   901910 / ORS 005 - France, complete: every lockable field recorded
+//   901911 / ORS 006 - India, country only: coordinates, R code and
+//                      conditions of export missing, and outside the
+//                      EU/OECD, so BES evidence is required unless it meets
+//                      the conditions of export
+//   901912 / ORS 007 - left alone, to prove an untouched site stays addable
+// Submitting is one-way (there is no reset endpoint), so the `it()` blocks
+// below run in file order against the one request they build up, as
+// ra-481-section-lock.e2e.js does with its org.
+describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_TAG}`, () => {
   before(function () {
     skipDockerOnlyOnDeployedEnvironment(this)
   })
 
-  const organisationId = '50018'
-  const applicationId = 'a26000000000000000050018'
-  const managePath = `/accreditation/manage-overseas-sites/${applicationId}`
-  const completeSite = { siteId: 900182, orsId: '002' }
-  const incompleteSite = { siteId: 900183, orsId: '003' }
-  const untouchedSite = { siteId: 900184, orsId: '004' }
+  const completeSite = { siteId: ORS.lyon, orsId: '005' }
+  const incompleteSite = { siteId: ORS.delhi, orsId: '006' }
+  const untouchedSite = { siteId: ORS.izmir, orsId: '007' }
+  // Set by the first beforeEach: the seeded accreditation's id, and the base
+  // path of the RA-492 change-request pages it keys.
+  let applicationId
+  let changePath
 
   beforeEach(async () => {
     await browser.deleteCookies()
@@ -64,20 +82,31 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
     })
     await LoginPage.openOperatorLogin()
     await LoginPage.loginAsOperator()
-    await OperatorPage.open()
+    if (!applicationId) {
+      const year = await readSeededYear({
+        managePath: MANAGE_PATH,
+        organisationName: ORGANISATION_NAME,
+        material: MATERIAL
+      })
+      applicationId = accreditationApplicationId(year)
+      changePath = `/accreditation/manage-overseas-sites/${applicationId}`
+    }
   })
 
   afterEach(async () => {
     await LoginPage.signOut()
   })
 
+  // The way in: the operator page stands in for Re/Ex's material page, which
+  // links to RA-425's manage page, whose card opens the ORS page.
   async function openManageOverseasSites() {
-    await OperatorPage.navigateToInYearChangeTestOrg()
-    await OperatorAccreditationPage.openManageOverseasSites()
+    await OperatorPage.open()
+    await OperatorPage.navigateToInYearChangeOrg()
+    await ManageRegistrationAccreditationPage.openManageOverseasSites()
     await expect(ManageOverseasSitesPage.pageHeading).toHaveText(
       'Manage overseas reprocessing sites'
     )
-    expect(new URL(await browser.getUrl()).pathname).toBe(managePath)
+    expect(new URL(await browser.getUrl()).pathname).toBe(OVERSEAS_SITES_PATH)
   }
 
   async function waitForPath(suffix) {
@@ -106,15 +135,22 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
   it('AC01/AC03/AC04: adds a complete registered ORS, with its recorded fields locked, and shows a £328 charge', async () => {
     await openManageOverseasSites()
 
-    await ManageOverseasSitesPage.showRegisteredTab()
+    // RA-425's partition: only ORS 001 is on the accreditation.
+    await expect(ManageOverseasSitesPage.tab('accredited')).toHaveText(
+      'Accredited (1)'
+    )
+    await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
+      'Registered (3)'
+    )
+    await ManageOverseasSitesPage.openTab('registered')
     for (const { orsId } of [completeSite, incompleteSite, untouchedSite]) {
       await expect(
-        ManageOverseasSitesPage.addToAccreditationLink(orsId)
+        ManageOverseasSitesPage.addToAccreditationButton(orsId)
       ).toBeDisplayed()
     }
     // ORS 001 is already accredited, so it is not offered again.
     await expect(
-      ManageOverseasSitesPage.addToAccreditationLink('001')
+      ManageOverseasSitesPage.addToAccreditationButton('001')
     ).not.toExist()
 
     await ManageOverseasSitesPage.addToAccreditation(completeSite.orsId)
@@ -125,7 +161,7 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
       new RegExp(`^Add to accreditation: .+ \\(${completeSite.orsId}\\)$`)
     )
     await expect(AddToAccreditationPage.pageCaption).toHaveText(
-      expect.stringContaining('In-Year Change Exports Ltd')
+      expect.stringContaining(ORGANISATION_NAME)
     )
     // Already recorded on the ORS, so locked: shown, but with no action.
     for (const rowId of [
@@ -182,21 +218,22 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
         'You currently have 1 requests ready for submission.'
       )
     )
-    await ManageOverseasSitesPage.clickAndWaitForNextPage(
-      ManageOverseasSitesPage.viewRequestsLink
-    )
+    await ManageOverseasSitesPage.viewRequests()
     await waitForPath('/requests')
 
+    // Back to the registered tab of RA-425's page.
     await AccreditationRequestsPage.addAnotherRequest()
-    expect(new URL(await browser.getUrl()).pathname).toBe(managePath)
+    const { pathname, hash } = new URL(await browser.getUrl())
+    expect(pathname).toBe(OVERSEAS_SITES_PATH)
+    expect(hash).toBe('#registered')
 
-    await ManageOverseasSitesPage.showRegisteredTab()
+    await ManageOverseasSitesPage.openTab('registered')
     // The site already in the request is resumed, not added twice.
     await expect(
       ManageOverseasSitesPage.siteStatusTag(completeSite.orsId)
     ).toHaveText('In progress')
     await expect(
-      ManageOverseasSitesPage.addToAccreditationLink(completeSite.orsId)
+      ManageOverseasSitesPage.addToAccreditationButton(completeSite.orsId)
     ).not.toExist()
     await expect(
       ManageOverseasSitesPage.viewRequestLink(completeSite.orsId)
@@ -326,12 +363,10 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
   })
 
   it('AC05/AC07: the declaration submits the request without accrediting the sites, then shows the £656 bank transfer', async () => {
-    const sitesBefore = await getOverseasSites(organisationId, applicationId)
+    const sitesBefore = await getOverseasSites(ORGANISATION_ID, applicationId)
 
     await openManageOverseasSites()
-    await ManageOverseasSitesPage.clickAndWaitForNextPage(
-      ManageOverseasSitesPage.viewRequestsLink
-    )
+    await ManageOverseasSitesPage.viewRequests()
     await AccreditationRequestsPage.continue()
     await waitForPath('/declaration')
 
@@ -347,7 +382,10 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
     )
 
     // AC07: Submitted, against the existing ORS records and ids.
-    const changes = await getAccreditationChanges(organisationId, applicationId)
+    const changes = await getAccreditationChanges(
+      ORGANISATION_ID,
+      applicationId
+    )
     const [request] = changes.requests
     expect(request.status).toBe('Submitted')
     expect(request.changeType).toBe('add-overseas-site')
@@ -364,7 +402,7 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
 
     // The approved accreditation is untouched: no new ORS record, and the
     // submitted sites are still only registered until the regulator approves.
-    const sitesAfter = await getOverseasSites(organisationId, applicationId)
+    const sitesAfter = await getOverseasSites(ORGANISATION_ID, applicationId)
     expect(sitesAfter).toEqual(sitesBefore)
     for (const { siteId } of [completeSite, incompleteSite]) {
       expect(
@@ -381,40 +419,52 @@ describe('RA-492: add a registered ORS to a granted accreditation @docker-only',
     )
     await expect(ManageOverseasSitesPage.requestsBanner).not.toExist()
 
-    await ManageOverseasSitesPage.showAccreditedTab()
-    for (const { orsId } of [completeSite, incompleteSite]) {
+    // AC08: RA-425's tabs list only what is on the accreditation as
+    // accredited, so a submitted site stays on the registered tab, tagged
+    // pending and no longer addable, until the regulator decides.
+    await expect(ManageOverseasSitesPage.tab('accredited')).toHaveText(
+      'Accredited (1)'
+    )
+    await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
+      'Registered (3)'
+    )
+    await ManageOverseasSitesPage.openTab('registered')
+    for (const { siteId, orsId } of [completeSite, incompleteSite]) {
       await expect(
-        ManageOverseasSitesPage.accreditedSiteRow(orsId)
+        ManageOverseasSitesPage.siteRow('registered', siteId)
       ).toBeDisplayed()
       await expect(ManageOverseasSitesPage.siteStatusTag(orsId)).toHaveText(
         'Pending'
       )
       await expect(
-        ManageOverseasSitesPage.addToAccreditationLink(orsId)
+        ManageOverseasSitesPage.addToAccreditationButton(orsId)
+      ).not.toExist()
+      await expect(
+        ManageOverseasSitesPage.siteRow('accredited', siteId)
       ).not.toExist()
     }
 
     // A registered site outside the submitted request is still addable.
-    await ManageOverseasSitesPage.showRegisteredTab()
     await expect(
-      ManageOverseasSitesPage.registeredSiteRow(completeSite.orsId)
-    ).not.toExist()
-    await expect(
-      ManageOverseasSitesPage.addToAccreditationLink(untouchedSite.orsId)
+      ManageOverseasSitesPage.addToAccreditationButton(untouchedSite.orsId)
     ).toBeDisplayed()
 
     // AC09: the summary for a pending site is not reachable by URL...
-    await browser.url(`${managePath}/add/${completeSite.siteId}`)
-    await waitForPath(managePath)
+    await browser.url(`${changePath}/add/${completeSite.siteId}`)
+    await waitForPath(OVERSEAS_SITES_PATH)
     await expect(ManageOverseasSitesPage.pendingChangeBanner).toBeDisplayed()
 
     // ...and the backend refuses to add it to a new request.
     expect(
       await addSiteToChangeRequest(
-        organisationId,
+        ORGANISATION_ID,
         applicationId,
         completeSite.siteId
       )
+    ).toBe(409)
+    // ...as it does an ORS already on the accreditation.
+    expect(
+      await addSiteToChangeRequest(ORGANISATION_ID, applicationId, ORS.hamburg)
     ).toBe(409)
   })
 })

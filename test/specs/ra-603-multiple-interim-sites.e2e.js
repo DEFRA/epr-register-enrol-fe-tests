@@ -30,31 +30,6 @@ import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
  * add a second interim site, which is the flag working rather than a failure.
  */
 
-/**
- * The live interim-site ids belonging to ONE overseas site, in page order.
- *
- * Takes the ORS id rather than finding one, and queries within that ORS's own
- * <details> rather than across the page. Both matter: the accreditation is
- * shared, so an unscoped read returns the other tests' interim sites as well as
- * this test's - which is what made a `toHaveLength(2)` here receive 4, then 8 on
- * a second run against the same database.
- */
-async function readInterimSiteIds(orsSiteId) {
-  await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsSiteId)
-
-  const rows = await OverseasReprocessingSitesPage.interimSiteDisclosure(
-    orsSiteId
-  ).$$('[data-testid^="interim-site-row-"]')
-
-  const interimSiteIds = []
-  for (const row of [...rows]) {
-    interimSiteIds.push(
-      (await row.getAttribute('data-testid')).replace('interim-site-row-', '')
-    )
-  }
-  return interimSiteIds
-}
-
 describe('RA-603: several interim sites on one overseas reprocessing site @docker-only', () => {
   before(function () {
     skipDockerOnlyOnDeployedEnvironment(this)
@@ -86,7 +61,8 @@ describe('RA-603: several interim sites on one overseas reprocessing site @docke
       interimSiteName: 'RA-603 First Interim Depot'
     })
 
-    const interimSiteIds = await readInterimSiteIds(orsSiteId)
+    const interimSiteIds =
+      await OverseasReprocessingSitesPage.interimSiteIdsIn(orsSiteId)
     expect(interimSiteIds).toHaveLength(1)
     const firstId = interimSiteIds[0]
 
@@ -96,7 +72,9 @@ describe('RA-603: several interim sites on one overseas reprocessing site @docke
       operationCodes: ['R13']
     })
 
-    expect(await readInterimSiteIds(orsSiteId)).toHaveLength(2)
+    expect(
+      await OverseasReprocessingSitesPage.interimSiteIdsIn(orsSiteId)
+    ).toHaveLength(2)
 
     // The one that was already there is untouched, and keeps its own id.
     await expect(
@@ -116,7 +94,8 @@ describe('RA-603: several interim sites on one overseas reprocessing site @docke
       operationCodes: ['R13']
     })
 
-    const interimSiteIds = await readInterimSiteIds(orsSiteId)
+    const interimSiteIds =
+      await OverseasReprocessingSitesPage.interimSiteIdsIn(orsSiteId)
     expect(interimSiteIds).toHaveLength(2)
     const [keepId, withdrawId] = interimSiteIds
 
@@ -144,7 +123,8 @@ describe('RA-603: several interim sites on one overseas reprocessing site @docke
       orsName: 'RA-638 Banner GmbH',
       interimSiteName: 'RA-638 Banner Depot'
     })
-    const [targetId] = await readInterimSiteIds(orsSiteId)
+    const [targetId] =
+      await OverseasReprocessingSitesPage.interimSiteIdsIn(orsSiteId)
 
     await OverseasReprocessingSitesPage.removeInterimSite(targetId)
 
@@ -162,7 +142,8 @@ describe('RA-603: several interim sites on one overseas reprocessing site @docke
       orsName: 'RA-603 Restore GmbH',
       interimSiteName: 'RA-603 Restore Depot'
     })
-    const [targetId] = await readInterimSiteIds(orsSiteId)
+    const [targetId] =
+      await OverseasReprocessingSitesPage.interimSiteIdsIn(orsSiteId)
 
     await OverseasReprocessingSitesPage.removeInterimSite(targetId)
     await expect(browser).toHaveUrl(
@@ -200,7 +181,8 @@ describe('RA-603: several interim sites on one overseas reprocessing site @docke
         orsName: 'RA-603 Soft Delete GmbH',
         interimSiteName: 'RA-603 Soft Delete Depot'
       })
-    const [targetId] = await readInterimSiteIds(orsSiteId)
+    const [targetId] =
+      await OverseasReprocessingSitesPage.interimSiteIdsIn(orsSiteId)
 
     await OverseasReprocessingSitesPage.removeInterimSite(targetId)
     await expect(browser).toHaveUrl(

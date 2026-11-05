@@ -1,40 +1,53 @@
-import { browser } from '@wdio/globals'
 import { Page } from 'page-objects/page'
+import { withInterimSiteDisclosure } from 'page-objects/interim-site-disclosure.mixin'
 
-// RA-492: the in-year "Manage overseas reprocessing sites" page for a GRANTED
-// accreditation (/accreditation/manage-overseas-sites/{applicationId}),
-// reached from the material landing's manage-overseas-sites-link. Not to be
-// confused with overseas-reprocessing-sites.page.js, which is the
-// select-overseas-sites step of an accreditation APPLICATION.
+// RA-425: the "Manage overseas reprocessing sites" page for an exporter's
+// current accreditation. GOV.UK tabs split the ORSs into Accredited and
+// Registered; each ORS row carries the shared, read-only "Show interim sites
+// (n)" disclosure.
 //
-// Rows are keyed by the ORS id shown in the UI (e.g. "007"), not the numeric
-// siteId the add/{siteId} routes use.
-class ManageOverseasSitesPage extends Page {
-  get pageHeading() {
-    return $('[data-testid="page-heading"]')
+// The row selectors take the tab's name ('accredited' or 'registered') and
+// the ORS's own site id, so a spec reads only the sites it knows about.
+//
+// RA-492 adds the in-year change request to it: an "Add to accreditation"
+// button on each registered site not yet in a request, a status tag (and, for
+// the in-progress request, a "View" link) on each site that is, and banners
+// for the in-progress and submitted requests. Those are keyed by the ORS id
+// shown in the UI (e.g. "005"), not the site id.
+class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
+  get backLink() {
+    return $('[data-testid="back-link"]')
   }
 
-  open(applicationId) {
-    return super.open(`/accreditation/manage-overseas-sites/${applicationId}`)
+  get returnToHomeLink() {
+    return $('[data-testid="return-to-home-link"]')
   }
 
-  get accreditedTab() {
-    return $('[data-testid="tab-accredited"]')
+  tab(name) {
+    return $(`[data-testid="${name}-sites-tab"]`)
   }
 
-  get registeredTab() {
-    return $('[data-testid="tab-registered"]')
+  panel(name) {
+    return $(`[data-testid="${name}-sites-panel"]`)
   }
 
-  get accreditedSites() {
-    return $('[data-testid="accredited-sites"]')
+  siteRow(name, siteId) {
+    return $(`[data-testid="${name}-site-row-${siteId}"]`)
   }
 
-  get registeredSites() {
-    return $('[data-testid="registered-sites"]')
+  siteOrsId(name, siteId) {
+    return $(`[data-testid="${name}-site-orsid-${siteId}"]`)
   }
 
-  // f12: shown while In progress requests exist that have not been submitted.
+  siteName(name, siteId) {
+    return $(`[data-testid="${name}-site-name-${siteId}"]`)
+  }
+
+  siteAddress(name, siteId) {
+    return $(`[data-testid="${name}-site-address-${siteId}"]`)
+  }
+
+  // RA-492 (f12): shown while the in-progress request has sites in it.
   get requestsBanner() {
     return $('[data-testid="requests-banner"]')
   }
@@ -43,59 +56,51 @@ class ManageOverseasSitesPage extends Page {
     return $('[data-testid="view-requests-link"]')
   }
 
-  // AC09: shown once a request is Submitted and awaiting the regulator.
+  // RA-492 AC09: shown once a request is Submitted and awaiting the regulator.
   get pendingChangeBanner() {
     return $('[data-testid="pending-change-banner"]')
   }
 
-  accreditedSiteRow(orsId) {
-    return $(`[data-testid="accredited-site-${orsId}"]`)
-  }
-
-  registeredSiteRow(orsId) {
-    return $(`[data-testid="registered-site-${orsId}"]`)
-  }
-
+  // On a registered site: "In progress" while it is in the in-progress
+  // request, "Pending" once that request is submitted.
   siteStatusTag(orsId) {
     return $(`[data-testid="site-status-tag-${orsId}"]`)
   }
 
-  // A link-styled button in a POST form: it adds the site to the in-progress
-  // request and redirects to that site's add-to-accreditation summary.
-  addToAccreditationLink(orsId) {
+  // A link-styled button in a POST form: it adds the registered site to the
+  // in-progress request and redirects to that site's add-to-accreditation
+  // summary.
+  addToAccreditationButton(orsId) {
     return $(`[data-testid="add-to-accreditation-${orsId}"]`)
   }
 
-  // Replaces addToAccreditationLink on a registered row already in the
-  // in-progress request.
+  // Replaces the add button on a registered site already in the in-progress
+  // request.
   viewRequestLink(orsId) {
     return $(`[data-testid="view-request-${orsId}"]`)
   }
 
-  // GOV.UK tabs only hide the inactive panel with JS; select the tab so the
-  // registered rows are displayed before anything waits on or clicks them.
-  async showRegisteredTab() {
-    await this.registeredTab.waitForDisplayed()
-    await this.registeredTab.click()
-    await this.registeredSites.waitForDisplayed()
-  }
-
-  async showAccreditedTab() {
-    await this.accreditedTab.waitForDisplayed()
-    await this.accreditedTab.click()
-    await this.accreditedSites.waitForDisplayed()
+  // GOV.UK tabs switch panels client-side, without a page load.
+  async openTab(name) {
+    const tab = this.tab(name)
+    await tab.waitForDisplayed()
+    await tab.click()
+    await this.panel(name).waitForDisplayed({
+      timeoutMsg: `The ${name} tab's panel did not show`
+    })
   }
 
   async addToAccreditation(orsId) {
-    await this.showRegisteredTab()
-    await this.clickAndWaitForNextPage(this.addToAccreditationLink(orsId))
+    await this.openTab('registered')
+    await this.clickAndWaitForNextPage(this.addToAccreditationButton(orsId))
   }
 
-  // The manage page's {applicationId} is the granted accreditation's, read
-  // from the URL the landing link lands on.
-  async applicationIdFromUrl() {
-    const { pathname } = new URL(await browser.getUrl())
-    return pathname.split('/').filter(Boolean)[2]
+  async viewRequests() {
+    await this.clickAndWaitForNextPage(this.viewRequestsLink)
+  }
+
+  async goBack() {
+    await this.clickAndWaitForNextPage(this.backLink)
   }
 }
 
