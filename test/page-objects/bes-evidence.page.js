@@ -94,6 +94,35 @@ class BesEvidencePage extends Page {
     return $('[data-testid="confirm-button"]')
   }
 
+  get fileError() {
+    return $('[data-testid="file-error"]')
+  }
+
+  // RA-605: fills and submits the upload form without waiting for the
+  // "upload more evidence" page, so a refused upload can be asserted on.
+  async attemptUpload(filename) {
+    const filePath = uniqueFixtureCopy(filename)
+    let uploadPath
+    try {
+      uploadPath = await browser.uploadFile(filePath)
+    } catch {
+      uploadPath = filePath
+    }
+
+    await this.fileInput.waitForExist()
+    await this.fileInput.setValue(uploadPath)
+
+    await this.validFromDay.setValue('01')
+    await this.validFromMonth.setValue('01')
+    await this.validFromYear.setValue('2024')
+
+    await this.validToDay.setValue('31')
+    await this.validToMonth.setValue('12')
+    await this.validToYear.setValue('2030')
+
+    await this.clickReliably(this.uploadButton)
+  }
+
   // `baseName` (RA-619) uploads the fixture under that name instead of its own; read the
   // name back on the CYA page with cyaFilenames().
   async uploadFile(filename, { baseName } = {}) {
