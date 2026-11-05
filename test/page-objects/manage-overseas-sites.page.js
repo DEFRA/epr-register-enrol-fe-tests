@@ -12,8 +12,8 @@ import { withInterimSiteDisclosure } from 'page-objects/interim-site-disclosure.
 // RA-492 adds the in-year change request to it: an "Add to accreditation"
 // button on each registered site not yet in a request, a status tag (and, for
 // the in-progress request, a "View" link) on each site that is, and banners
-// for the in-progress and submitted requests. Those are keyed by the ORS id
-// shown in the UI (e.g. "005"), not the site id.
+// for the in-progress and submitted requests. Its row selectors take the site
+// id too.
 class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
   get backLink() {
     return $('[data-testid="back-link"]')
@@ -63,21 +63,21 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
 
   // On a registered site: "In progress" while it is in the in-progress
   // request, "Pending" once that request is submitted.
-  siteStatusTag(orsId) {
-    return $(`[data-testid="site-status-tag-${orsId}"]`)
+  siteStatusTag(siteId) {
+    return $(`[data-testid="site-status-tag-${siteId}"]`)
   }
 
   // A link-styled button in a POST form: it adds the registered site to the
   // in-progress request and redirects to that site's add-to-accreditation
   // summary.
-  addToAccreditationButton(orsId) {
-    return $(`[data-testid="add-to-accreditation-${orsId}"]`)
+  addToAccreditationButton(siteId) {
+    return $(`[data-testid="add-to-accreditation-${siteId}"]`)
   }
 
   // Replaces the add button on a registered site already in the in-progress
   // request.
-  viewRequestLink(orsId) {
-    return $(`[data-testid="view-request-${orsId}"]`)
+  viewRequestLink(siteId) {
+    return $(`[data-testid="view-request-${siteId}"]`)
   }
 
   // GOV.UK tabs switch panels client-side, without a page load.
@@ -90,9 +90,9 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     })
   }
 
-  async addToAccreditation(orsId) {
+  async addToAccreditation(siteId) {
     await this.openTab('registered')
-    await this.clickAndWaitForNextPage(this.addToAccreditationButton(orsId))
+    await this.clickAndWaitForNextPage(this.addToAccreditationButton(siteId))
   }
 
   async viewRequests() {

@@ -22,6 +22,7 @@ import {
   skipDockerOnlyOnDeployedEnvironment
 } from '../helpers/docker-only.js'
 import { readSeededYear } from '../helpers/seeded-year.js'
+import { waitForUrl } from '../helpers/wait-for-url.js'
 import {
   ORGANISATION_ID,
   ORGANISATION_NAME,
@@ -63,9 +64,9 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     skipDockerOnlyOnDeployedEnvironment(this)
   })
 
-  const completeSite = { siteId: ORS.lyon, orsId: '005' }
-  const incompleteSite = { siteId: ORS.delhi, orsId: '006' }
-  const untouchedSite = { siteId: ORS.izmir, orsId: '007' }
+  const completeSite = ORS.lyon
+  const incompleteSite = ORS.delhi
+  const untouchedSite = ORS.izmir
   // Set by the first beforeEach: the seeded accreditation's id, and the base
   // path of the RA-492 change-request pages it keys.
   let applicationId
@@ -109,10 +110,11 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     expect(new URL(await browser.getUrl()).pathname).toBe(OVERSEAS_SITES_PATH)
   }
 
-  async function waitForPath(suffix) {
-    await browser.waitUntil(
-      async () => new URL(await browser.getUrl()).pathname.endsWith(suffix),
-      { timeout: 30000, timeoutMsg: `Did not reach ${suffix}` }
+  async function waitForPath(suffix, { timeout = 30000 } = {}) {
+    await waitForUrl(
+      (url) => new URL(url).pathname.endsWith(suffix),
+      `Did not reach ${suffix}`,
+      { timeout }
     )
   }
 
@@ -123,13 +125,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     await AddToAccreditationPage.openRowAction('bes-evidence')
     await waitForPath(`/add/${incompleteSite.siteId}/bes-evidence`)
     await BesEvidencePage.submitUpload('business-plan.pdf')
-    await browser.waitUntil(
-      async () =>
-        new URL(await browser.getUrl()).pathname.endsWith(
-          `/add/${incompleteSite.siteId}`
-        ),
-      { timeout: 60000, timeoutMsg: 'BES upload did not return to summary' }
-    )
+    await waitForPath(`/add/${incompleteSite.siteId}`, { timeout: 60000 })
   }
 
   it('AC01/AC03/AC04: adds a complete registered ORS, with its recorded fields locked, and shows a £328 charge', async () => {
@@ -143,17 +139,17 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
       'Registered (3)'
     )
     await ManageOverseasSitesPage.openTab('registered')
-    for (const { orsId } of [completeSite, incompleteSite, untouchedSite]) {
+    for (const { siteId } of [completeSite, incompleteSite, untouchedSite]) {
       await expect(
-        ManageOverseasSitesPage.addToAccreditationButton(orsId)
+        ManageOverseasSitesPage.addToAccreditationButton(siteId)
       ).toBeDisplayed()
     }
     // ORS 001 is already accredited, so it is not offered again.
     await expect(
-      ManageOverseasSitesPage.addToAccreditationButton('001')
+      ManageOverseasSitesPage.addToAccreditationButton(ORS.hamburg.siteId)
     ).not.toExist()
 
-    await ManageOverseasSitesPage.addToAccreditation(completeSite.orsId)
+    await ManageOverseasSitesPage.addToAccreditation(completeSite.siteId)
     await waitForPath(`/add/${completeSite.siteId}`)
 
     // "Add to accreditation: {site name} ({ORS id})" - the existing ORS id.
@@ -215,7 +211,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     // f12: the unsubmitted request is signposted from the manage page.
     await expect(ManageOverseasSitesPage.requestsBanner).toHaveText(
       expect.stringContaining(
-        'You currently have 1 requests ready for submission.'
+        'You currently have 1 request ready for submission.'
       )
     )
     await ManageOverseasSitesPage.viewRequests()
@@ -230,16 +226,16 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     await ManageOverseasSitesPage.openTab('registered')
     // The site already in the request is resumed, not added twice.
     await expect(
-      ManageOverseasSitesPage.siteStatusTag(completeSite.orsId)
+      ManageOverseasSitesPage.siteStatusTag(completeSite.siteId)
     ).toHaveText('In progress')
     await expect(
-      ManageOverseasSitesPage.addToAccreditationButton(completeSite.orsId)
+      ManageOverseasSitesPage.addToAccreditationButton(completeSite.siteId)
     ).not.toExist()
     await expect(
-      ManageOverseasSitesPage.viewRequestLink(completeSite.orsId)
+      ManageOverseasSitesPage.viewRequestLink(completeSite.siteId)
     ).toBeDisplayed()
 
-    await ManageOverseasSitesPage.addToAccreditation(incompleteSite.orsId)
+    await ManageOverseasSitesPage.addToAccreditation(incompleteSite.siteId)
     await waitForPath(`/add/${incompleteSite.siteId}`)
 
     // Country (India) is on the ORS so stays locked; the rest were never
@@ -367,6 +363,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
 
     await openManageOverseasSites()
     await ManageOverseasSitesPage.viewRequests()
+    await waitForPath('/requests')
     await AccreditationRequestsPage.continue()
     await waitForPath('/declaration')
 
@@ -391,12 +388,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     expect(request.changeType).toBe('add-overseas-site')
     expect(
       request.sites.map(({ siteId, orsId }) => ({ siteId, orsId }))
-    ).toEqual(
-      expect.arrayContaining([
-        { siteId: completeSite.siteId, orsId: completeSite.orsId },
-        { siteId: incompleteSite.siteId, orsId: incompleteSite.orsId }
-      ])
-    )
+    ).toEqual(expect.arrayContaining([completeSite, incompleteSite]))
     expect(request.sites).toHaveLength(2)
     expect(request.charge.totalPence).toBe(65600)
 
@@ -415,7 +407,9 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     await openManageOverseasSites()
 
     await expect(ManageOverseasSitesPage.pendingChangeBanner).toHaveText(
-      expect.stringContaining('You have a change pending.')
+      expect.stringContaining(
+        'You have a change pending. Your regulator is reviewing your request to add 2 overseas reprocessing sites to this accreditation. You cannot change these sites until your regulator has made a decision.'
+      )
     )
     await expect(ManageOverseasSitesPage.requestsBanner).not.toExist()
 
@@ -429,15 +423,15 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
       'Registered (3)'
     )
     await ManageOverseasSitesPage.openTab('registered')
-    for (const { siteId, orsId } of [completeSite, incompleteSite]) {
+    for (const { siteId } of [completeSite, incompleteSite]) {
       await expect(
         ManageOverseasSitesPage.siteRow('registered', siteId)
       ).toBeDisplayed()
-      await expect(ManageOverseasSitesPage.siteStatusTag(orsId)).toHaveText(
+      await expect(ManageOverseasSitesPage.siteStatusTag(siteId)).toHaveText(
         'Pending'
       )
       await expect(
-        ManageOverseasSitesPage.addToAccreditationButton(orsId)
+        ManageOverseasSitesPage.addToAccreditationButton(siteId)
       ).not.toExist()
       await expect(
         ManageOverseasSitesPage.siteRow('accredited', siteId)
@@ -446,7 +440,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
 
     // A registered site outside the submitted request is still addable.
     await expect(
-      ManageOverseasSitesPage.addToAccreditationButton(untouchedSite.orsId)
+      ManageOverseasSitesPage.addToAccreditationButton(untouchedSite.siteId)
     ).toBeDisplayed()
 
     // AC09: the summary for a pending site is not reachable by URL...
@@ -464,7 +458,11 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     ).toBe(409)
     // ...as it does an ORS already on the accreditation.
     expect(
-      await addSiteToChangeRequest(ORGANISATION_ID, applicationId, ORS.hamburg)
+      await addSiteToChangeRequest(
+        ORGANISATION_ID,
+        applicationId,
+        ORS.hamburg.siteId
+      )
     ).toBe(409)
   })
 })

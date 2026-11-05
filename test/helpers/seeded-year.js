@@ -1,6 +1,9 @@
 import { expect } from '@wdio/globals'
 import ManageRegistrationAccreditationPage from 'page-objects/manage-registration-accreditation.page'
 
+// Org names can hold regex metacharacters ("Smith & Co. (UK) Ltd").
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 // The seed's year follows the backend's clock when the stack started, which
 // is not this runner's clock if the stack was started before 1 January, so it
 // is read off the manage page's caption ("orgName (year, material)") rather
@@ -13,7 +16,7 @@ export async function readSeededYear({
   material
 }) {
   const captionPattern = new RegExp(
-    `^${organisationName} \\((\\d{4}), ${material}\\)$`
+    `^${escapeRegExp(organisationName)} \\((\\d{4}), ${escapeRegExp(material)}\\)$`
   )
   await ManageRegistrationAccreditationPage.open(managePath)
   const pageCaption = ManageRegistrationAccreditationPage.pageCaption
