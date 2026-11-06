@@ -1,8 +1,8 @@
 // Org 50018 ("Manage Accreditation Test Ltd", Plastic exporter and, since
 // RA-697, Glass reprocessor), which exists only for
-// ra-425-view-ors-and-interim-sites.e2e.js and RA-697's read-only specs. The
-// backend's dev seed also gives both accreditations change requests
-// (DevChangeRequestSeedService); the RA-425 spec doesn't assert on them.
+// ra-425-view-ors-and-interim-sites.e2e.js and ra-697-in-year-change-requests.e2e.js,
+// both read-only. The backend's dev seed also gives both accreditations change
+// requests (DevChangeRequestSeedService); the RA-425 spec doesn't assert on them.
 // The backend (DevSeed/DevExporterOrg.cs) and the frontend
 // (src/server/common/constants/test-orgs.js) define the same org: keep all
 // three in step.
@@ -59,3 +59,149 @@ export const reprocessorRegistrationNumber = (year) =>
 
 export const reprocessorAccreditationNumber = (year) =>
   `A${yearSuffix(year)}ER0500180002GR`
+
+// RA-697: the backend's seeded change request items
+// (DevChangeRequestSeedService, mirrored by the frontend's
+// stub-change-request-seed.js; keep all three in step). Ids are fixed per
+// year, accreditation ("a" exporter, "b" reprocessor), request (numbered from
+// 1, oldest first) and item (numbered from 1 within the request), e.g.
+// 00002026-0000-0001-a000-050018000008 for the exporter's 8th request's first
+// item. The pages key their rows by item id.
+const changeItemId = (year, side, request, item) =>
+  `0000${year}-0000-${String(item).padStart(4, '0')}-${side}000-${ORGANISATION_ID.padStart(6, '0')}${String(request).padStart(6, '0')}`
+
+// The case management reference the seed gives each submitted request,
+// e.g. CR26050018A008.
+const changeRequestReference = (year, side, request) =>
+  `CR${yearSuffix(year)}${ORGANISATION_ID.padStart(6, '0')}${side.toUpperCase()}${String(request).padStart(3, '0')}`
+
+// Seed dates are 09:00 UTC on a day of the seed's year, as the pages show it.
+const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
+const dayOf = (month, day) => (year) => `${day} ${MONTHS[month - 1]} ${year}`
+
+const item = (side, request, itemNumber, fields) => ({
+  ...fields,
+  itemId: (year) => changeItemId(year, side, request, itemNumber),
+  reference: (year) => changeRequestReference(year, side, request)
+})
+
+// The ORS ids the pages show for the ORSs above.
+const ORS_IDS = {
+  rotterdam: '001',
+  bharat: '002',
+  berlin: '003',
+  dragon: '004'
+}
+
+// Each ORS item keeps the ORS id the pages show with the site id it is for.
+const orsSite = (name) => ({ siteId: ORS[name], orsId: ORS_IDS[name] })
+
+// The Plastic exporter's 13 items over 11 requests: each ORS has at most one
+// active item, Dragon's New ORS accreditation is the only draft (In progress),
+// and every other request was submitted. `sent` is the request's submitted
+// date (In progress has none), `validFrom`/`validTo` are set only on granted
+// and withdrawn items.
+export const CHANGE_ITEMS = {
+  rotterdamUpdateGranted: item('a', 1, 1, {
+    ...orsSite('rotterdam'),
+    type: 'ORS update',
+    status: 'GRANTED',
+    sent: dayOf(2, 3),
+    validFrom: dayOf(3, 2),
+    validTo: dayOf(12, 31)
+  }),
+  bharatUpdateGranted: item('a', 1, 2, {
+    ...orsSite('bharat'),
+    type: 'ORS update',
+    status: 'GRANTED',
+    sent: dayOf(2, 3)
+  }),
+  dragonNewRefused: item('a', 2, 1, {
+    ...orsSite('dragon'),
+    type: 'New ORS accreditation',
+    status: 'REFUSED',
+    sent: dayOf(2, 20)
+  }),
+  tonnageGranted: item('a', 3, 1, {
+    type: 'Tonnage band upgrade',
+    status: 'GRANTED',
+    band: 'Up to 5,000 tonnes',
+    sent: dayOf(3, 10),
+    validFrom: dayOf(4, 1),
+    validTo: dayOf(12, 31)
+  }),
+  dragonNewWithdrawn: item('a', 4, 1, {
+    ...orsSite('dragon'),
+    type: 'New ORS accreditation',
+    status: 'WITHDRAWN',
+    sent: dayOf(4, 6)
+  }),
+  berlinUpdateRefused: item('a', 5, 1, {
+    ...orsSite('berlin'),
+    type: 'ORS update',
+    status: 'REFUSED',
+    sent: dayOf(5, 12)
+  }),
+  rotterdamUpdateWithdrawn: item('a', 6, 1, {
+    ...orsSite('rotterdam'),
+    type: 'ORS update',
+    status: 'WITHDRAWN',
+    sent: dayOf(6, 2),
+    validFrom: dayOf(6, 22),
+    validTo: dayOf(7, 10)
+  }),
+  tonnageRefused: item('a', 7, 1, {
+    type: 'Tonnage band upgrade',
+    status: 'REFUSED',
+    sent: dayOf(6, 25)
+  }),
+  rotterdamUpdateQueried: item('a', 8, 1, {
+    ...orsSite('rotterdam'),
+    type: 'ORS update',
+    status: 'QUERIED',
+    sent: dayOf(7, 14)
+  }),
+  bharatUpdateSubmitted: item('a', 8, 2, {
+    ...orsSite('bharat'),
+    type: 'ORS update',
+    status: 'SUBMITTED',
+    sent: dayOf(7, 14)
+  }),
+  berlinUpdateUpdated: item('a', 9, 1, {
+    ...orsSite('berlin'),
+    type: 'ORS update',
+    status: 'UPDATED',
+    sent: dayOf(8, 20)
+  }),
+  tonnageDulyMade: item('a', 10, 1, {
+    type: 'Tonnage band upgrade',
+    status: 'DULY MADE',
+    band: 'Up to 10,000 tonnes',
+    sent: dayOf(9, 8)
+  }),
+  dragonNewInProgress: item('a', 11, 1, {
+    ...orsSite('dragon'),
+    type: 'New ORS accreditation',
+    status: 'IN PROGRESS'
+  })
+}
+
+// The Glass reprocessor's 3 items: tonnage band upgrades only.
+export const REPROCESSOR_CHANGE_ITEMS = {
+  tonnageGranted: item('b', 1, 1, {
+    type: 'Tonnage band upgrade',
+    status: 'GRANTED',
+    sent: dayOf(3, 3)
+  }),
+  tonnageRefused: item('b', 2, 1, {
+    type: 'Tonnage band upgrade',
+    status: 'REFUSED',
+    sent: dayOf(5, 19)
+  }),
+  tonnageSubmitted: item('b', 3, 1, {
+    type: 'Tonnage band upgrade',
+    status: 'SUBMITTED',
+    band: 'Up to 10,000 tonnes',
+    sent: dayOf(8, 4)
+  })
+}
