@@ -32,6 +32,18 @@ class ChangeRequestsPage extends Page {
     return $$('[data-testid^="change-request-type-"]')
   }
 
+  get countLine() {
+    return $('[data-testid="change-requests-count"]')
+  }
+
+  get pagination() {
+    return $('.govuk-pagination')
+  }
+
+  get nextPageLink() {
+    return $('.govuk-pagination a[rel="next"]')
+  }
+
   get noResultsTitle() {
     return $('[data-testid="no-results-title"]')
   }

@@ -9,6 +9,7 @@ import {
 } from '../helpers/docker-only.js'
 import { readSeededYear } from '../helpers/seeded-year.js'
 import {
+  MANAGE_PATH as EXPORTER_MANAGE_PATH,
   ORGANISATION_NAME as MANAGE_ORGANISATION_NAME,
   REPROCESSOR_CAPTION_MATERIAL,
   REPROCESSOR_MANAGE_PATH,
@@ -25,8 +26,10 @@ import {
 /**
  * RA-697: the orgs the backend's dev seed adds for the in-year change request
  * pages, reached from the operator test page as Re/Ex would link to them:
- *   - org 50018's Glass reprocessor (test/fixtures/manage-exporter-org.js),
- *     whose seeded change requests are tonnage band upgrades only;
+ *   - org 50018's Plastic exporter (test/fixtures/manage-exporter-org.js),
+ *     whose seeded change requests run to more than one page;
+ *   - org 50018's Glass reprocessor, whose seeded change requests are
+ *     tonnage band upgrades only;
  *   - org 50020 (test/fixtures/no-change-requests-org.js), an exporter with
  *     no change requests, for the empty states.
  * Both accreditations are seeded by DevExporterAccreditationSeedService
@@ -133,6 +136,24 @@ describe(`RA-697: seeded orgs for the in-year change request pages ${DOCKER_ONLY
     )
   })
 
+  it("pages the Plastic exporter's change requests 10 at a time", async () => {
+    await ChangeRequestsPage.open(`${EXPORTER_MANAGE_PATH}/change-requests`)
+
+    const firstCount = await ChangeRequestsPage.countLine.getText()
+    const [, total] = firstCount.match(/^Showing 1-10 of (d+)$/) ?? []
+    expect(Number(total)).toBeGreaterThan(10)
+    expect(await ChangeRequestsPage.statusTexts()).toHaveLength(10)
+
+    await ChangeRequestsPage.nextPageLink.click()
+
+    await expect(browser).toHaveUrl(expect.stringContaining('?page=2'))
+    const secondPageRows = Math.min(Number(total) - 10, 10)
+    await expect(ChangeRequestsPage.countLine).toHaveText(
+      `Showing 11-${10 + secondPageRows} of ${total}`
+    )
+    expect(await ChangeRequestsPage.statusTexts()).toHaveLength(secondPageRows)
+  })
+
   it('shows the no-results message for the exporter with no change requests', async () => {
     await ChangeRequestsPage.open(`${EMPTY_MANAGE_PATH}/change-requests`)
 
@@ -144,5 +165,7 @@ describe(`RA-697: seeded orgs for the in-year change request pages ${DOCKER_ONLY
     )
     await expect(ChangeRequestsPage.clearFiltersLink).toBeDisplayed()
     await expect(ChangeRequestsPage.table).not.toBeExisting()
+    await expect(ChangeRequestsPage.countLine).not.toBeExisting()
+    await expect(ChangeRequestsPage.pagination).not.toBeExisting()
   })
 })
