@@ -437,6 +437,19 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     ).toEqual(expect.arrayContaining([completeSite, incompleteSite]))
     expect(request.sites).toHaveLength(2)
     expect(request.charge.totalPence).toBe(65600)
+    // RA-697: the items later screens read.
+    for (const item of request.sites) {
+      expect(item).toEqual(
+        expect.objectContaining({
+          itemId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+          changeType: 'add-overseas-site',
+          status: 'Submitted',
+          validFrom: null,
+          withdrawnAt: null
+        })
+      )
+    }
+    expect(request.tonnageBandUpgrade).toBeNull()
 
     // The approved accreditation is untouched: no new ORS record, and the
     // submitted sites are still only registered until the regulator approves.
