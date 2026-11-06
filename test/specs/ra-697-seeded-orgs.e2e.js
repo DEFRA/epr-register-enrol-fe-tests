@@ -2,6 +2,7 @@ import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import ManageRegistrationAccreditationPage from 'page-objects/manage-registration-accreditation.page'
+import ChangeRequestsPage from 'page-objects/change-requests.page'
 import {
   DOCKER_ONLY_TAG,
   skipDockerOnlyOnDeployedEnvironment
@@ -32,6 +33,8 @@ import {
  * (DevSeedData__ManageExporterEnabled in docker/config) for the calendar year
  * the stack started in, and their change requests by DevChangeRequestSeedService
  * (with FeatureFlags__InYearChangesEnabled). Read-only: nothing here writes.
+ * The In year change requests list is opened by URL here; the dashboard's
+ * link to it comes later in RA-697.
  * Docker-only because deployed environments have no such seed.
  */
 
@@ -106,5 +109,40 @@ describe(`RA-697: seeded orgs for the in-year change request pages ${DOCKER_ONLY
       emptyAccreditationNumber(year)
     )
     await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
+  })
+
+  it("lists the Glass reprocessor's tonnage band upgrades, most urgent first", async () => {
+    await ChangeRequestsPage.open(`${REPROCESSOR_MANAGE_PATH}/change-requests`)
+
+    await expect(ChangeRequestsPage.pageHeading).toHaveText(
+      'In year change requests'
+    )
+    expect(await ChangeRequestsPage.statusTexts()).toEqual([
+      'SUBMITTED',
+      'GRANTED',
+      'REFUSED'
+    ])
+    expect(await ChangeRequestsPage.typeTexts()).toEqual([
+      'Tonnage band upgrade',
+      'Tonnage band upgrade',
+      'Tonnage band upgrade'
+    ])
+    await expect(ChangeRequestsPage.backLink).toHaveAttribute(
+      'href',
+      urlEndingWith(REPROCESSOR_MANAGE_PATH)
+    )
+  })
+
+  it('shows the no-results message for the exporter with no change requests', async () => {
+    await ChangeRequestsPage.open(`${EMPTY_MANAGE_PATH}/change-requests`)
+
+    await expect(ChangeRequestsPage.noResultsTitle).toHaveText(
+      'There are no matching results'
+    )
+    await expect(ChangeRequestsPage.noResultsBody).toHaveText(
+      'Improve your search results by removing one or more of your selected filters.'
+    )
+    await expect(ChangeRequestsPage.clearFiltersLink).toBeDisplayed()
+    await expect(ChangeRequestsPage.table).not.toBeExisting()
   })
 })
