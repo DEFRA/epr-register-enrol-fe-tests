@@ -140,7 +140,7 @@ describe(`RA-697: seeded orgs for the in-year change request pages ${DOCKER_ONLY
     await ChangeRequestsPage.open(`${EXPORTER_MANAGE_PATH}/change-requests`)
 
     const firstCount = await ChangeRequestsPage.countLine.getText()
-    const [, total] = firstCount.match(/^Showing 1-10 of (d+)$/) ?? []
+    const [, total] = firstCount.match(/^Showing 1-10 of (\d+)$/) ?? []
     expect(Number(total)).toBeGreaterThan(10)
     expect(await ChangeRequestsPage.statusTexts()).toHaveLength(10)
 
@@ -152,6 +152,40 @@ describe(`RA-697: seeded orgs for the in-year change request pages ${DOCKER_ONLY
       `Showing 11-${10 + secondPageRows} of ${total}`
     )
     expect(await ChangeRequestsPage.statusTexts()).toHaveLength(secondPageRows)
+  })
+
+  it("filters the Plastic exporter's change requests by status and type", async () => {
+    await ChangeRequestsPage.open(`${EXPORTER_MANAGE_PATH}/change-requests`)
+
+    // The form has no Apply button: choosing an option submits it.
+    await ChangeRequestsPage.statusFilter.selectByVisibleText('Granted')
+
+    await expect(browser).toHaveUrl(expect.stringContaining('?status=Approved'))
+    expect(await ChangeRequestsPage.statusTexts()).toEqual([
+      'GRANTED',
+      'GRANTED',
+      'GRANTED'
+    ])
+    await expect(ChangeRequestsPage.countLine).toHaveText('Showing 1-3 of 3')
+
+    await ChangeRequestsPage.typeFilter.selectByVisibleText('ORS update')
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('?status=Approved&type=update-overseas-site')
+    )
+    expect(await ChangeRequestsPage.typeTexts()).toEqual([
+      'ORS update',
+      'ORS update'
+    ])
+
+    await ChangeRequestsPage.clearFiltersLink.click()
+
+    await expect(browser).toHaveUrl(
+      urlEndingWith(`${EXPORTER_MANAGE_PATH}/change-requests`)
+    )
+    await expect(ChangeRequestsPage.countLine).toHaveText(
+      /^Showing 1-10 of \d+$/
+    )
   })
 
   it('shows the no-results message for the exporter with no change requests', async () => {

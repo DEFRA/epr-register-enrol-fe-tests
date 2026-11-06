@@ -52,6 +52,14 @@ class ChangeRequestsPage extends Page {
     return $('[data-testid="no-results-body"]')
   }
 
+  get statusFilter() {
+    return $('[data-testid="status-filter"]')
+  }
+
+  get typeFilter() {
+    return $('[data-testid="type-filter"]')
+  }
+
   get clearFiltersLink() {
     return $('[data-testid="clear-filters-link"]')
   }
