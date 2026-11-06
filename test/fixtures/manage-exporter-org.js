@@ -100,7 +100,8 @@ const orsSite = (name) => ({ siteId: ORS[name], orsId: ORS_IDS[name] })
 // active item, Dragon's New ORS accreditation is the only draft (In progress),
 // and every other request was submitted. `sent` is the request's submitted
 // date (In progress has none), `validFrom`/`validTo` are set only on granted
-// and withdrawn items.
+// items and Rotterdam's withdrawn update (Dragon's withdrawn New ORS
+// accreditation was never granted).
 export const CHANGE_ITEMS = {
   rotterdamUpdateGranted: item('a', 1, 1, {
     ...orsSite('rotterdam'),
