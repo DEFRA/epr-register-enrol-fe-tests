@@ -33,6 +33,7 @@ import {
   ORGANISATION_NAME as REGISTRATION_ONLY_ORGANISATION_NAME,
   MATERIAL as REGISTRATION_ONLY_MATERIAL,
   MANAGE_PATH as REGISTRATION_ONLY_MANAGE_PATH,
+  CHANGE_ITEMS as REGISTRATION_ONLY_CHANGE_ITEMS,
   registrationNumber as registrationOnlyRegistrationNumber
 } from '../fixtures/registration-only-org.js'
 
@@ -57,7 +58,7 @@ import {
  *     no change requests, for the empty states;
  *   - org 50021 (test/fixtures/registration-only-org.js): an exporter with an
  *     Approved registration and no accreditation, whose dashboard shows the
- *     registration only.
+ *     registration only, and five registration-only ORS updates.
  * Nothing here writes, and every check is scoped to the seeded item ids (the
  * rows' test ids end with them): mongo is not reset between runs, so a
  * failure here that names an unknown id means something wrote to these orgs.
@@ -71,6 +72,7 @@ import {
 const LIST_PATH = `${MANAGE_PATH}/change-requests`
 const REPROCESSOR_LIST_PATH = `${REPROCESSOR_MANAGE_PATH}/change-requests`
 const EMPTY_LIST_PATH = `${EMPTY_MANAGE_PATH}/change-requests`
+const REGISTRATION_ONLY_LIST_PATH = `${REGISTRATION_ONLY_MANAGE_PATH}/change-requests`
 
 const urlEndingWith = (path) =>
   expect.stringMatching(new RegExp(`${path.replaceAll('/', '\\/')}(\\?.*)?$`))
@@ -687,6 +689,64 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(managePage.expiryDate).not.toBeExisting()
       await expect(managePage.manageAccreditationCard).not.toBeExisting()
       await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
+    })
+
+    // RA-697 task 011: the registration's own change requests, which have no
+    // accreditation. It can only have ORS updates.
+    it('shows its ORS updates on the dashboard and lists them, offering only the ORS update type', async () => {
+      await OperatorPage.open()
+      await OperatorPage.navigateToRegistrationOnlyOrg()
+
+      const managePage = ManageRegistrationAccreditationPage
+      await expect(managePage.changeRequestsHeading).toHaveText(
+        'In year change requests'
+      )
+      expect(await managePage.changeRequestsSummaryTypes()).toEqual([
+        'update-overseas-site'
+      ])
+      await expect(
+        managePage.changeRequestsSummaryStatus('update-overseas-site')
+      ).toHaveText('QUERIED')
+
+      await managePage.clickAndWaitForNextPage(
+        managePage.changeRequestsSummaryViewLink('update-overseas-site')
+      )
+
+      await waitForListQuery(
+        REGISTRATION_ONLY_LIST_PATH,
+        '?type=update-overseas-site'
+      )
+      await expectSelectedFilters('Select status', 'ORS update')
+      await expectRows(REGISTRATION_ONLY_CHANGE_ITEMS, year)
+
+      await ChangeRequestsPage.clickAndWaitForNextPage(
+        ChangeRequestsPage.clearFiltersLink
+      )
+
+      await waitForListQuery(REGISTRATION_ONLY_LIST_PATH, '')
+      await expect(ChangeRequestsPage.pageCaption).toHaveText(
+        `${REGISTRATION_ONLY_ORGANISATION_NAME} (${year}, ${REGISTRATION_ONLY_MATERIAL})`
+      )
+      expect(
+        await ChangeRequestsPage.filterOptionTexts(
+          ChangeRequestsPage.typeFilter
+        )
+      ).toEqual(['Select type', 'ORS update'])
+      await expectRows(REGISTRATION_ONLY_CHANGE_ITEMS, year)
+      await expect(ChangeRequestsPage.countLine).toHaveText('Showing 1-5 of 5')
+      await expect(ChangeRequestsPage.pagination).not.toBeExisting()
+      for (const item of REGISTRATION_ONLY_CHANGE_ITEMS) {
+        await expect(ChangeRequestsPage.siteName(item.itemId(year))).toHaveText(
+          item.siteName
+        )
+        await expect(
+          ChangeRequestsPage.siteAddress(item.itemId(year))
+        ).toHaveText(item.siteAddress)
+      }
+      await expect(ChangeRequestsPage.backLink).toHaveAttribute(
+        'href',
+        urlEndingWith(REGISTRATION_ONLY_MANAGE_PATH)
+      )
     })
   })
 })

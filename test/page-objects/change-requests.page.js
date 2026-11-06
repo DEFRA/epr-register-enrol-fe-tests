@@ -125,6 +125,11 @@ class ChangeRequestsPage extends Page {
     return select.$('option:checked').getText()
   }
 
+  // The visible text of each of a filter's options, placeholder first.
+  async filterOptionTexts(select) {
+    return textsOf(await select.$$('option'))
+  }
+
   async statusTexts() {
     return textsOf(await this.statusTags)
   }
