@@ -15,6 +15,7 @@ import { assertEligiblePersonWording } from '../helpers/declaration.js'
 import {
   addSiteToChangeRequest,
   getAccreditationChanges,
+  patchChangeRequestSite,
   getOverseasSites
 } from '../helpers/case-management.js'
 import {
@@ -40,16 +41,19 @@ import {
 // that the summary built from the real ORS record locks what is already
 // recorded and asks only for what is missing (AC01/AC02); that the charge the
 // operator reviews is £328 per site across a multi-site request
-// (AC03/AC04/AC10); that the declaration submits the request (AC05/AC07) and
-// reaches the bank transfer payment page; and that afterwards the sites show
-// as pending and cannot be added again, neither through the UI nor the API
-// (AC08/AC09).
+// (AC03/AC04/AC10); that the declaration refuses an empty name and job
+// title, saves for later and resumes from the manage page, then submits the
+// request (AC05/AC07) and reaches the bank transfer payment page; and that
+// afterwards the sites show as pending and cannot be added again, neither
+// through the UI nor the API (AC08/AC09). The API also refuses a
+// never-registered site and a change to a field already recorded on the ORS.
 //
 // Owns org 50019 (test/fixtures/in-year-change-org.js), whose current-year
 // Approved Plastic accreditation is seeded by the backend's
 // DevExporterAccreditationSeedService (DevSeedData__ManageExporterEnabled in
 // docker/config), alongside RA-425's org 50018, which this spec leaves alone.
-// ORS 001 is accredited. Its registered-only sites:
+// ORS 001 is accredited, and ORS 008 (901913) was never registered, so it
+// is on neither tab and cannot be added. Its registered-only sites:
 //   901910 / ORS 005 - France, complete: every lockable field recorded
 //   901911 / ORS 006 - India, country only: coordinates, R code and
 //                      conditions of export missing, and outside the
@@ -148,6 +152,12 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     await expect(
       ManageOverseasSitesPage.addToAccreditationButton(ORS.hamburg.siteId)
     ).not.toExist()
+    // A never-registered site is on neither tab.
+    for (const tab of ['accredited', 'registered']) {
+      await expect(
+        ManageOverseasSitesPage.siteRow(tab, ORS.valencia.siteId)
+      ).not.toExist()
+    }
 
     await ManageOverseasSitesPage.addToAccreditation(completeSite.siteId)
     await waitForPath(`/add/${completeSite.siteId}`)
@@ -368,6 +378,42 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     await waitForPath('/declaration')
 
     await assertEligiblePersonWording(SubmitApplicationPage)
+
+    // The declaration's own validation: nothing submits without a name and
+    // job title.
+    await SubmitApplicationPage.confirmAndSubmit()
+    await waitForPath('/declaration')
+    await expect(SubmitApplicationPage.errorSummary).toBeDisplayed()
+    for (const message of ['Enter your full name', 'Enter your job title']) {
+      await expect(SubmitApplicationPage.errorSummary).toHaveText(
+        expect.stringContaining(message)
+      )
+    }
+    await expect(SubmitApplicationPage.fullNameError).toHaveText(
+      expect.stringContaining('Enter your full name')
+    )
+    await expect(SubmitApplicationPage.jobTitleError).toHaveText(
+      expect.stringContaining('Enter your job title')
+    )
+
+    // "Save and come back later" leaves the request in progress, and the
+    // manage page's banner resumes it.
+    await SubmitApplicationPage.saveAndComeBackLater()
+    await waitForPath(OVERSEAS_SITES_PATH)
+    await expect(ManageOverseasSitesPage.requestsBanner).toHaveText(
+      expect.stringContaining(
+        'You currently have 2 requests ready for submission.'
+      )
+    )
+    expect(
+      (await getAccreditationChanges(ORGANISATION_ID, applicationId))
+        .activeRequest.status
+    ).toBe('InProgress')
+    await ManageOverseasSitesPage.viewRequests()
+    await waitForPath('/requests')
+    await AccreditationRequestsPage.continue()
+    await waitForPath('/declaration')
+
     await SubmitApplicationPage.submitApplication()
     await waitForPath('/payment')
 
@@ -464,5 +510,45 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
         ORS.hamburg.siteId
       )
     ).toBe(409)
+    // ...and has never heard of a site that was never registered.
+    expect(
+      await addSiteToChangeRequest(
+        ORGANISATION_ID,
+        applicationId,
+        ORS.valencia.siteId
+      )
+    ).toBe(404)
+
+    // Fields already recorded on the ORS are locked server-side too: adding
+    // the untouched site to a new request is allowed (201: added), but changing its
+    // recorded country and coordinates is refused, and nothing changes.
+    expect(
+      await addSiteToChangeRequest(
+        ORGANISATION_ID,
+        applicationId,
+        untouchedSite.siteId
+      )
+    ).toBe(201)
+    const refused = await patchChangeRequestSite(
+      ORGANISATION_ID,
+      applicationId,
+      untouchedSite.siteId,
+      { country: 'Greece', coordinates: '39.0742, 21.8243' }
+    )
+    expect(refused.statusCode).toBe(400)
+    expect(Object.keys(refused.body.errors)).toEqual(
+      expect.arrayContaining(['country', 'coordinates'])
+    )
+    const { activeRequest } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      applicationId
+    )
+    const izmir = activeRequest.sites.find(
+      ({ siteId }) => siteId === untouchedSite.siteId
+    )
+    expect(izmir.effective.country).toBe('Turkey')
+    expect(izmir.effective.coordinates).toBe('38.4237, 27.1428')
+    expect(izmir.answers.country ?? null).toBeNull()
+    expect(izmir.answers.coordinates ?? null).toBeNull()
   })
 })

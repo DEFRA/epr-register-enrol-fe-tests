@@ -328,3 +328,28 @@ export async function addSiteToChangeRequest(
   await body.dump()
   return statusCode
 }
+
+// Asks the backend to change a site's answers in the in-progress change
+// request, and returns the status code and the parsed body, so a spec can
+// prove the server-side lock on fields already recorded on the ORS rather
+// than just the UI offering no action for them.
+export async function patchChangeRequestSite(
+  organisationId,
+  applicationId,
+  siteId,
+  answers
+) {
+  const { statusCode, body } = await request(
+    accreditationChangesUrl(
+      organisationId,
+      applicationId,
+      `/requests/current/sites/${siteId}`
+    ),
+    {
+      method: 'PATCH',
+      headers: { ...frontendAuthHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify(answers)
+    }
+  )
+  return { statusCode, body: await body.json() }
+}

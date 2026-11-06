@@ -15,8 +15,9 @@ export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/${MATE
 export const OVERSEAS_SITES_PATH = `${MANAGE_PATH}/overseas-sites`
 
 // The seeded overseas reprocessing sites (ORSs): the site id the routes and
-// backend take, and the ORS id the pages show. Hamburg is accredited; the
-// rest are registered only.
+// backend take, and the ORS id the pages show. Hamburg is accredited;
+// Valencia is on the application but was never registered; the rest are
+// registered only.
 export const ORS = {
   // Germany.
   hamburg: { siteId: 901901, orsId: '001' },
@@ -28,7 +29,9 @@ export const ORS = {
   delhi: { siteId: 901911, orsId: '006' },
   // Turkey: coordinates only, so R code and conditions of export are
   // missing; Turkey is in the OECD, so no BES evidence.
-  izmir: { siteId: 901912, orsId: '007' }
+  izmir: { siteId: 901912, orsId: '007' },
+  // Spain: never registered (IsNewSite), so on neither tab and not addable.
+  valencia: { siteId: 901913, orsId: '008' }
 }
 
 // The seeded accreditation application's id, which the RA-492 change-request
