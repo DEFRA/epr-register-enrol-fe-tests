@@ -54,8 +54,9 @@ import {
  * with IN_YEAR_CHANGES_ENABLED on the frontend), for the calendar year the
  * stack started in:
  *   - org 50018's Plastic exporter (test/fixtures/manage-exporter-org.js,
- *     shared read-only with RA-425): 13 items over 11 requests, in all 8
- *     statuses and all 3 types, so the list runs to two pages;
+ *     shared read-only with RA-425): 14 items over 12 requests, in all 8
+ *     statuses and all 3 types, so the list runs to two pages, including
+ *     one registration-only ORS update (no accreditation) on Dragon;
  *   - org 50018's Glass reprocessor: 3 tonnage band upgrades;
  *   - org 50020 (test/fixtures/no-change-requests-org.js): an exporter with
  *     no change requests, for the empty states;
@@ -88,6 +89,7 @@ const ids = (items, year) => items.map((item) => item.itemId(year))
 const {
   rotterdamUpdateQueried,
   dragonNewInProgress,
+  dragonUpdateSubmittedRegistrationOnly,
   bharatUpdateSubmitted,
   berlinUpdateUpdated,
   tonnageDulyMade,
@@ -103,16 +105,17 @@ const {
 const FIRST_PAGE = [
   rotterdamUpdateQueried,
   dragonNewInProgress,
+  dragonUpdateSubmittedRegistrationOnly,
   bharatUpdateSubmitted,
   berlinUpdateUpdated,
   tonnageDulyMade,
   tonnageGranted,
   rotterdamUpdateGranted,
   bharatUpdateGranted,
-  tonnageRefused,
-  berlinUpdateRefused
+  tonnageRefused
 ]
 const SECOND_PAGE = [
+  berlinUpdateRefused,
   dragonNewRefused,
   rotterdamUpdateWithdrawn,
   dragonNewWithdrawn
@@ -253,10 +256,11 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
       await waitForListQuery(LIST_PATH, '?type=update-overseas-site')
       await expectSelectedFilters('Select status', 'ORS update')
-      // Every ORS update, final ones too.
+      // Every ORS update, final ones too, and the registration-only one.
       await expectRows(
         [
           rotterdamUpdateQueried,
+          dragonUpdateSubmittedRegistrationOnly,
           bharatUpdateSubmitted,
           berlinUpdateUpdated,
           rotterdamUpdateGranted,
@@ -266,7 +270,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         ],
         year
       )
-      await expect(ChangeRequestsPage.countLine).toHaveText('Showing 1-7 of 7')
+      await expect(ChangeRequestsPage.countLine).toHaveText('Showing 1-8 of 8')
       await expect(ChangeRequestsPage.pagination).not.toBeExisting()
     })
   })
@@ -283,7 +287,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
       await expectSelectedFilters('Select status', 'Select type')
       await expect(ChangeRequestsPage.countLine).toHaveText(
-        'Showing 1-10 of 13'
+        'Showing 1-10 of 14'
       )
       await expectRows(FIRST_PAGE, year)
       await expect(ChangeRequestsPage.currentPageNumber).toHaveText('1')
@@ -320,7 +324,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
       await waitForListQuery(LIST_PATH, '?page=2')
       await expect(ChangeRequestsPage.countLine).toHaveText(
-        'Showing 11-13 of 13'
+        'Showing 11-14 of 14'
       )
       await expectRows(SECOND_PAGE, year)
       await expect(ChangeRequestsPage.currentPageNumber).toHaveText('2')
@@ -397,7 +401,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await waitForListQuery(LIST_PATH, '')
       await expectSelectedFilters('Select status', 'Select type')
       await expect(ChangeRequestsPage.countLine).toHaveText(
-        'Showing 1-10 of 13'
+        'Showing 1-10 of 14'
       )
       await expectRows(FIRST_PAGE, year)
     })
@@ -521,6 +525,32 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
       await expect(detail.statusTag).toHaveText('IN PROGRESS')
       await expectRequestDetails(item, year, { submitted: false })
+    })
+
+    // RA-697 task 014: a registration-only request on an accredited exporter.
+    it('shows the registration-only ORS update on Dragon, opened from the list', async () => {
+      const item = dragonUpdateSubmittedRegistrationOnly
+      const itemId = item.itemId(year)
+      await ChangeRequestsPage.open(LIST_PATH)
+
+      await ChangeRequestsPage.clickAndWaitForNextPage(
+        ChangeRequestsPage.viewLink(itemId)
+      )
+
+      expect(new URL(await browser.getUrl()).pathname).toBe(
+        `${LIST_PATH}/${itemId}`
+      )
+      const detail = ChangeRequestDetailPage
+      await expect(detail.pageCaption).toHaveText(
+        `${ORGANISATION_NAME} (${year}, ${MATERIAL})`
+      )
+      await expect(detail.pageHeading).toHaveText('Dragon Recyclers')
+      await expect(detail.headerSiteId).toHaveText(item.orsId)
+      await expect(detail.headerLocation).toHaveText(
+        '8 Harbour Avenue, Vietnam'
+      )
+      await expect(detail.statusTag).toHaveText('SUBMITTED')
+      await expectRequestDetails(item, year)
     })
 
     it('shows a duly made tonnage band upgrade, opened from the list, read-only', async () => {
