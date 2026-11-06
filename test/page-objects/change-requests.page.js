@@ -60,6 +60,10 @@ class ChangeRequestsPage extends Page {
     return $('[data-testid="type-filter"]')
   }
 
+  get viewLinks() {
+    return $$('[data-testid^="change-request-view-"]')
+  }
+
   get clearFiltersLink() {
     return $('[data-testid="clear-filters-link"]')
   }

@@ -3,6 +3,7 @@ import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import ManageRegistrationAccreditationPage from 'page-objects/manage-registration-accreditation.page'
 import ChangeRequestsPage from 'page-objects/change-requests.page'
+import ChangeRequestDetailPage from 'page-objects/change-request-detail.page'
 import {
   DOCKER_ONLY_TAG,
   skipDockerOnlyOnDeployedEnvironment
@@ -246,5 +247,26 @@ describe(`RA-697: seeded orgs for the in-year change request pages ${DOCKER_ONLY
     await expect(ChangeRequestsPage.table).not.toBeExisting()
     await expect(ChangeRequestsPage.countLine).not.toBeExisting()
     await expect(ChangeRequestsPage.pagination).not.toBeExisting()
+  })
+
+  it("opens a queried ORS update's read-only detail page from the list", async () => {
+    const listPath = `${EXPORTER_MANAGE_PATH}/change-requests`
+    await ChangeRequestsPage.open(`${listPath}?status=Queried`)
+
+    const [viewLink] = await ChangeRequestsPage.viewLinks
+    await ChangeRequestsPage.clickAndWaitForNextPage(viewLink)
+
+    const detail = ChangeRequestDetailPage
+    await expect(detail.pageHeading).toHaveText('Rotterdam Recycling BV')
+    await expect(detail.statusTag).toHaveText('QUERIED')
+    await expect(detail.queryRaisedBanner).toBeDisplayed()
+    await expect(detail.requestType).toHaveText('ORS update')
+    await expect(detail.requestValidFrom).toHaveText('Not applicable')
+    await expect(detail.requestValidTo).toHaveText('Not applicable')
+    await expect(detail.actions).toBeElementsArrayOfSize(0)
+    await expect(detail.backLink).toHaveAttribute(
+      'href',
+      urlEndingWith(listPath)
+    )
   })
 })
