@@ -36,6 +36,7 @@ import {
   MANAGE_PATH as REGISTRATION_ONLY_MANAGE_PATH,
   CHANGE_ITEMS as REGISTRATION_ONLY_CHANGE_ITEMS,
   REGISTERED_ORS as REGISTRATION_ONLY_ORS,
+  PORTO_INTERIM_SITES,
   registrationNumber as registrationOnlyRegistrationNumber
 } from '../fixtures/registration-only-org.js'
 
@@ -60,7 +61,8 @@ import {
  *     no change requests, for the empty states;
  *   - org 50021 (test/fixtures/registration-only-org.js): an exporter with an
  *     Approved registration and no accreditation, whose dashboard shows the
- *     registration only, and five registration-only ORS updates.
+ *     registration only, and five registration-only ORS updates, each with
+ *     its read-only detail page.
  * Nothing here writes, and every check is scoped to the seeded item ids (the
  * rows' test ids end with them): mongo is not reset between runs, so a
  * failure here that names an unknown id means something wrote to these orgs.
@@ -115,6 +117,12 @@ const SECOND_PAGE = [
   rotterdamUpdateWithdrawn,
   dragonNewWithdrawn
 ]
+
+// Org 50021 has one item in each status.
+const registrationOnlyItem = (status) =>
+  REGISTRATION_ONLY_CHANGE_ITEMS.find((item) => item.status === status)
+const registrationOnlyPortoSubmitted = registrationOnlyItem('SUBMITTED')
+const registrationOnlyJakartaGranted = registrationOnlyItem('GRANTED')
 
 // The query string a filter change or pagination link should land on, in
 // the order the page writes it, and then the page fully loaded.
@@ -797,6 +805,69 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         'href',
         urlEndingWith(REGISTRATION_ONLY_MANAGE_PATH)
       )
+    })
+
+    // RA-697 task 013: the registration's ORS, with its interim sites, and
+    // dates in the current year.
+    it('shows a submitted ORS update, opened from the list, with its interim sites, read-only', async () => {
+      const item = registrationOnlyPortoSubmitted
+      const itemId = item.itemId(year)
+      await ChangeRequestsPage.open(REGISTRATION_ONLY_LIST_PATH)
+
+      await ChangeRequestsPage.clickAndWaitForNextPage(
+        ChangeRequestsPage.viewLink(itemId)
+      )
+
+      expect(new URL(await browser.getUrl()).pathname).toBe(
+        `${REGISTRATION_ONLY_LIST_PATH}/${itemId}`
+      )
+      const detail = ChangeRequestDetailPage
+      await expect(detail.pageCaption).toHaveText(
+        `${REGISTRATION_ONLY_ORGANISATION_NAME} (${year}, ${REGISTRATION_ONLY_MATERIAL})`
+      )
+      await expect(detail.pageHeading).toHaveText(item.siteName)
+
+      await expect(detail.headerLocation).toHaveText(item.siteAddress)
+      await expect(detail.headerSiteId).toHaveText(item.orsId)
+      await expect(detail.statusTag).toHaveText('SUBMITTED')
+      await expect(detail.headerDateAdded).toHaveText(item.sent(year))
+      await expect(detail.headerBesExpiry).toHaveText('Not applicable')
+
+      await expect(detail.rowValue('site-name')).toHaveText(item.siteName)
+      await expect(detail.rowValue('location')).toHaveText(item.siteAddress)
+      await expect(detail.rowValue('contact-name')).toHaveText('Site Manager')
+      await expect(detail.rowValue('recycling-operation')).toHaveText('R3')
+
+      await expect(detail.interimSitesHeading).toHaveText(
+        `Interim sites (${PORTO_INTERIM_SITES.length})`
+      )
+      await expect(detail.interimSiteRows).toBeElementsArrayOfSize(
+        PORTO_INTERIM_SITES.length
+      )
+      for (const interimSite of PORTO_INTERIM_SITES) {
+        await expect(detail.interimSite(interimSite.siteId)).toHaveText(
+          interimSite.line
+        )
+      }
+
+      await expectRequestDetails(item, year)
+      await expect(detail.backLink).toHaveAttribute(
+        'href',
+        urlEndingWith(REGISTRATION_ONLY_LIST_PATH)
+      )
+    })
+
+    it("shows a granted ORS update's validity to the end of the current year", async () => {
+      const item = registrationOnlyJakartaGranted
+      await ChangeRequestDetailPage.open(
+        `${REGISTRATION_ONLY_LIST_PATH}/${item.itemId(year)}`
+      )
+
+      const detail = ChangeRequestDetailPage
+      await expect(detail.pageHeading).toHaveText(item.siteName)
+      await expect(detail.statusTag).toHaveText('GRANTED')
+      await expect(detail.interimSitesHeading).toHaveText('Interim sites (0)')
+      await expectRequestDetails(item, year)
     })
   })
 })

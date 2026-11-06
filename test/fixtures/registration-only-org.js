@@ -4,6 +4,12 @@
 // the frontend (src/server/common/constants/test-orgs.js) define the same
 // org: keep all three in step.
 
+import {
+  changeItemId,
+  changeRequestReference,
+  dayOf
+} from './change-request-seed.js'
+
 const ORGANISATION_ID = '50021'
 export const ORGANISATION_NAME = 'Registration Only Exports Ltd'
 const REGISTRATION_ID = 'aaa000000000000000050021'
@@ -14,41 +20,6 @@ export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/${MATE
 const yearSuffix = (year) => String(year).slice(-2)
 
 export const registrationNumber = (year) => `R${yearSuffix(year)}EX0500210001PL`
-
-// RA-697 task 011: the backend dev seed's five registration-only ORS updates
-// for org 50021 (DevChangeRequestSeedService, mirrored by the frontend's
-// stub-change-request-seed.js; keep all three in step), one item each on its
-// registered ORSs, in the order the list shows them: most urgent status
-// first. Ids follow the same fixed scheme as org 50018's, under "a", e.g.
-// 00002026-0000-0001-a000-050021000004 for the 4th request's item.
-const changeItemId = (year, request) =>
-  `0000${year}-0000-0001-a000-${ORGANISATION_ID.padStart(6, '0')}${String(request).padStart(6, '0')}`
-
-const orsUpdate = (request, siteName, siteAddress, status) => ({
-  itemId: (year) => changeItemId(year, request),
-  siteName,
-  siteAddress,
-  type: 'ORS update',
-  status
-})
-
-export const CHANGE_ITEMS = [
-  orsUpdate(4, 'Milano Riciclo SpA', 'Via Industriale 7, Italy', 'QUERIED'),
-  orsUpdate(5, 'Porto Plasticos Lda', 'Rua do Porto 21, Portugal', 'SUBMITTED'),
-  orsUpdate(
-    3,
-    'Penang Polymers Sdn Bhd',
-    'Jalan Pelabuhan 3, Malaysia',
-    'DULY MADE'
-  ),
-  orsUpdate(
-    2,
-    'Jakarta Daur Ulang PT',
-    'Jalan Pelabuhan 12, Indonesia',
-    'GRANTED'
-  ),
-  orsUpdate(1, 'Porto Plasticos Lda', 'Rua do Porto 21, Portugal', 'REFUSED')
-]
 
 // RA-697 task 012: the registration's four Active ORSs, from the backend dev
 // seed (DevExporterAccreditationSeedService.RegisteredOverseasSites, mirrored
@@ -70,4 +41,44 @@ export const REGISTERED_ORS = [
     'Jalan Pelabuhan 3, Malaysia'
   ),
   registeredOrs('004', 'Jakarta Daur Ulang PT', 'Jalan Pelabuhan 12, Indonesia')
+]
+
+// RA-697 task 013: the active interim sites of ORS 001 (Porto), keyed on the
+// detail page by their site number's integer value.
+export const PORTO_INTERIM_SITES = [
+  { siteId: 1, line: 'Leixoes Port Storage, Portugal, R13' },
+  { siteId: 2, line: 'Aveiro Transfer Hub, Portugal, R13' }
+]
+
+// RA-697 task 011: the backend dev seed's five registration-only ORS updates,
+// one item each on a registered ORS, with ids and references as
+// change-request-seed.js describes, under "a" as there is no accreditation.
+// `sent` is the request's submitted date; `validFrom`/`validTo` are set only
+// on the granted item.
+const orsUpdate = (request, orsId, status, fields) => {
+  const ors = REGISTERED_ORS.find((site) => site.orsId === orsId)
+  return {
+    itemId: (year) => changeItemId(ORGANISATION_ID, year, 'a', request, 1),
+    reference: (year) =>
+      changeRequestReference(ORGANISATION_ID, year, 'a', request),
+    orsId,
+    siteName: ors.name,
+    siteAddress: ors.address,
+    type: 'ORS update',
+    status,
+    ...fields
+  }
+}
+
+// In the order the list shows them: most urgent status first.
+export const CHANGE_ITEMS = [
+  orsUpdate(4, '002', 'QUERIED', { sent: dayOf(6, 18) }),
+  orsUpdate(5, '001', 'SUBMITTED', { sent: dayOf(8, 25) }),
+  orsUpdate(3, '003', 'DULY MADE', { sent: dayOf(5, 6) }),
+  orsUpdate(2, '004', 'GRANTED', {
+    sent: dayOf(3, 15),
+    validFrom: dayOf(4, 20),
+    validTo: dayOf(12, 31)
+  }),
+  orsUpdate(1, '001', 'REFUSED', { sent: dayOf(2, 10) })
 ]

@@ -7,6 +7,12 @@
 // (src/server/common/constants/test-orgs.js) define the same org: keep all
 // three in step.
 
+import {
+  changeItemId,
+  changeRequestReference,
+  dayOf
+} from './change-request-seed.js'
+
 const ORGANISATION_ID = '50018'
 export const ORGANISATION_NAME = 'Manage Accreditation Test Ltd'
 const REGISTRATION_ID = 'aaa000000000000000050018'
@@ -60,29 +66,14 @@ export const reprocessorRegistrationNumber = (year) =>
 export const reprocessorAccreditationNumber = (year) =>
   `A${yearSuffix(year)}ER0500180002GR`
 
-// RA-697: the backend's seeded change request items
-// (DevChangeRequestSeedService, mirrored by the frontend's
-// stub-change-request-seed.js; keep all three in step). Ids are fixed per
-// year, accreditation ("a" exporter, "b" reprocessor), request (numbered from
-// 1, oldest first) and item (numbered from 1 within the request), e.g.
-// 00002026-0000-0001-a000-050018000008 for the exporter's 8th request's first
-// item. The pages key their rows by item id.
-const changeItemId = (year, side, request, item) =>
-  `0000${year}-0000-${String(item).padStart(4, '0')}-${side}000-${ORGANISATION_ID.padStart(6, '0')}${String(request).padStart(6, '0')}`
-
-// The case management reference the seed gives each submitted request,
-// e.g. CR26050018A008.
-const changeRequestReference = (year, side, request) =>
-  `CR${yearSuffix(year)}${ORGANISATION_ID.padStart(6, '0')}${side.toUpperCase()}${String(request).padStart(3, '0')}`
-
-// Seed dates are 09:00 UTC on a day of the seed's year, as the pages show it.
-const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
-const dayOf = (month, day) => (year) => `${day} ${MONTHS[month - 1]} ${year}`
-
+// RA-697: the backend's seeded change request items, with ids and references
+// as change-request-seed.js describes.
 const item = (side, request, itemNumber, fields) => ({
   ...fields,
-  itemId: (year) => changeItemId(year, side, request, itemNumber),
-  reference: (year) => changeRequestReference(year, side, request)
+  itemId: (year) =>
+    changeItemId(ORGANISATION_ID, year, side, request, itemNumber),
+  reference: (year) =>
+    changeRequestReference(ORGANISATION_ID, year, side, request)
 })
 
 // The ORS ids the pages show for the ORSs above.
