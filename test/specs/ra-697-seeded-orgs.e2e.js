@@ -269,4 +269,27 @@ describe(`RA-697: seeded orgs for the in-year change request pages ${DOCKER_ONLY
       urlEndingWith(listPath)
     )
   })
+
+  it("opens the Glass reprocessor's submitted tonnage band upgrade from the list", async () => {
+    const listPath = `${REPROCESSOR_MANAGE_PATH}/change-requests`
+    await ChangeRequestsPage.open(`${listPath}?status=Submitted`)
+
+    const [viewLink] = await ChangeRequestsPage.viewLinks
+    await ChangeRequestsPage.clickAndWaitForNextPage(viewLink)
+
+    const detail = ChangeRequestDetailPage
+    await expect(detail.pageHeading).toHaveText('Tonnage band upgrade')
+    await expect(detail.statusTag).toHaveText('SUBMITTED')
+    await expect(detail.requestedBandLabel).toHaveText('PRNs you plan to issue')
+    await expect(detail.requestedBand).toHaveText('Up to 10,000 tonnes')
+    await expect(detail.queryRaisedBanner).not.toBeExisting()
+    await expect(detail.requestType).toHaveText('Tonnage band upgrade')
+    await expect(detail.requestValidFrom).toHaveText('Not applicable')
+    await expect(detail.requestValidTo).toHaveText('Not applicable')
+    await expect(detail.actions).toBeElementsArrayOfSize(0)
+    await expect(detail.backLink).toHaveAttribute(
+      'href',
+      urlEndingWith(listPath)
+    )
+  })
 })

@@ -19,6 +19,15 @@ class ChangeRequestDetailPage extends Page {
     return $('[data-testid="query-raised-banner"]')
   }
 
+  // A tonnage band upgrade's "PRNs you plan to issue" row.
+  get requestedBandLabel() {
+    return $('[data-testid="row-requested-band-label"]')
+  }
+
+  get requestedBand() {
+    return $('[data-testid="row-requested-band-value"]')
+  }
+
   get requestType() {
     return $('[data-testid="request-type"]')
   }
