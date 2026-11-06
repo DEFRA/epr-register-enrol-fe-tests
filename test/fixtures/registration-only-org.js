@@ -49,3 +49,25 @@ export const CHANGE_ITEMS = [
   ),
   orsUpdate(1, 'Porto Plasticos Lda', 'Rua do Porto 21, Portugal', 'REFUSED')
 ]
+
+// RA-697 task 012: the registration's four Active ORSs, from the backend dev
+// seed (DevExporterAccreditationSeedService.RegisteredOverseasSites, mirrored
+// by the frontend's stub-manage-accreditations.js). The overseas-sites page
+// keys each row by the ORS id's integer value.
+const registeredOrs = (orsId, name, address) => ({
+  siteId: Number(orsId),
+  orsId,
+  name,
+  address
+})
+
+export const REGISTERED_ORS = [
+  registeredOrs('001', 'Porto Plasticos Lda', 'Rua do Porto 21, Portugal'),
+  registeredOrs('002', 'Milano Riciclo SpA', 'Via Industriale 7, Italy'),
+  registeredOrs(
+    '003',
+    'Penang Polymers Sdn Bhd',
+    'Jalan Pelabuhan 3, Malaysia'
+  ),
+  registeredOrs('004', 'Jakarta Daur Ulang PT', 'Jalan Pelabuhan 12, Indonesia')
+]

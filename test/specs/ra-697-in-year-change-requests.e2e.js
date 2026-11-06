@@ -4,6 +4,7 @@ import OperatorPage from 'page-objects/operator.page'
 import ManageRegistrationAccreditationPage from 'page-objects/manage-registration-accreditation.page'
 import ChangeRequestsPage from 'page-objects/change-requests.page'
 import ChangeRequestDetailPage from 'page-objects/change-request-detail.page'
+import ManageOverseasSitesPage from 'page-objects/manage-overseas-sites.page'
 import {
   DOCKER_ONLY_TAG,
   skipDockerOnlyOnDeployedEnvironment
@@ -34,6 +35,7 @@ import {
   MATERIAL as REGISTRATION_ONLY_MATERIAL,
   MANAGE_PATH as REGISTRATION_ONLY_MANAGE_PATH,
   CHANGE_ITEMS as REGISTRATION_ONLY_CHANGE_ITEMS,
+  REGISTERED_ORS as REGISTRATION_ONLY_ORS,
   registrationNumber as registrationOnlyRegistrationNumber
 } from '../fixtures/registration-only-org.js'
 
@@ -689,6 +691,54 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(managePage.expiryDate).not.toBeExisting()
       await expect(managePage.manageAccreditationCard).not.toBeExisting()
       await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
+    })
+
+    // RA-697 task 012: every registered ORS, and no accreditation to add one
+    // to. Its seeded requests make some rows Pending, which isn't asserted on.
+    it('opens the overseas sites from the dashboard, none accredited and all four registered, with nothing to add to an accreditation', async () => {
+      await OperatorPage.open()
+      await OperatorPage.navigateToRegistrationOnlyOrg()
+      await ManageRegistrationAccreditationPage.openManageOverseasSites()
+
+      await expect(browser).toHaveUrl(
+        urlEndingWith(`${REGISTRATION_ONLY_MANAGE_PATH}/overseas-sites`)
+      )
+      const sitesPage = ManageOverseasSitesPage
+      await expect(sitesPage.pageHeading).toHaveText(
+        'Manage overseas reprocessing sites'
+      )
+      await expect(sitesPage.pageCaption).toHaveText(
+        `${REGISTRATION_ONLY_ORGANISATION_NAME} (${year}, ${REGISTRATION_ONLY_MATERIAL})`
+      )
+      await expect(sitesPage.tab('accredited')).toHaveText('Accredited (0)')
+      await expect(sitesPage.panel('accredited')).toBeDisplayed()
+      await expect(sitesPage.emptyMessage('accredited')).toBeDisplayed()
+
+      await expect(sitesPage.tab('registered')).toHaveText(
+        `Registered (${REGISTRATION_ONLY_ORS.length})`
+      )
+      await sitesPage.openTab('registered')
+      for (const site of REGISTRATION_ONLY_ORS) {
+        await expect(sitesPage.siteOrsId('registered', site.siteId)).toHaveText(
+          site.orsId
+        )
+        await expect(sitesPage.siteName('registered', site.siteId)).toHaveText(
+          site.name
+        )
+        await expect(
+          sitesPage.siteAddress('registered', site.siteId)
+        ).toHaveText(site.address)
+        await expect(
+          sitesPage.addToAccreditationButton(site.siteId)
+        ).not.toBeExisting()
+        await expect(sitesPage.viewRequestLink(site.siteId)).not.toBeExisting()
+      }
+      await expect(sitesPage.anyAddToAccreditationButton).not.toBeExisting()
+      await expect(sitesPage.requestsBanner).not.toBeExisting()
+      await expect(sitesPage.backLink).toHaveAttribute(
+        'href',
+        urlEndingWith(REGISTRATION_ONLY_MANAGE_PATH)
+      )
     })
 
     // RA-697 task 011: the registration's own change requests, which have no
