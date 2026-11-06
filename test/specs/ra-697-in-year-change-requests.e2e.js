@@ -708,11 +708,15 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
     })
   })
 
+  // RA-697 tasks 010 to 015: org 50021 has an Approved registration and no
+  // accreditation, so each page shows the registration only. Its seeded
+  // requests make some overseas sites Pending, which isn't asserted on.
   describe('Registration-only exporter', () => {
-    it('opens from the operator page, with the registration on the dashboard and no accreditation', async () => {
+    it('follows its path from the operator page: dashboard, overseas sites, the change requests list and an ORS update with its interim sites', async () => {
       await OperatorPage.open()
       await OperatorPage.navigateToRegistrationOnlyOrg()
 
+      // Dashboard: the registration, and no accreditation.
       await expect(browser).toHaveUrl(
         urlEndingWith(REGISTRATION_ONLY_MANAGE_PATH)
       )
@@ -729,14 +733,21 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(managePage.expiryDate).not.toBeExisting()
       await expect(managePage.manageAccreditationCard).not.toBeExisting()
       await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
-    })
 
-    // RA-697 task 012: every registered ORS, and no accreditation to add one
-    // to. Its seeded requests make some rows Pending, which isn't asserted on.
-    it('opens the overseas sites from the dashboard, none accredited and all four registered, with nothing to add to an accreditation', async () => {
-      await OperatorPage.open()
-      await OperatorPage.navigateToRegistrationOnlyOrg()
-      await ManageRegistrationAccreditationPage.openManageOverseasSites()
+      // Its change requests section: ORS updates, the only type it can have.
+      await expect(managePage.changeRequestsHeading).toHaveText(
+        'In year change requests'
+      )
+      expect(await managePage.changeRequestsSummaryTypes()).toEqual([
+        'update-overseas-site'
+      ])
+      await expect(
+        managePage.changeRequestsSummaryStatus('update-overseas-site')
+      ).toHaveText('QUERIED')
+
+      // Overseas sites: none accredited, all four registered, and no
+      // accreditation to add one to.
+      await managePage.openManageOverseasSites()
 
       await expect(browser).toHaveUrl(
         urlEndingWith(`${REGISTRATION_ONLY_MANAGE_PATH}/overseas-sites`)
@@ -766,36 +777,17 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         await expect(
           sitesPage.siteAddress('registered', site.siteId)
         ).toHaveText(site.address)
-        await expect(
-          sitesPage.addToAccreditationButton(site.siteId)
-        ).not.toBeExisting()
         await expect(sitesPage.viewRequestLink(site.siteId)).not.toBeExisting()
       }
       await expect(sitesPage.anyAddToAccreditationButton).not.toBeExisting()
       await expect(sitesPage.requestsBanner).not.toBeExisting()
-      await expect(sitesPage.backLink).toHaveAttribute(
-        'href',
+
+      await sitesPage.goBack()
+
+      // The section's ORS update link opens the list filtered to that type.
+      await expect(browser).toHaveUrl(
         urlEndingWith(REGISTRATION_ONLY_MANAGE_PATH)
       )
-    })
-
-    // RA-697 task 011: the registration's own change requests, which have no
-    // accreditation. It can only have ORS updates.
-    it('shows its ORS updates on the dashboard and lists them, offering only the ORS update type', async () => {
-      await OperatorPage.open()
-      await OperatorPage.navigateToRegistrationOnlyOrg()
-
-      const managePage = ManageRegistrationAccreditationPage
-      await expect(managePage.changeRequestsHeading).toHaveText(
-        'In year change requests'
-      )
-      expect(await managePage.changeRequestsSummaryTypes()).toEqual([
-        'update-overseas-site'
-      ])
-      await expect(
-        managePage.changeRequestsSummaryStatus('update-overseas-site')
-      ).toHaveText('QUERIED')
-
       await managePage.clickAndWaitForNextPage(
         managePage.changeRequestsSummaryViewLink('update-overseas-site')
       )
@@ -807,6 +799,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expectSelectedFilters('Select status', 'ORS update')
       await expectRows(REGISTRATION_ONLY_CHANGE_ITEMS, year)
 
+      // The whole list: one type to filter by, and the status filter.
       await ChangeRequestsPage.clickAndWaitForNextPage(
         ChangeRequestsPage.clearFiltersLink
       )
@@ -835,15 +828,18 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         'href',
         urlEndingWith(REGISTRATION_ONLY_MANAGE_PATH)
       )
-    })
 
-    // RA-697 task 013: the registration's ORS, with its interim sites, and
-    // dates in the current year.
-    it('shows a submitted ORS update, opened from the list, with its interim sites, read-only', async () => {
+      await ChangeRequestsPage.statusFilter.selectByVisibleText('Submitted')
+
+      await waitForListQuery(REGISTRATION_ONLY_LIST_PATH, '?status=Submitted')
+      await expectSelectedFilters('Submitted', 'Select type')
+      await expectRows([registrationOnlyPortoSubmitted], year)
+      await expect(ChangeRequestsPage.countLine).toHaveText('Showing 1-1 of 1')
+
+      // An ORS update: the registration's ORS, with its interim sites, and
+      // dates in the current year.
       const item = registrationOnlyPortoSubmitted
       const itemId = item.itemId(year)
-      await ChangeRequestsPage.open(REGISTRATION_ONLY_LIST_PATH)
-
       await ChangeRequestsPage.clickAndWaitForNextPage(
         ChangeRequestsPage.viewLink(itemId)
       )
