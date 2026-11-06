@@ -40,6 +40,43 @@ class ManageRegistrationAccreditationPage extends Page {
     return $('[data-testid="back-link"]')
   }
 
+  // RA-697: the "In year change requests" section, one row per change type
+  // with active items.
+  get changeRequestsHeading() {
+    return $('[data-testid="change-requests-heading"]')
+  }
+
+  get changeRequestsSummaryTable() {
+    return $('[data-testid="change-requests-summary-table"]')
+  }
+
+  changeRequestsSummaryStatus(changeType) {
+    return $(`[data-testid="change-requests-summary-status-${changeType}"]`)
+  }
+
+  changeRequestsSummaryViewLink(changeType) {
+    return $(`[data-testid="change-requests-summary-view-${changeType}"]`)
+  }
+
+  get noActiveChangeRequests() {
+    return $('[data-testid="no-active-change-requests"]')
+  }
+
+  get viewChangeRequestsLink() {
+    return $('[data-testid="view-change-requests-link"]')
+  }
+
+  async changeRequestsSummaryTypes() {
+    const types = []
+    for (const row of [
+      ...(await $$('[data-testid^="change-requests-summary-row-"]'))
+    ]) {
+      const testId = await row.getAttribute('data-testid')
+      types.push(testId.slice('change-requests-summary-row-'.length))
+    }
+    return types
+  }
+
   async openManageOverseasSites() {
     await this.clickAndWaitForNextPage(this.manageOverseasSitesLink)
   }

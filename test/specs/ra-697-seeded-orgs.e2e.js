@@ -36,8 +36,8 @@ import {
  * (DevSeedData__ManageExporterEnabled in docker/config) for the calendar year
  * the stack started in, and their change requests by DevChangeRequestSeedService
  * (with FeatureFlags__InYearChangesEnabled). Read-only: nothing here writes.
- * The In year change requests list is opened by URL here; the dashboard's
- * link to it comes later in RA-697.
+ * The In year change requests list is opened by URL here, or from the
+ * dashboard's In year change requests section.
  * Docker-only because deployed environments have no such seed.
  */
 
@@ -112,6 +112,51 @@ describe(`RA-697: seeded orgs for the in-year change request pages ${DOCKER_ONLY
       emptyAccreditationNumber(year)
     )
     await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
+
+    await expect(managePage.changeRequestsSummaryTable).not.toBeExisting()
+    await expect(managePage.noActiveChangeRequests).toHaveText(
+      'You currently have no active change requests. View change requests.'
+    )
+    await managePage.clickAndWaitForNextPage(managePage.viewChangeRequestsLink)
+
+    await expect(browser).toHaveUrl(
+      urlEndingWith(`${EMPTY_MANAGE_PATH}/change-requests`)
+    )
+  })
+
+  it("summarises the Plastic exporter's active change requests on the dashboard, linking each type to the filtered list", async () => {
+    await OperatorPage.open()
+    await OperatorPage.navigateToManageExporter()
+
+    const managePage = ManageRegistrationAccreditationPage
+    await expect(managePage.changeRequestsHeading).toHaveText(
+      'In year change requests'
+    )
+    expect(await managePage.changeRequestsSummaryTypes()).toEqual([
+      'add-overseas-site',
+      'update-overseas-site',
+      'upgrade-tonnage-band'
+    ])
+    await expect(
+      managePage.changeRequestsSummaryStatus('add-overseas-site')
+    ).toHaveText('IN PROGRESS')
+    await expect(
+      managePage.changeRequestsSummaryStatus('update-overseas-site')
+    ).toHaveText('QUERIED')
+    await expect(
+      managePage.changeRequestsSummaryStatus('upgrade-tonnage-band')
+    ).toHaveText('DULY MADE')
+
+    await managePage.clickAndWaitForNextPage(
+      managePage.changeRequestsSummaryViewLink('update-overseas-site')
+    )
+
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/change-requests?type=update-overseas-site')
+    )
+    expect(new Set(await ChangeRequestsPage.typeTexts())).toEqual(
+      new Set(['ORS update'])
+    )
   })
 
   it("lists the Glass reprocessor's tonnage band upgrades, most urgent first", async () => {
