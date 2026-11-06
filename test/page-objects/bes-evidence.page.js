@@ -126,6 +126,16 @@ class BesEvidencePage extends Page {
   // `baseName` (RA-619) uploads the fixture under that name instead of its own; read the
   // name back on the CYA page with cyaFilenames().
   async uploadFile(filename, { baseName } = {}) {
+    await this.submitUpload(filename, { baseName })
+
+    // Status page auto-refreshes every 2s; wait for redirect to Upload More Evidence page
+    await this.moreEvidenceForm.waitForDisplayed({ timeout: 30000 })
+  }
+
+  // Fills and submits the upload form without waiting for where it lands:
+  // the application journey goes on to "upload more evidence?", while RA-492's
+  // in-year add-to-accreditation flow returns straight to its site summary.
+  async submitUpload(filename, { baseName } = {}) {
     const filePath = uniqueFixtureCopy(filename, { baseName })
     let uploadPath
     try {
@@ -146,9 +156,6 @@ class BesEvidencePage extends Page {
     await this.validToYear.setValue('2030')
 
     await this.clickReliably(this.uploadButton)
-
-    // Status page auto-refreshes every 2s; wait for redirect to Upload More Evidence page
-    await this.moreEvidenceForm.waitForDisplayed({ timeout: 30000 })
   }
 
   // Filenames listed on the CYA page (/cya-evidence-for-overseas-site/).

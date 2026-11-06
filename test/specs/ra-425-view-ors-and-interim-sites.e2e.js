@@ -17,6 +17,7 @@ import {
   registrationNumber,
   accreditationNumber
 } from '../fixtures/manage-exporter-org.js'
+import { readSeededYear as readSeededYearFrom } from '../helpers/seeded-year.js'
 
 /**
  * RA-425: an exporter views the overseas reprocessing sites (ORSs) and interim
@@ -50,30 +51,15 @@ import {
 const OVERSEAS_SITES_PATH = `${MANAGE_PATH}/overseas-sites`
 
 const caption = (year) => `${ORGANISATION_NAME} (${year}, ${MATERIAL})`
-const CAPTION_PATTERN = new RegExp(
-  `^${ORGANISATION_NAME} \\((\\d{4}), ${MATERIAL}\\)$`
-)
-
 const urlEndingWith = (path) =>
   expect.stringMatching(new RegExp(`${path.replaceAll('/', '\\/')}(\\?.*)?$`))
 
-// The seed's year follows the backend's clock when the stack started, which
-// is not this runner's clock if the stack was started before 1 January, so it
-// is read off the manage page's caption ("orgName (year, material)") rather
-// than worked out here.
-async function readSeededYear() {
-  await ManageRegistrationAccreditationPage.open(MANAGE_PATH)
-  const pageCaption = ManageRegistrationAccreditationPage.pageCaption
-  await pageCaption.waitForDisplayed()
-  const text = await pageCaption.getText()
-  expect(text).toMatch(CAPTION_PATTERN)
-  const year = Number(text.match(CAPTION_PATTERN)[1])
-  // Sanity check: seeded this year, or last year for a stack started before
-  // 1 January (UTC, as the backend's clock is).
-  const thisYear = new Date().getUTCFullYear()
-  expect([thisYear - 1, thisYear]).toContain(year)
-  return year
-}
+const readSeededYear = () =>
+  readSeededYearFrom({
+    managePath: MANAGE_PATH,
+    organisationName: ORGANISATION_NAME,
+    material: MATERIAL
+  })
 
 async function expectSite(tab, siteId, { orsId, name, address }) {
   await expect(ManageOverseasSitesPage.siteOrsId(tab, siteId)).toHaveText(orsId)

@@ -37,6 +37,7 @@ import {
   raiseQuery
 } from '../../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../../helpers/docker-only.js'
+import { waitForUrl } from '../../helpers/wait-for-url.js'
 
 const CHECK_ANSWERS_HEADING = 'Check your answers before continuing'
 
@@ -73,10 +74,11 @@ describe('Accessibility — operator journey @docker-only', () => {
 
   const taskListUrl = () => `/accreditation/task-list/${applicationId}`
 
-  async function waitForUrl(part) {
-    await browser.waitUntil(
-      async () => (await browser.getUrl()).includes(part),
-      { timeout: 15000, timeoutMsg: `Did not reach a page matching ${part}` }
+  async function waitForUrlContaining(part) {
+    await waitForUrl(
+      (url) => url.includes(part),
+      `Did not reach a page matching ${part}`,
+      { timeout: 15000 }
     )
   }
 
@@ -121,7 +123,7 @@ describe('Accessibility — operator journey @docker-only', () => {
       url: '/accreditation/task-list/',
       reach: async () => {
         await OperatorAccreditationPage.clickContinue()
-        await waitForUrl('/accreditation/task-list/')
+        await waitForUrlContaining('/accreditation/task-list/')
         applicationId = (await browser.getUrl())
           .split('/accreditation/task-list/')[1]
           .split('?')[0]
@@ -162,7 +164,7 @@ describe('Accessibility — operator journey @docker-only', () => {
       url: '/accreditation/business-plan',
       reach: async () => {
         await PrnCheckAnswersPage.confirmAndContinue()
-        await waitForUrl('/accreditation/task-list/')
+        await waitForUrlContaining('/accreditation/task-list/')
         await TaskListPage.businessPlanLink.click()
       }
     },
@@ -202,7 +204,7 @@ describe('Accessibility — operator journey @docker-only', () => {
       url: '/accreditation/',
       reach: async () => {
         await BusinessPlanCheckAnswersPage.confirmAndContinue()
-        await waitForUrl('/accreditation/task-list/')
+        await waitForUrlContaining('/accreditation/task-list/')
         await TaskListPage.SIPlanLink.click()
         await expect(SamplingPlanPage.pageHeading).toBeDisplayed()
       }
@@ -213,7 +215,7 @@ describe('Accessibility — operator journey @docker-only', () => {
       reach: async () => {
         await SamplingPlanPage.uploadFile('business-plan.pdf', 'SamplingPlan')
         await SamplingPlanPage.saveAndContinue()
-        await waitForUrl('/accreditation/task-list/')
+        await waitForUrlContaining('/accreditation/task-list/')
         await TaskListPage.overseasSitesLink.click()
       }
     },
@@ -369,7 +371,7 @@ describe('Accessibility — operator journey @docker-only', () => {
       url: '/upload-evidence-for-overseas-site',
       reach: async () => {
         await ConfirmOverseasSitesPage.confirmAndContinue()
-        await waitForUrl('/accreditation/task-list/')
+        await waitForUrlContaining('/accreditation/task-list/')
         await TaskListPage.besLink.click()
       }
     },
@@ -396,11 +398,11 @@ describe('Accessibility — operator journey @docker-only', () => {
       url: '/accreditation/submit-declaration/',
       reach: async () => {
         await BesEvidencePage.confirmEvidence()
-        await waitForUrl('/upload-evidence-for-overseas-site')
+        await waitForUrlContaining('/upload-evidence-for-overseas-site')
         // Any other site still needing evidence, uploaded without checks:
         // the upload pages were checked once above.
         await BesEvidencePage.uploadAllEvidence('business-plan.pdf')
-        await waitForUrl('/accreditation/task-list/')
+        await waitForUrlContaining('/accreditation/task-list/')
         await TaskListPage.assertAllTasksCompleted({ isExporter: true })
         await TaskListPage.continueToSubmit()
       }
@@ -452,7 +454,7 @@ describe('Accessibility — operator journey @docker-only', () => {
         if (heading === CHECK_ANSWERS_HEADING) {
           await BusinessPlanCheckAnswersPage.confirmAndContinue()
         }
-        await waitForUrl('/accreditation/query-task-list/')
+        await waitForUrlContaining('/accreditation/query-task-list/')
         await QueryTaskListPage.continueToDeclaration()
       }
     },

@@ -21,6 +21,22 @@ class SubmitApplicationPage extends Page {
     return $('[data-testid="submit-button"]')
   }
 
+  get saveAndComeBackLaterButton() {
+    return $('[data-testid="save-come-back-button"]')
+  }
+
+  get errorSummary() {
+    return $('[data-testid="error-summary"]')
+  }
+
+  get fullNameError() {
+    return $('[data-testid="full-name-error"]')
+  }
+
+  get jobTitleError() {
+    return $('[data-testid="job-title-error"]')
+  }
+
   randomFullName() {
     const names = [
       'Alice Johnson',
@@ -45,6 +61,15 @@ class SubmitApplicationPage extends Page {
       'Site Manager'
     ]
     return titles[Math.floor(Math.random() * titles.length)]
+  }
+
+  // Submits whatever is in the form, without filling it in first.
+  async confirmAndSubmit() {
+    await this.clickAndWaitForNextPage(this.submitApplicationButton)
+  }
+
+  async saveAndComeBackLater() {
+    await this.clickAndWaitForNextPage(this.saveAndComeBackLaterButton)
   }
 
   async submitApplication() {

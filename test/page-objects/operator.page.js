@@ -1,5 +1,6 @@
 import { Page } from 'page-objects/page'
 import { MANAGE_PATH as MANAGE_EXPORTER_PATH } from '../fixtures/manage-exporter-org.js'
+import { MANAGE_PATH as MANAGE_IN_YEAR_CHANGE_PATH } from '../fixtures/in-year-change-org.js'
 
 class OperatorPage extends Page {
   open() {
@@ -131,6 +132,21 @@ class OperatorPage extends Page {
   async navigateToManageExporter() {
     await this.clickAndWaitForNextPage(
       $(`[data-testid="manage-exporter-link"][href="${MANAGE_EXPORTER_PATH}"]`)
+    )
+  }
+
+  // The manage registration and accreditation page of the org in
+  // test/fixtures/in-year-change-org.js, which exists specifically for
+  // ra-492-add-registered-ors-to-accreditation.e2e.js: the backend's dev seed
+  // gives it an Approved accreditation whose registered ORSs that spec adds
+  // to it in-year. Submitting those requests is one-way (no reset endpoint),
+  // so no other spec may share this org. Listed only while the in-year
+  // changes flag (IN_YEAR_CHANGES_ENABLED) is on.
+  async navigateToInYearChangeOrg() {
+    await this.clickAndWaitForNextPage(
+      $(
+        `[data-testid="manage-in-year-change-link"][href="${MANAGE_IN_YEAR_CHANGE_PATH}"]`
+      )
     )
   }
 }
