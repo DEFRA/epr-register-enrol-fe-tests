@@ -1,6 +1,9 @@
-// Org 50018 ("Manage Accreditation Test Ltd", Plastic exporter), which exists
-// only for ra-425-view-ors-and-interim-sites.e2e.js.
-// The backend (DevSeed/ManageExporterOrg.cs) and the frontend
+// Org 50018 ("Manage Accreditation Test Ltd", Plastic exporter and, since
+// RA-697, Glass reprocessor), which exists only for
+// ra-425-view-ors-and-interim-sites.e2e.js and RA-697's read-only specs. The
+// backend's dev seed also gives both accreditations change requests
+// (DevChangeRequestSeedService); the RA-425 spec doesn't assert on them.
+// The backend (DevSeed/DevExporterOrg.cs) and the frontend
 // (src/server/common/constants/test-orgs.js) define the same org: keep all
 // three in step.
 
@@ -43,3 +46,16 @@ export const registrationNumber = (year) => `R${yearSuffix(year)}EX0500180001PL`
 
 export const accreditationNumber = (year) =>
   `A${yearSuffix(year)}EX0500180001PL`
+
+// RA-697: the org's Glass (remelt) reprocessor registration and accreditation.
+const REPROCESSOR_REGISTRATION_ID = 'bbb000000000000000050018'
+export const REPROCESSOR_MATERIAL = 'Glass'
+// The manage page's caption names the glass recycling process.
+export const REPROCESSOR_CAPTION_MATERIAL = 'Glass - Remelt'
+export const REPROCESSOR_MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REPROCESSOR_REGISTRATION_ID}/${REPROCESSOR_MATERIAL}`
+
+export const reprocessorRegistrationNumber = (year) =>
+  `R${yearSuffix(year)}ER0500180002GR`
+
+export const reprocessorAccreditationNumber = (year) =>
+  `A${yearSuffix(year)}ER0500180002GR`

@@ -25,17 +25,21 @@ import { readSeededYear as readSeededYearFrom } from '../helpers/seeded-year.js'
  * accreditation", then "Manage overseas reprocessing sites". Re/Ex's material
  * page links to the first; the operator test page stands in for it here.
  *
- * Runs against org 50018 ("Manage Accreditation Test Ltd"), which exists only
- * for this spec. The backend's dev seed (DevExporterAccreditationSeedService,
- * on in this stack via DevSeedData__ManageExporterEnabled, which seeds only org
- * 50018) gives its Plastic registration an Approved accreditation for the
- * calendar year the stack started in:
+ * Runs against org 50018 ("Manage Accreditation Test Ltd"), which no other
+ * spec writes to. The backend's dev seed (DevExporterAccreditationSeedService,
+ * on in this stack via DevSeedData__ManageExporterEnabled, which seeds only the
+ * dedicated orgs 50018-50020) gives its Plastic registration an Approved
+ * accreditation for the calendar year the stack started in:
  *   - ORS 001 Rotterdam: Calais (current), Antwerp (also used by 002) and
  *     Old Depot (removed - must never show)
  *   - ORS 002 Bharat: its own copy of Antwerp
  *   - ORS 003 Berlin: no interim sites, so no disclosure
  *   - ORS 004 Dragon: registered, not accredited; its registration lists an
  *     interim site (Saigon), which must never show
+ * RA-697's seed (DevChangeRequestSeedService) also gives the accreditation
+ * change requests without touching its sites, so the tab counts below hold;
+ * the Registered tab now shows Dragon as "In progress" with View, which this
+ * spec doesn't assert on.
  * Nothing here writes, but every read is still scoped to these seeded site ids
  * rather than "the first row" or a page-wide count (see ra-603's warnings about
  * shared state): mongo is not reset between runs.
