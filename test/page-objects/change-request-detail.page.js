@@ -55,7 +55,7 @@ class ChangeRequestDetailPage extends Page {
     return $(`[data-testid="row-${id}-value"]`)
   }
 
-  // A tonnage band upgrade's "PRNs you plan to issue" row.
+  // A tonnage band upgrade's "Tonnage band" row.
   get requestedBandLabel() {
     return this.rowLabel('requested-band')
   }

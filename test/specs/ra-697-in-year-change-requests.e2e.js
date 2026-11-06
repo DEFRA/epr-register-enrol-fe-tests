@@ -513,10 +513,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       const detail = ChangeRequestDetailPage
       await expect(detail.pageHeading).toHaveText('Tonnage band upgrade')
       await expect(detail.statusTag).toHaveText('DULY MADE')
-      // An exporter issues PERNs.
-      await expect(detail.requestedBandLabel).toHaveText(
-        'PERNs you plan to issue'
-      )
+      await expect(detail.requestedBandLabel).toHaveText('Tonnage band')
       await expect(detail.requestedBand).toHaveText(item.band)
       // No site: no site header, site details or interim sites.
       await expect(detail.headerSiteId).not.toBeExisting()
@@ -601,10 +598,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
       await expect(detail.pageHeading).toHaveText('Tonnage band upgrade')
       await expect(detail.statusTag).toHaveText('SUBMITTED')
-      // A reprocessor issues PRNs.
-      await expect(detail.requestedBandLabel).toHaveText(
-        'PRNs you plan to issue'
-      )
+      await expect(detail.requestedBandLabel).toHaveText('Tonnage band')
       await expect(detail.requestedBand).toHaveText(tonnageSubmitted.band)
       await expect(detail.queryRaisedBanner).not.toBeExisting()
       await expectRequestDetails(tonnageSubmitted, year)
