@@ -5,6 +5,7 @@ import {
 } from '../fixtures/manage-exporter-org.js'
 import { MANAGE_PATH as MANAGE_IN_YEAR_CHANGE_PATH } from '../fixtures/in-year-change-org.js'
 import { MANAGE_PATH as MANAGE_NO_CHANGE_REQUESTS_PATH } from '../fixtures/no-change-requests-org.js'
+import { MANAGE_PATH as MANAGE_REGISTRATION_ONLY_PATH } from '../fixtures/registration-only-org.js'
 
 class OperatorPage extends Page {
   open() {
@@ -157,6 +158,18 @@ class OperatorPage extends Page {
     await this.clickAndWaitForNextPage(
       $(
         `[data-testid="manage-no-change-requests-link"][href="${MANAGE_NO_CHANGE_REQUESTS_PATH}"]`
+      )
+    )
+  }
+
+  // RA-697: the manage registration page of the org in
+  // test/fixtures/registration-only-org.js, an exporter with an Approved
+  // registration and no accreditation. Listed only while the in-year changes
+  // flag is on.
+  async navigateToRegistrationOnlyOrg() {
+    await this.clickAndWaitForNextPage(
+      $(
+        `[data-testid="manage-registration-only-link"][href="${MANAGE_REGISTRATION_ONLY_PATH}"]`
       )
     )
   }

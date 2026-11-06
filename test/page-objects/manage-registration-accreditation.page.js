@@ -7,6 +7,12 @@ class ManageRegistrationAccreditationPage extends Page {
     return $('[data-testid="application-status-tag"]')
   }
 
+  // RA-697: a registration-only operator sees the registration's status
+  // instead of the application's.
+  get registrationStatusTag() {
+    return $('[data-testid="registration-status-tag"]')
+  }
+
   get accreditationNumber() {
     return $('[data-testid="accreditation-number"]')
   }

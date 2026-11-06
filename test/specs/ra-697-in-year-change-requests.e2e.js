@@ -29,6 +29,12 @@ import {
   MANAGE_PATH as EMPTY_MANAGE_PATH,
   accreditationNumber as emptyAccreditationNumber
 } from '../fixtures/no-change-requests-org.js'
+import {
+  ORGANISATION_NAME as REGISTRATION_ONLY_ORGANISATION_NAME,
+  MATERIAL as REGISTRATION_ONLY_MATERIAL,
+  MANAGE_PATH as REGISTRATION_ONLY_MANAGE_PATH,
+  registrationNumber as registrationOnlyRegistrationNumber
+} from '../fixtures/registration-only-org.js'
 
 /**
  * RA-697: an operator views the in-year change requests on its current
@@ -48,7 +54,10 @@ import {
  *     statuses and all 3 types, so the list runs to two pages;
  *   - org 50018's Glass reprocessor: 3 tonnage band upgrades;
  *   - org 50020 (test/fixtures/no-change-requests-org.js): an exporter with
- *     no change requests, for the empty states.
+ *     no change requests, for the empty states;
+ *   - org 50021 (test/fixtures/registration-only-org.js): an exporter with an
+ *     Approved registration and no accreditation, whose dashboard shows the
+ *     registration only.
  * Nothing here writes, and every check is scoped to the seeded item ids (the
  * rows' test ids end with them): mongo is not reset between runs, so a
  * failure here that names an unknown id means something wrote to these orgs.
@@ -654,6 +663,30 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         'href',
         urlEndingWith(EMPTY_MANAGE_PATH)
       )
+    })
+  })
+
+  describe('Registration-only exporter', () => {
+    it('opens from the operator page, with the registration on the dashboard and no accreditation', async () => {
+      await OperatorPage.open()
+      await OperatorPage.navigateToRegistrationOnlyOrg()
+
+      await expect(browser).toHaveUrl(
+        urlEndingWith(REGISTRATION_ONLY_MANAGE_PATH)
+      )
+      const managePage = ManageRegistrationAccreditationPage
+      await expect(managePage.pageCaption).toHaveText(
+        `${REGISTRATION_ONLY_ORGANISATION_NAME} (${year}, ${REGISTRATION_ONLY_MATERIAL})`
+      )
+      await expect(managePage.registrationStatusTag).toHaveText('GRANTED')
+      await expect(managePage.registrationNumber).toHaveText(
+        registrationOnlyRegistrationNumber(year)
+      )
+      await expect(managePage.applicationStatusTag).not.toBeExisting()
+      await expect(managePage.accreditationNumber).not.toBeExisting()
+      await expect(managePage.expiryDate).not.toBeExisting()
+      await expect(managePage.manageAccreditationCard).not.toBeExisting()
+      await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
     })
   })
 })

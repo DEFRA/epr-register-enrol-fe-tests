@@ -1,6 +1,6 @@
 /**
  * RA-537: specs that depend on the docker-compose sandbox - its seeded test
- * orgs (50003-50020), its stubbed ReEx registry and its second, flag-flipped
+ * orgs (50003-50021), its stubbed ReEx registry and its second, flag-flipped
  * frontend container - and so cannot run against a deployed CDP environment.
  * Tag the describe or it title with DOCKER_ONLY_TAG, and register this as the
  * first `before` (whole describe) or `beforeEach` (individual its) hook.
