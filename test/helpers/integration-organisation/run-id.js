@@ -26,15 +26,26 @@ export function runId() {
   return process.env[RUN_ID_VARIABLE] || undefined
 }
 
+// No run takes this long, so one that started longer ago has ended, even if
+// its launcher's pid has since been given to another process (as containers
+// commonly do, starting every run on the same low pid).
+const MAX_RUN_AGE_MS = 12 * 60 * 60 * 1000
+
 /**
  * Whether the run is still going on this machine: its launcher process is
- * alive. A run that died before it could clean up is not.
+ * alive, and it started within MAX_RUN_AGE_MS. A run that died before it
+ * could clean up is not.
  *
  * @param {string} id
  */
 export function isRunActive(id) {
-  const pid = Number.parseInt(id, 10)
+  const [pid, startedAt] = String(id)
+    .split('-')
+    .map((part) => Number.parseInt(part, 10))
   if (!Number.isInteger(pid) || pid <= 0) {
+    return false
+  }
+  if (!Number.isInteger(startedAt) || Date.now() - startedAt > MAX_RUN_AGE_MS) {
     return false
   }
   try {

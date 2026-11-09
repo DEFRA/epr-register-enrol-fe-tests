@@ -27,7 +27,7 @@ export async function signInAsOperator() {
  */
 export async function startFresh(...orgs) {
   for (const org of orgs) {
-    const cleared = clearApplications(org)
+    const cleared = await clearApplications(org)
     reportDetails(`Cleared organisation ${org.organisationId}`, cleared)
   }
 
@@ -83,7 +83,7 @@ export async function submitAccreditation({ org, isExporter }) {
   let workItems = []
   await browser.waitUntil(
     async () => {
-      workItems = workItemsFor(org)
+      workItems = await workItemsFor(org)
       return workItems.some((item) => item.applicationReference === reference)
     },
     {

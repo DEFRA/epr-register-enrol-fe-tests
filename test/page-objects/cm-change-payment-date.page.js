@@ -1,4 +1,5 @@
 import { Page } from 'page-objects/page'
+import { enterGovukDate } from 'page-objects/govuk-date-input'
 
 // "Change payment date" (RA-576): replaces the payment date recorded when the
 // work item was duly made, with a reason. Reached from the work item's
@@ -6,18 +7,6 @@ import { Page } from 'page-objects/page'
 class CmChangePaymentDatePage extends Page {
   get currentPaymentDate() {
     return $('[data-testid="change-payment-date-current"]')
-  }
-
-  get dayInput() {
-    return $('#payment-date-day')
-  }
-
-  get monthInput() {
-    return $('#payment-date-month')
-  }
-
-  get yearInput() {
-    return $('#payment-date-year')
   }
 
   get reasonInput() {
@@ -29,10 +18,7 @@ class CmChangePaymentDatePage extends Page {
   }
 
   async changePaymentDate(date, reason) {
-    await this.dayInput.waitForDisplayed({ timeout: 30000 })
-    await this.dayInput.setValue(String(date.getDate()))
-    await this.monthInput.setValue(String(date.getMonth() + 1))
-    await this.yearInput.setValue(String(date.getFullYear()))
+    await enterGovukDate('payment-date', date)
     await this.reasonInput.setValue(reason)
     await this.clickReliably(this.saveButton)
   }

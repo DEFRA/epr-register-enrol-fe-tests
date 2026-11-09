@@ -1,4 +1,7 @@
-import { execFileSync } from 'node:child_process'
+import { promisify } from 'node:util'
+import { execFile as execFileCallback } from 'node:child_process'
+
+const execFile = promisify(execFileCallback)
 
 /**
  * Helpers for the @monorepo specs (test/specs/monorepo), which run from this
@@ -68,27 +71,35 @@ const DOCKER_TIMEOUT_MS = 30000
  */
 let container
 
-function mongoContainer() {
-  container ??= findMongoContainer()
+async function mongoContainer() {
+  container ??= await findMongoContainer()
   return container
 }
 
-function findMongoContainer() {
+// Asynchronous, so a slow Docker never blocks the worker: a waitUntil around
+// these keeps its own timeout, and the WebDriver session is not left idle.
+async function docker(args) {
+  const { stdout } = await execFile('docker', args, {
+    encoding: 'utf8',
+    timeout: DOCKER_TIMEOUT_MS
+  })
+  return stdout
+}
+
+async function findMongoContainer() {
   if (process.env.MONOREPO_MONGO_CONTAINER) {
     return process.env.MONOREPO_MONGO_CONTAINER
   }
 
-  const ids = execFileSync(
-    'docker',
-    [
+  const ids = (
+    await docker([
       'ps',
       '--quiet',
       '--filter',
       'label=com.docker.compose.service=mongodb',
       '--filter',
       'publish=27017'
-    ],
-    { encoding: 'utf8', timeout: DOCKER_TIMEOUT_MS }
+    ])
   )
     .split('\n')
     .filter(Boolean)
@@ -108,12 +119,15 @@ function findMongoContainer() {
  *
  * @param {string} script must end by printing one JSON value
  */
-function mongosh(script) {
-  const output = execFileSync(
-    'docker',
-    ['exec', mongoContainer(), 'mongosh', '--quiet', '--eval', script],
-    { encoding: 'utf8', timeout: DOCKER_TIMEOUT_MS }
-  )
+async function mongosh(script) {
+  const output = await docker([
+    'exec',
+    await mongoContainer(),
+    'mongosh',
+    '--quiet',
+    '--eval',
+    script
+  ])
   return JSON.parse(output.trim().split('\n').pop())
 }
 
@@ -124,9 +138,9 @@ function mongosh(script) {
  * creates a fresh application.
  *
  * @param {{ organisationId: string, registrationId: string }} org
- * @returns {{ applications: number, workItems: number }} how many were deleted
+ * @returns {Promise<{ applications: number, workItems: number }>} how many were deleted
  */
-export function clearApplications({ organisationId, registrationId }) {
+export async function clearApplications({ organisationId, registrationId }) {
   const filter = JSON.stringify({ organisationId, registrationId })
   const workItemFilter = JSON.stringify({
     'payload.operatorRegistrationId': registrationId
@@ -145,9 +159,9 @@ export function clearApplications({ organisationId, registrationId }) {
  * The case management work items raised for the registration.
  *
  * @param {{ registrationId: string }} org
- * @returns {Array<{ typeId: string, stateId: string, applicationReference: string }>}
+ * @returns {Promise<Array<{ typeId: string, stateId: string, applicationReference: string }>>}
  */
-export function workItemsFor({ registrationId }) {
+export async function workItemsFor({ registrationId }) {
   const filter = JSON.stringify({
     'payload.operatorRegistrationId': registrationId
   })

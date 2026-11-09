@@ -61,8 +61,12 @@ import { accreditationYear } from '../../config.js'
 // The tests share the two applications and run in order: each skips when the
 // one before it did not get as far as it needs.
 
-const DAY = 24 * 60 * 60 * 1000
-const daysFromToday = (days) => new Date(Date.now() + days * DAY)
+// Calendar days, so a clock change in between doesn't shift the date.
+const daysFromToday = (days) => {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date
+}
 
 // Duly made with one payment date, then corrected to another. Both must be
 // today or in the past.

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 
 import allure from 'allure-commandline'
 import { fetch } from 'undici'
+import { SevereServiceError } from 'webdriverio'
 
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
 import { MONOREPO_RUN_FLAG, MONOREPO_TAG } from './test/helpers/monorepo.js'
@@ -136,7 +137,9 @@ export const config = {
           // Still starting up.
         }
         if (Date.now() >= deadline) {
-          throw new Error(
+          // Severe, so wdio stops: anything else in onPrepare it only logs,
+          // and runs the specs anyway.
+          throw new SevereServiceError(
             `The monorepo's ${name} is not up at ${url}: run docker compose up at the monorepo's root`
           )
         }

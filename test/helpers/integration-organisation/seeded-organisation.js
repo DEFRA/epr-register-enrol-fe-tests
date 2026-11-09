@@ -4,6 +4,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync
 } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -186,11 +187,17 @@ export function removeSnapshot() {
   }
 }
 
+// A snapshot at the top level was written by a checkout from before each run
+// had its own directory. Like that checkout's untagged entries in the delete
+// list, it is only taken for a leftover once it is this old, so such a run
+// still going is not pulled out from under.
+const UNTAGGED_SNAPSHOT_AGE_MS = 2 * 60 * 60 * 1000
+
 /**
  * Removes the snapshots of runs that are no longer going (they died, or kept
- * their organisation), and the one runs wrote at the top level before each
- * had its own directory. A run's organisation itself is kept or deleted by
- * the delete list, not by these.
+ * their organisation), and an old one written at the top level before each
+ * run had its own directory. A run's organisation itself is kept or deleted
+ * by the delete list, not by these.
  */
 export function removeEndedRunsSnapshots() {
   const runsDirectory = resolve(INTEGRATION_DIRECTORY, 'runs')
@@ -201,12 +208,15 @@ export function removeEndedRunsSnapshots() {
       }
     }
   }
-  rmSync(resolve(INTEGRATION_DIRECTORY, 'seeded-organisation.json'), {
-    force: true
-  })
-  rmSync(resolve(INTEGRATION_DIRECTORY, 'seeding-failure.txt'), {
-    force: true
-  })
+  for (const name of ['seeded-organisation.json', 'seeding-failure.txt']) {
+    const file = resolve(INTEGRATION_DIRECTORY, name)
+    if (
+      existsSync(file) &&
+      Date.now() - statSync(file).mtimeMs > UNTAGGED_SNAPSHOT_AGE_MS
+    ) {
+      rmSync(file, { force: true })
+    }
+  }
 }
 
 /** Records why seeding the run's organisation failed. */

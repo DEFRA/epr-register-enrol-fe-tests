@@ -3,6 +3,8 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
+  statSync,
   writeFileSync
 } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -66,6 +68,72 @@ function isOursToDelete(organisation) {
 const sameEntry = (a, b) =>
   a.orgId === b.orgId && a.environment === b.environment
 
+// Runs from the same checkout append to and rewrite the file at the same
+// time, so each change is made holding a lock: a directory, as creating one
+// either succeeds or fails in a single step. Held only while the file itself
+// is read and written, never across an API call. A lock older than
+// STALE_LOCK_MS was left by a process that died holding it, and is broken.
+const LOCK_DIRECTORY = `${CREATED_ORGANISATIONS_FILE}.lock`
+const STALE_LOCK_MS = 30 * 1000
+const LOCK_TIMEOUT_MS = 60 * 1000
+const LOCK_RETRY_MS = 50
+
+function withListLock(change) {
+  mkdirSync(dirname(CREATED_ORGANISATIONS_FILE), { recursive: true })
+  const deadline = Date.now() + LOCK_TIMEOUT_MS
+  for (;;) {
+    try {
+      mkdirSync(LOCK_DIRECTORY)
+      break
+    } catch (err) {
+      if (err.code !== 'EEXIST') {
+        throw err
+      }
+      try {
+        if (Date.now() - statSync(LOCK_DIRECTORY).mtimeMs > STALE_LOCK_MS) {
+          rmSync(LOCK_DIRECTORY, { recursive: true, force: true })
+          continue
+        }
+      } catch {
+        // Released meanwhile: try again.
+        continue
+      }
+      if (Date.now() > deadline) {
+        throw new Error(`Could not lock ${CREATED_ORGANISATIONS_FILE}`)
+      }
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        LOCK_RETRY_MS
+      )
+    }
+  }
+  try {
+    return change()
+  } finally {
+    rmSync(LOCK_DIRECTORY, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Takes the given entries off the file, re-reading it under the lock so
+ * whatever another run added meanwhile is kept.
+ *
+ * @param {(organisation: CreatedOrganisation) => boolean} isRemoved
+ */
+function removeFromList(isRemoved) {
+  withListLock(() =>
+    writeFileSync(
+      CREATED_ORGANISATIONS_FILE,
+      readCreatedOrganisations()
+        .filter((organisation) => !isRemoved(organisation))
+        .map((organisation) => `${JSON.stringify(organisation)}\n`)
+        .join('')
+    )
+  )
+}
+
 /** @returns {CreatedOrganisation[]} */
 export function readCreatedOrganisations() {
   if (!existsSync(CREATED_ORGANISATIONS_FILE)) {
@@ -79,15 +147,16 @@ export function readCreatedOrganisations() {
 
 /** @param {Omit<CreatedOrganisation, 'environment' | 'createdAt'>} organisation */
 export function recordCreatedOrganisation(organisation) {
-  mkdirSync(dirname(CREATED_ORGANISATIONS_FILE), { recursive: true })
-  appendFileSync(
-    CREATED_ORGANISATIONS_FILE,
-    `${JSON.stringify({
-      ...organisation,
-      environment: process.env.ENVIRONMENT,
-      createdAt: new Date().toISOString(),
-      runId: runId()
-    })}\n`
+  withListLock(() =>
+    appendFileSync(
+      CREATED_ORGANISATIONS_FILE,
+      `${JSON.stringify({
+        ...organisation,
+        environment: process.env.ENVIRONMENT,
+        createdAt: new Date().toISOString(),
+        runId: runId()
+      })}\n`
+    )
   )
   logRunOrganisation('created', organisation)
 }
@@ -131,13 +200,8 @@ export async function deleteCreatedOrganisations({ except } = {}) {
   }
 
   if (deleted.length) {
-    // Read again: another run may have added to the file meanwhile.
-    const kept = readCreatedOrganisations().filter(
-      (organisation) => !deleted.some((gone) => sameEntry(gone, organisation))
-    )
-    writeFileSync(
-      CREATED_ORGANISATIONS_FILE,
-      kept.map((organisation) => `${JSON.stringify(organisation)}\n`).join('')
+    removeFromList((organisation) =>
+      deleted.some((gone) => sameEntry(gone, organisation))
     )
   }
   return { deleted, failed }
@@ -160,13 +224,9 @@ export async function deleteCreatedOrganisation(orgId) {
     throw err
   }
   logRunOrganisation('deleted', { orgId })
-  const kept = readCreatedOrganisations().filter(
+  removeFromList(
     (organisation) =>
-      organisation.orgId !== orgId ||
-      organisation.environment !== process.env.ENVIRONMENT
-  )
-  writeFileSync(
-    CREATED_ORGANISATIONS_FILE,
-    kept.map((organisation) => `${JSON.stringify(organisation)}\n`).join('')
+      organisation.orgId === orgId &&
+      organisation.environment === process.env.ENVIRONMENT
   )
 }
