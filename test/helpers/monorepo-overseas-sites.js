@@ -1,4 +1,4 @@
-import { browser, expect, $, $$ } from '@wdio/globals'
+import { browser, expect } from '@wdio/globals'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
 import AddOrsSiteLocationPage from 'page-objects/add-ors-site-location.page'
 import AddOrsSiteContactPage from 'page-objects/add-ors-site-contact.page'
@@ -107,11 +107,11 @@ export async function completeStubOverseasSites(applicationId) {
   await OverseasReprocessingSitesPage.pageHeading.waitForDisplayed()
 
   const incomplete = []
-  for (const tag of await $$('[data-testid*="-incomplete-"]')) {
+  for (const tag of await OverseasReprocessingSitesPage.incompleteTags) {
     const [prefix, id] = (await tag.getAttribute('data-testid')).split(
       '-incomplete-'
     )
-    const edit = $(`[data-testid="${prefix}-row-${id}"] a[href*="/edit/"]`)
+    const edit = OverseasReprocessingSitesPage.siteEditLink(prefix, id)
     incomplete.push({ id, href: await edit.getAttribute('href') })
   }
 
@@ -123,5 +123,7 @@ export async function completeStubOverseasSites(applicationId) {
     await completeStubSite(applicationId, id)
   }
 
-  await expect($$('[data-testid*="-incomplete-"]')).toBeElementsArrayOfSize(0)
+  await expect(
+    OverseasReprocessingSitesPage.incompleteTags
+  ).toBeElementsArrayOfSize(0)
 }
