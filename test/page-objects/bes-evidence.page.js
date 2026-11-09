@@ -94,9 +94,48 @@ class BesEvidencePage extends Page {
     return $('[data-testid="confirm-button"]')
   }
 
+  get fileError() {
+    return $('[data-testid="file-error"]')
+  }
+
+  // RA-605: fills and submits the upload form without waiting for the
+  // "upload more evidence" page, so a refused upload can be asserted on.
+  async attemptUpload(filename) {
+    const filePath = uniqueFixtureCopy(filename)
+    let uploadPath
+    try {
+      uploadPath = await browser.uploadFile(filePath)
+    } catch {
+      uploadPath = filePath
+    }
+
+    await this.fileInput.waitForExist()
+    await this.fileInput.setValue(uploadPath)
+
+    await this.validFromDay.setValue('01')
+    await this.validFromMonth.setValue('01')
+    await this.validFromYear.setValue('2024')
+
+    await this.validToDay.setValue('31')
+    await this.validToMonth.setValue('12')
+    await this.validToYear.setValue('2030')
+
+    await this.clickReliably(this.uploadButton)
+  }
+
   // `baseName` (RA-619) uploads the fixture under that name instead of its own; read the
   // name back on the CYA page with cyaFilenames().
   async uploadFile(filename, { baseName } = {}) {
+    await this.submitUpload(filename, { baseName })
+
+    // Status page auto-refreshes every 2s; wait for redirect to Upload More Evidence page
+    await this.moreEvidenceForm.waitForDisplayed({ timeout: 30000 })
+  }
+
+  // Fills and submits the upload form without waiting for where it lands:
+  // the application journey goes on to "upload more evidence?", while RA-492's
+  // in-year add-to-accreditation flow returns straight to its site summary.
+  async submitUpload(filename, { baseName } = {}) {
     const filePath = uniqueFixtureCopy(filename, { baseName })
     let uploadPath
     try {
@@ -117,9 +156,6 @@ class BesEvidencePage extends Page {
     await this.validToYear.setValue('2030')
 
     await this.clickReliably(this.uploadButton)
-
-    // Status page auto-refreshes every 2s; wait for redirect to Upload More Evidence page
-    await this.moreEvidenceForm.waitForDisplayed({ timeout: 30000 })
   }
 
   // Filenames listed on the CYA page (/cya-evidence-for-overseas-site/).

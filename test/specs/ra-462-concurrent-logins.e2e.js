@@ -1,6 +1,7 @@
 import { browser, expect, $ } from '@wdio/globals'
 
 import LoginPage from 'page-objects/login.page'
+import { skipUnlessStubSignIn } from '../helpers/stub-sign-in.js'
 
 /**
  * RA-462 — Concurrent logins are allowed; a second sign-in for the same
@@ -57,6 +58,10 @@ async function signInAgainUntilNotified() {
 
 describe('RA-462 concurrent-login notification', () => {
   let jarA
+
+  before(async function () {
+    await skipUnlessStubSignIn(this)
+  })
 
   beforeEach(async () => {
     await stubLoginAsOperator()

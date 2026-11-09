@@ -1,8 +1,13 @@
 import { browser } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
+import { skipUnlessStubSignIn } from '../helpers/stub-sign-in.js'
 
 describe('Operator Journey', () => {
+  before(async function () {
+    await skipUnlessStubSignIn(this)
+  })
+
   beforeEach(async () => {
     await browser.deleteCookies()
     await LoginPage.open()

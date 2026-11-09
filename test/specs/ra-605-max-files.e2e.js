@@ -21,7 +21,7 @@ describe('RA-605: file-count limit on sampling plan uploads @docker-only', () =>
 
   const MAX_FILES = 10
   const MAX_FILES_MESSAGE =
-    'The maximum number of files permitted to be uploaded is ten'
+    "You can only upload a maximum of 10 'sampling and inspection plan' and 'supporting information' files."
 
   beforeEach(async () => {
     await browser.deleteCookies()

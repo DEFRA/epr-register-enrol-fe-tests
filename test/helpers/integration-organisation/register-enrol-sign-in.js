@@ -3,6 +3,7 @@ import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import ReexRegistrationPage from 'page-objects/reex-registration.page'
 
 import { seededOrganisation } from './seeded-organisation.js'
+import { waitForUrl } from '../wait-for-url.js'
 
 // The hand-off from the Re-Ex frontend into epr-register-enrol-frontend, as
 // the seeded operator.
@@ -21,18 +22,6 @@ const isDefraIdStub = (url) => url.includes('epr-register-enrol-defra-id-stub')
 const isAccreditationLanding = (url) =>
   url.includes('epr-register-enrol-frontend') &&
   url.includes('/operator-accreditation/')
-
-async function waitForUrl(predicate, timeoutMsg) {
-  let url
-  await browser.waitUntil(
-    async () => {
-      url = await browser.getUrl()
-      return predicate(url)
-    },
-    { timeout: 60000, timeoutMsg }
-  )
-  return url
-}
 
 async function signInThroughStub(email, target) {
   let url = await waitForUrl(

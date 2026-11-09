@@ -1,6 +1,7 @@
 import { Page } from 'page-objects/page'
+import { withInterimSiteDisclosure } from 'page-objects/interim-site-disclosure.mixin'
 
-class OverseasReprocessingSitesPage extends Page {
+class OverseasReprocessingSitesPage extends withInterimSiteDisclosure(Page) {
   get pageHeading() {
     return $('[data-testid="page-heading"]')
   }
@@ -133,58 +134,14 @@ class OverseasReprocessingSitesPage extends Page {
   // RA-486, reworked by RA-603: interim sites are visible, changeable and
   // withdrawable directly from this page, nested under their linked ORS row
   // across all four site sections (accredited, registered, newSites,
-  // registeredSitesAdded).
+  // registeredSitesAdded). The rows and their "Show interim sites (n)"
+  // disclosure come from withInterimSiteDisclosure, shared with the read-only
+  // manage/overseas-sites page.
   //
   // Every interim selector below takes the INTERIM site's own id, not its
   // parent ORS's. An ORS can hold several now, so the parent no longer
   // identifies one; ids are unique application-wide (the backend allocates ORS
   // and interim ids from one sequence), so the interim id alone is enough.
-  interimSiteRow(interimSiteId) {
-    return $(`[data-testid="interim-site-row-${interimSiteId}"]`)
-  }
-
-  interimSiteNameValue(interimSiteId) {
-    return $(`[data-testid="interim-site-name-${interimSiteId}"]`)
-  }
-
-  // RA-603: an ORS's interim sites now sit behind a single collapsed
-  // "Show interim sites (n)" govuk-details, one per ORS. The rows kept their
-  // interim-site-{siteId} testids, so every selector above still resolves —
-  // but a closed <details> hides its contents, so anything that waits on,
-  // reads or clicks an interim row has to open the disclosure first.
-  interimSiteDisclosure(siteId) {
-    return $(`[data-testid="interim-sites-disclosure-${siteId}"]`)
-  }
-
-  interimSiteDisclosureSummary(siteId) {
-    return $(`[data-testid="interim-sites-disclosure-summary-${siteId}"]`)
-  }
-
-  // Idempotent — safe to call on an already-open disclosure, which matters
-  // because the <details> re-renders collapsed after every POST (the open
-  // state is not persisted server-side), so a journey that removes or changes
-  // an interim site has to re-open it afterwards.
-  //
-  // Waits on the <details> `open` property rather than on the row being
-  // displayed, because "displayed" does not mean the same thing across
-  // browsers here: Chrome 123 (what CI runs) hides closed details content with
-  // the UA stylesheet's `display: none`, while newer Chromium lays it out via
-  // `content-visibility: hidden` and reports a real box for it. `open` is the
-  // one signal that reads identically on both.
-  async openInterimSiteDisclosure(siteId) {
-    const details = this.interimSiteDisclosure(siteId)
-    await details.waitForExist()
-    await details.scrollIntoView()
-
-    if (!(await details.getProperty('open'))) {
-      await this.interimSiteDisclosureSummary(siteId).click()
-    }
-
-    await browser.waitUntil(() => details.getProperty('open'), {
-      timeoutMsg: `Interim sites disclosure for site ${siteId} did not open`
-    })
-  }
-
   changeInterimSiteButton(interimSiteId) {
     return $(`[data-testid="change-interim-site-${interimSiteId}"]`)
   }
