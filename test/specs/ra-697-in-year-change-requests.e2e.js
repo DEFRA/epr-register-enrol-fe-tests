@@ -43,7 +43,7 @@ import {
 /**
  * RA-697: an operator views the in-year change requests on its current
  * accreditation - the dashboard's "In year change requests" section on
- * "Manage your registration and accreditation", the list behind it at
+ * "Manage registration and accreditation", the list behind it at
  * {manage page}/change-requests (sorted most urgent first, 10 a page,
  * filtered by status and type) and each item's read-only detail page. The
  * operator test page stands in for Re/Ex's material page as the way in.

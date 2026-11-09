@@ -1,6 +1,6 @@
 import { Page } from 'page-objects/page'
 
-// RA-425: "Manage your registration and accreditation", the first /manage
+// RA-425: "Manage registration and accreditation", the first /manage
 // page. Re/Ex's material page links to it.
 class ManageRegistrationAccreditationPage extends Page {
   get applicationStatusTag() {

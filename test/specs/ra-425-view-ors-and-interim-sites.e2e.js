@@ -21,7 +21,7 @@ import { readSeededYear as readSeededYearFrom } from '../helpers/seeded-year.js'
 
 /**
  * RA-425: an exporter views the overseas reprocessing sites (ORSs) and interim
- * sites on its current accreditation - "Manage your registration and
+ * sites on its current accreditation - "Manage registration and
  * accreditation", then "Manage overseas reprocessing sites". Re/Ex's material
  * page links to the first; the operator test page stands in for it here.
  *
@@ -110,7 +110,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     await expect(browser).toHaveUrl(urlEndingWith(MANAGE_PATH))
     const managePage = ManageRegistrationAccreditationPage
     await expect(managePage.pageHeading).toHaveText(
-      'Manage your registration and accreditation'
+      'Manage registration and accreditation'
     )
     await expect(managePage.pageCaption).toHaveText(caption(year))
     await expect(managePage.applicationStatusTag).toHaveText('GRANTED')
@@ -243,7 +243,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
 
       await expect(browser).toHaveUrl(urlEndingWith(MANAGE_PATH))
       await expect(ManageRegistrationAccreditationPage.pageHeading).toHaveText(
-        'Manage your registration and accreditation'
+        'Manage registration and accreditation'
       )
     })
 
