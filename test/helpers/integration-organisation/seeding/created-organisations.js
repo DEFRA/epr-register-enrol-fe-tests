@@ -3,8 +3,6 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  rmSync,
-  statSync,
   writeFileSync
 } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -12,7 +10,6 @@ import { fileURLToPath } from 'node:url'
 
 import { ReexApi, assertSuccessResponse } from './api.js'
 import { logRunOrganisation } from './run-organisations.js'
-import { isRunActive, runId } from '../run-id.js'
 
 // A flat file of every organisation an integrated run has seeded and not yet
 // deleted, one JSON object per line. Seeding appends to it as soon as an
@@ -40,99 +37,7 @@ export const CREATED_ORGANISATIONS_FILE = resolve(
  * @property {string} email the Defra ID user it is linked for
  * @property {{id: string, name: string} | null} defraOrganisation
  * @property {string} createdAt
- * @property {string} [runId] the run that created it (run-id.js); absent on
- *   entries written before runs were tagged
  */
-
-// An untagged entry is only taken for a leftover once it is this old, so a
-// run on an older checkout, which does not tag its entries, is not cleaned up
-// under it.
-const UNTAGGED_LEFTOVER_AGE_MS = 2 * 60 * 60 * 1000
-
-/**
- * Whether an entry is this run's to delete: created by this run, or left
- * behind by one that is no longer running. Another run that is still going
- * keeps its organisation.
- *
- * @param {CreatedOrganisation} organisation
- */
-function isOursToDelete(organisation) {
-  if (organisation.runId) {
-    return organisation.runId === runId() || !isRunActive(organisation.runId)
-  }
-  return (
-    Date.now() - Date.parse(organisation.createdAt) > UNTAGGED_LEFTOVER_AGE_MS
-  )
-}
-
-const sameEntry = (a, b) =>
-  a.orgId === b.orgId && a.environment === b.environment
-
-// Runs from the same checkout append to and rewrite the file at the same
-// time, so each change is made holding a lock: a directory, as creating one
-// either succeeds or fails in a single step. Held only while the file itself
-// is read and written, never across an API call. A lock older than
-// STALE_LOCK_MS was left by a process that died holding it, and is broken.
-const LOCK_DIRECTORY = `${CREATED_ORGANISATIONS_FILE}.lock`
-const STALE_LOCK_MS = 30 * 1000
-const LOCK_TIMEOUT_MS = 60 * 1000
-const LOCK_RETRY_MS = 50
-
-function withListLock(change) {
-  mkdirSync(dirname(CREATED_ORGANISATIONS_FILE), { recursive: true })
-  const deadline = Date.now() + LOCK_TIMEOUT_MS
-  for (;;) {
-    try {
-      mkdirSync(LOCK_DIRECTORY)
-      break
-    } catch (err) {
-      if (err.code !== 'EEXIST') {
-        throw err
-      }
-      try {
-        if (Date.now() - statSync(LOCK_DIRECTORY).mtimeMs > STALE_LOCK_MS) {
-          rmSync(LOCK_DIRECTORY, { recursive: true, force: true })
-          continue
-        }
-      } catch {
-        // Released meanwhile: try again.
-        continue
-      }
-      if (Date.now() > deadline) {
-        throw new Error(`Could not lock ${CREATED_ORGANISATIONS_FILE}`)
-      }
-      Atomics.wait(
-        new Int32Array(new SharedArrayBuffer(4)),
-        0,
-        0,
-        LOCK_RETRY_MS
-      )
-    }
-  }
-  try {
-    return change()
-  } finally {
-    rmSync(LOCK_DIRECTORY, { recursive: true, force: true })
-  }
-}
-
-/**
- * Takes the given entries off the file, re-reading it under the lock so
- * whatever another run added meanwhile is kept.
- *
- * @param {(organisation: CreatedOrganisation) => boolean} isRemoved
- */
-function removeFromList(isRemoved) {
-  withListLock(() =>
-    writeFileSync(
-      CREATED_ORGANISATIONS_FILE,
-      readCreatedOrganisations()
-        .filter((organisation) => !isRemoved(organisation))
-        .map((organisation) => `${JSON.stringify(organisation)}\n`)
-        .join('')
-    )
-  )
-}
 
 /** @returns {CreatedOrganisation[]} */
 export function readCreatedOrganisations() {
@@ -147,45 +52,38 @@ export function readCreatedOrganisations() {
 
 /** @param {Omit<CreatedOrganisation, 'environment' | 'createdAt'>} organisation */
 export function recordCreatedOrganisation(organisation) {
-  withListLock(() =>
-    appendFileSync(
-      CREATED_ORGANISATIONS_FILE,
-      `${JSON.stringify({
-        ...organisation,
-        environment: process.env.ENVIRONMENT,
-        createdAt: new Date().toISOString(),
-        runId: runId()
-      })}\n`
-    )
+  mkdirSync(dirname(CREATED_ORGANISATIONS_FILE), { recursive: true })
+  appendFileSync(
+    CREATED_ORGANISATIONS_FILE,
+    `${JSON.stringify({
+      ...organisation,
+      environment: process.env.ENVIRONMENT,
+      createdAt: new Date().toISOString()
+    })}\n`
   )
   logRunOrganisation('created', organisation)
 }
 
 /**
- * Deletes this run's organisation, and any a run that is no longer going left
- * behind, for this ENVIRONMENT. Organisations of another run still in
- * progress are left for it. Whatever fails to delete stays listed, for a later
- * run to retry.
- *
- * @param {object} [options]
- * @param {string} [options.except] the id of an organisation to leave, e.g.
- *   the one SEEDED_ORGANISATION_ID reuses
+ * Deletes every organisation the file lists for this ENVIRONMENT, and rewrites
+ * it with only those that could not be deleted (and any for other
+ * environments, which this run cannot reach).
  *
  * @returns {Promise<{deleted: CreatedOrganisation[], failed: {organisation: CreatedOrganisation, error: string}[]}>}
  */
-export async function deleteCreatedOrganisations({ except } = {}) {
+export async function deleteCreatedOrganisations() {
   const environment = process.env.ENVIRONMENT
-  const toDelete = readCreatedOrganisations().filter(
-    (organisation) =>
-      organisation.environment === environment &&
-      organisation.id !== except &&
-      isOursToDelete(organisation)
-  )
+  const listed = readCreatedOrganisations()
   const api = new ReexApi()
   const deleted = []
   const failed = []
+  const kept = []
 
-  for (const organisation of toDelete) {
+  for (const organisation of listed) {
+    if (organisation.environment !== environment) {
+      kept.push(organisation)
+      continue
+    }
     try {
       await assertSuccessResponse(
         await api.delete(`/v1/dev/organisations/${organisation.orgId}`),
@@ -195,13 +93,15 @@ export async function deleteCreatedOrganisations({ except } = {}) {
       logRunOrganisation('deleted', organisation)
     } catch (err) {
       failed.push({ organisation, error: err.message })
+      kept.push(organisation)
       logRunOrganisation('delete-failed', organisation, err.message)
     }
   }
 
-  if (deleted.length) {
-    removeFromList((organisation) =>
-      deleted.some((gone) => sameEntry(gone, organisation))
+  if (listed.length) {
+    writeFileSync(
+      CREATED_ORGANISATIONS_FILE,
+      kept.map((organisation) => `${JSON.stringify(organisation)}\n`).join('')
     )
   }
   return { deleted, failed }
@@ -224,9 +124,13 @@ export async function deleteCreatedOrganisation(orgId) {
     throw err
   }
   logRunOrganisation('deleted', { orgId })
-  removeFromList(
+  const kept = readCreatedOrganisations().filter(
     (organisation) =>
-      organisation.orgId === orgId &&
-      organisation.environment === process.env.ENVIRONMENT
+      organisation.orgId !== orgId ||
+      organisation.environment !== process.env.ENVIRONMENT
+  )
+  writeFileSync(
+    CREATED_ORGANISATIONS_FILE,
+    kept.map((organisation) => `${JSON.stringify(organisation)}\n`).join('')
   )
 }

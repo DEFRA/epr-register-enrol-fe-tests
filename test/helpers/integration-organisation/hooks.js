@@ -1,7 +1,6 @@
 import {
   loadOrganisation,
   recordSeedingFailure,
-  removeEndedRunsSnapshots,
   removeSnapshot,
   seedOrganisation,
   writeSnapshot
@@ -12,7 +11,6 @@ import {
   recordCreatedOrganisation
 } from './seeding/created-organisations.js'
 import { registerWithRegisterEnrolDefraId } from './seeding/register-enrol-defra-id.js'
-import { startRun } from './run-id.js'
 import {
   logRunOrganisation,
   startRunOrganisationsLog,
@@ -25,9 +23,6 @@ import {
 const SEEDS_IN = ['test']
 
 const seedsHere = () => SEEDS_IN.includes(process.env.ENVIRONMENT)
-
-const keepSeededOrganisations = () =>
-  process.env.KEEP_SEEDED_ORGANISATIONS === 'true'
 
 /**
  * wdio onPrepare hook. On the test environment it seeds an organisation with
@@ -43,40 +38,16 @@ const keepSeededOrganisations = () =>
  */
 export async function prepareSeededOrganisation() {
   const environment = process.env.ENVIRONMENT
-  // Before anything is written, so the snapshot and the organisation's entry
-  // are this run's, and the workers forked after this inherit the run.
-  startRun()
   startRunOrganisationsLog()
   // Whatever an earlier run left: off test the specs then find no
   // organisation and skip rather than sign in as one that has been deleted.
   // Should seeding fail, prepareSeededOrganisationOrRecordFailure records why.
   removeSnapshot()
-  removeEndedRunsSnapshots()
   if (!seedsHere()) {
     return
   }
 
   const reuseId = process.env.SEEDED_ORGANISATION_ID
-
-  // What runs that died before cleaning up left behind. Never another run
-  // that is still going, nor (yet) this one, which has created nothing; nor,
-  // with KEEP_SEEDED_ORGANISATIONS, anything at all; nor the organisation
-  // this run is about to reuse.
-  try {
-    const { deleted } = keepSeededOrganisations()
-      ? { deleted: [] }
-      : await deleteCreatedOrganisations({ except: reuseId })
-    for (const { orgId, id } of deleted) {
-      process.stdout.write(
-        `Deleted organisation ${orgId} (${id}) left by an earlier run\n`
-      )
-    }
-  } catch (err) {
-    process.stdout.write(
-      `Clearing earlier runs' organisations failed: ${err}\n`
-    )
-  }
-
   const organisation = reuseId
     ? await loadOrganisation(reuseId)
     : await seedOrganisation({
@@ -155,9 +126,8 @@ export async function prepareSeededOrganisationOrRecordFailure() {
 }
 
 /**
- * wdio onComplete hook, whether the specs passed or failed. Deletes this run's
- * organisation, and any a run that is no longer going left behind in
- * CREATED_ORGANISATIONS_FILE; another run still in progress keeps its own.
+ * wdio onComplete hook. Deletes every organisation listed in
+ * CREATED_ORGANISATIONS_FILE, this run's and any an earlier run left behind.
  * KEEP_SEEDED_ORGANISATIONS=true keeps them, e.g. to look at what a failed run
  * left; the next run that does not set it deletes them.
  */
@@ -165,18 +135,14 @@ export async function deleteSeededOrganisations() {
   if (!seedsHere()) {
     return
   }
-  if (keepSeededOrganisations()) {
+  if (process.env.KEEP_SEEDED_ORGANISATIONS === 'true') {
     process.stdout.write(
       `KEEP_SEEDED_ORGANISATIONS is set: leaving the organisations in ${CREATED_ORGANISATIONS_FILE}\n`
     )
     return
   }
 
-  const { deleted, failed } = await deleteCreatedOrganisations({
-    // Reused, so not this run's: a later run that does not reuse it deletes
-    // it, should an earlier run have created it.
-    except: process.env.SEEDED_ORGANISATION_ID
-  })
+  const { deleted, failed } = await deleteCreatedOrganisations()
   // The run is over, and its organisation deleted (or reused, and not this
   // run's to keep pointing at).
   removeSnapshot()
