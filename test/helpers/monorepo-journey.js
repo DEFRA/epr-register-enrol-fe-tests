@@ -80,9 +80,12 @@ export async function submitAccreditation({ org, isExporter }) {
 
   // The monorepo runs the real case management backend, not the sandbox's
   // stub, so the submission must have raised a work item there.
+  let workItems = []
   await browser.waitUntil(
-    async () =>
-      workItemsFor(org).some((item) => item.applicationReference === reference),
+    async () => {
+      workItems = workItemsFor(org)
+      return workItems.some((item) => item.applicationReference === reference)
+    },
     {
       timeout: 30000,
       // Each check is a docker exec, so not every 250ms.
@@ -91,7 +94,7 @@ export async function submitAccreditation({ org, isExporter }) {
     }
   )
 
-  reportDetails('Submitted', { reference, workItems: workItemsFor(org) })
+  reportDetails('Submitted', { reference, workItems })
   return reference
 }
 

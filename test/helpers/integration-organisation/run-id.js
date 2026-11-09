@@ -11,13 +11,13 @@
 const RUN_ID_VARIABLE = 'INTEGRATION_RUN_ID'
 
 /**
- * Starts the run, in the wdio launcher. Kept if already set, e.g. by a caller
- * that wants to name its run.
+ * Starts the run, in the wdio launcher. Always a new id, never one inherited
+ * from the environment: isRunActive reads the launcher's pid from it.
  *
  * @returns {string} the run id: the launcher's pid and the time it started
  */
 export function startRun() {
-  process.env[RUN_ID_VARIABLE] ||= `${process.pid}-${Date.now()}`
+  process.env[RUN_ID_VARIABLE] = `${process.pid}-${Date.now()}`
   return process.env[RUN_ID_VARIABLE]
 }
 

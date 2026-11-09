@@ -1,4 +1,11 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -9,7 +16,7 @@ import {
 } from './seeding/api.js'
 import { seedDefraLinkedOrganisation } from './seeding/linked-organisation.js'
 import { addOverseasSites } from './seeding/overseas-sites.js'
-import { runId } from './run-id.js'
+import { isRunActive, runId } from './run-id.js'
 
 // The organisation an integrated run signs in as. It is seeded once per run,
 // in the wdio launcher (see hooks.js), and written to a snapshot file: wdio
@@ -177,6 +184,29 @@ export function removeSnapshot() {
   if (runId()) {
     rmSync(runDirectory(), { recursive: true, force: true })
   }
+}
+
+/**
+ * Removes the snapshots of runs that are no longer going (they died, or kept
+ * their organisation), and the one runs wrote at the top level before each
+ * had its own directory. A run's organisation itself is kept or deleted by
+ * the delete list, not by these.
+ */
+export function removeEndedRunsSnapshots() {
+  const runsDirectory = resolve(INTEGRATION_DIRECTORY, 'runs')
+  if (existsSync(runsDirectory)) {
+    for (const id of readdirSync(runsDirectory)) {
+      if (id !== runId() && !isRunActive(id)) {
+        rmSync(resolve(runsDirectory, id), { recursive: true, force: true })
+      }
+    }
+  }
+  rmSync(resolve(INTEGRATION_DIRECTORY, 'seeded-organisation.json'), {
+    force: true
+  })
+  rmSync(resolve(INTEGRATION_DIRECTORY, 'seeding-failure.txt'), {
+    force: true
+  })
 }
 
 /** Records why seeding the run's organisation failed. */

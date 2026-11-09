@@ -98,13 +98,19 @@ export function recordCreatedOrganisation(organisation) {
  * progress are left for it. Whatever fails to delete stays listed, for a later
  * run to retry.
  *
+ * @param {object} [options]
+ * @param {string} [options.except] the id of an organisation to leave, e.g.
+ *   the one SEEDED_ORGANISATION_ID reuses
+ *
  * @returns {Promise<{deleted: CreatedOrganisation[], failed: {organisation: CreatedOrganisation, error: string}[]}>}
  */
-export async function deleteCreatedOrganisations() {
+export async function deleteCreatedOrganisations({ except } = {}) {
   const environment = process.env.ENVIRONMENT
   const toDelete = readCreatedOrganisations().filter(
     (organisation) =>
-      organisation.environment === environment && isOursToDelete(organisation)
+      organisation.environment === environment &&
+      organisation.id !== except &&
+      isOursToDelete(organisation)
   )
   const api = new ReexApi()
   const deleted = []
