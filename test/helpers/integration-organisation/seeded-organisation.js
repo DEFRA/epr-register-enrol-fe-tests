@@ -9,23 +9,31 @@ import {
 } from './seeding/api.js'
 import { seedDefraLinkedOrganisation } from './seeding/linked-organisation.js'
 import { addOverseasSites } from './seeding/overseas-sites.js'
+import { runId } from './run-id.js'
 
 // The organisation an integrated run signs in as. It is seeded once per run,
 // in the wdio launcher (see hooks.js), and written to a snapshot file: wdio
 // runs each spec in its own worker process, so the file is how every worker
 // reads the same organisation back.
 
-const SNAPSHOT_FILE = resolve(
+const INTEGRATION_DIRECTORY = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../.integration/seeded-organisation.json'
+  '../../../.integration'
 )
+
+// Each run's own directory (run-id.js), so a run - and its spec retries -
+// only ever read back the organisation it seeded. Outside a run, e.g. a
+// script run on its own, the directory's top level.
+const runDirectory = () =>
+  runId()
+    ? resolve(INTEGRATION_DIRECTORY, 'runs', runId())
+    : INTEGRATION_DIRECTORY
+
+const snapshotFile = () => resolve(runDirectory(), 'seeded-organisation.json')
 
 // Why seeding failed, for the specs to fail with: it is done in the launcher,
 // before any worker starts, and wdio only logs an error thrown there.
-const SEEDING_FAILURE_FILE = resolve(
-  dirname(SNAPSHOT_FILE),
-  'seeding-failure.txt'
-)
+const seedingFailureFile = () => resolve(runDirectory(), 'seeding-failure.txt')
 
 // The exporter material the exporter scenario applies for: a few accredited
 // overseas reprocessing sites to complete and registered ones to add, before
@@ -155,8 +163,8 @@ export async function loadOrganisation(id) {
 }
 
 export function writeSnapshot(organisation) {
-  mkdirSync(dirname(SNAPSHOT_FILE), { recursive: true })
-  writeFileSync(SNAPSHOT_FILE, `${JSON.stringify(organisation, null, 2)}\n`)
+  mkdirSync(runDirectory(), { recursive: true })
+  writeFileSync(snapshotFile(), `${JSON.stringify(organisation, null, 2)}\n`)
 }
 
 /**
@@ -164,14 +172,17 @@ export function writeSnapshot(organisation) {
  * run, one that has since been deleted or belongs to another environment.
  */
 export function removeSnapshot() {
-  rmSync(SNAPSHOT_FILE, { force: true })
-  rmSync(SEEDING_FAILURE_FILE, { force: true })
+  rmSync(snapshotFile(), { force: true })
+  rmSync(seedingFailureFile(), { force: true })
+  if (runId()) {
+    rmSync(runDirectory(), { recursive: true, force: true })
+  }
 }
 
 /** Records why seeding the run's organisation failed. */
 export function recordSeedingFailure(err) {
-  mkdirSync(dirname(SEEDING_FAILURE_FILE), { recursive: true })
-  writeFileSync(SEEDING_FAILURE_FILE, `${err?.stack ?? err}\n`)
+  mkdirSync(runDirectory(), { recursive: true })
+  writeFileSync(seedingFailureFile(), `${err?.stack ?? err}\n`)
 }
 
 /**
@@ -186,7 +197,7 @@ export function requireSeededOrganisation() {
   }
   let failure
   try {
-    failure = readFileSync(SEEDING_FAILURE_FILE, 'utf8')
+    failure = readFileSync(seedingFailureFile(), 'utf8')
   } catch {
     return seededOrganisation()
   }
@@ -202,11 +213,11 @@ export function requireSeededOrganisation() {
  */
 export function seededOrganisation() {
   try {
-    return JSON.parse(readFileSync(SNAPSHOT_FILE, 'utf8'))
+    return JSON.parse(readFileSync(snapshotFile(), 'utf8'))
   } catch (err) {
     if (err.code === 'ENOENT') {
       throw new Error(
-        `No organisation was seeded for this run (${SNAPSHOT_FILE}). ` +
+        `No organisation was seeded for this run (${snapshotFile()}). ` +
           'Seeding runs in onPrepare when ENVIRONMENT=test.'
       )
     }

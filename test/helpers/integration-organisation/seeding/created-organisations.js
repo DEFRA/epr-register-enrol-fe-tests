@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { ReexApi, assertSuccessResponse } from './api.js'
 import { logRunOrganisation } from './run-organisations.js'
+import { isRunActive, runId } from '../run-id.js'
 
 // A flat file of every organisation an integrated run has seeded and not yet
 // deleted, one JSON object per line. Seeding appends to it as soon as an
@@ -37,7 +38,33 @@ export const CREATED_ORGANISATIONS_FILE = resolve(
  * @property {string} email the Defra ID user it is linked for
  * @property {{id: string, name: string} | null} defraOrganisation
  * @property {string} createdAt
+ * @property {string} [runId] the run that created it (run-id.js); absent on
+ *   entries written before runs were tagged
  */
+
+// An untagged entry is only taken for a leftover once it is this old, so a
+// run on an older checkout, which does not tag its entries, is not cleaned up
+// under it.
+const UNTAGGED_LEFTOVER_AGE_MS = 2 * 60 * 60 * 1000
+
+/**
+ * Whether an entry is this run's to delete: created by this run, or left
+ * behind by one that is no longer running. Another run that is still going
+ * keeps its organisation.
+ *
+ * @param {CreatedOrganisation} organisation
+ */
+function isOursToDelete(organisation) {
+  if (organisation.runId) {
+    return organisation.runId === runId() || !isRunActive(organisation.runId)
+  }
+  return (
+    Date.now() - Date.parse(organisation.createdAt) > UNTAGGED_LEFTOVER_AGE_MS
+  )
+}
+
+const sameEntry = (a, b) =>
+  a.orgId === b.orgId && a.environment === b.environment
 
 /** @returns {CreatedOrganisation[]} */
 export function readCreatedOrganisations() {
@@ -58,32 +85,32 @@ export function recordCreatedOrganisation(organisation) {
     `${JSON.stringify({
       ...organisation,
       environment: process.env.ENVIRONMENT,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      runId: runId()
     })}\n`
   )
   logRunOrganisation('created', organisation)
 }
 
 /**
- * Deletes every organisation the file lists for this ENVIRONMENT, and rewrites
- * it with only those that could not be deleted (and any for other
- * environments, which this run cannot reach).
+ * Deletes this run's organisation, and any a run that is no longer going left
+ * behind, for this ENVIRONMENT. Organisations of another run still in
+ * progress are left for it. Whatever fails to delete stays listed, for a later
+ * run to retry.
  *
  * @returns {Promise<{deleted: CreatedOrganisation[], failed: {organisation: CreatedOrganisation, error: string}[]}>}
  */
 export async function deleteCreatedOrganisations() {
   const environment = process.env.ENVIRONMENT
-  const listed = readCreatedOrganisations()
+  const toDelete = readCreatedOrganisations().filter(
+    (organisation) =>
+      organisation.environment === environment && isOursToDelete(organisation)
+  )
   const api = new ReexApi()
   const deleted = []
   const failed = []
-  const kept = []
 
-  for (const organisation of listed) {
-    if (organisation.environment !== environment) {
-      kept.push(organisation)
-      continue
-    }
+  for (const organisation of toDelete) {
     try {
       await assertSuccessResponse(
         await api.delete(`/v1/dev/organisations/${organisation.orgId}`),
@@ -93,12 +120,15 @@ export async function deleteCreatedOrganisations() {
       logRunOrganisation('deleted', organisation)
     } catch (err) {
       failed.push({ organisation, error: err.message })
-      kept.push(organisation)
       logRunOrganisation('delete-failed', organisation, err.message)
     }
   }
 
-  if (listed.length) {
+  if (deleted.length) {
+    // Read again: another run may have added to the file meanwhile.
+    const kept = readCreatedOrganisations().filter(
+      (organisation) => !deleted.some((gone) => sameEntry(gone, organisation))
+    )
     writeFileSync(
       CREATED_ORGANISATIONS_FILE,
       kept.map((organisation) => `${JSON.stringify(organisation)}\n`).join('')

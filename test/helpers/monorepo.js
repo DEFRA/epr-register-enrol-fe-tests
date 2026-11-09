@@ -11,6 +11,29 @@ import { execFileSync } from 'node:child_process'
 export const MONOREPO_TAG = '@monorepo'
 
 /**
+ * Set by wdio.monorepo.conf.js, and only by it, for its workers. Not
+ * ENVIRONMENT: wdio loads .env on every run, and a local .env commonly sets
+ * ENVIRONMENT for the integration runs.
+ */
+export const MONOREPO_RUN_FLAG = 'MONOREPO_RUN'
+
+/**
+ * Skips the suite unless it was started by wdio.monorepo.conf.js (npm run
+ * test:monorepo). The monorepo specs clear and submit applications through
+ * the local stack's MongoDB and Docker, so must never run on a deployed
+ * environment such as test - not even named directly with --spec under
+ * another config, since the test image carries the whole test folder.
+ * Register as the first `before` hook.
+ *
+ * @param {Mocha.Context} context the `this` of a `before` hook
+ */
+export function skipUnlessMonorepoRun(context) {
+  if (process.env[MONOREPO_RUN_FLAG] !== 'true') {
+    context.skip()
+  }
+}
+
+/**
  * The stub organisations the specs apply for. Both are e2e test organisations
  * in the operator frontend's stub fixtures (src/server/common/stub-operator-orgs.js),
  * not the dev seed user's own organisation or the perf-test ones, so clearing
@@ -34,12 +57,23 @@ export const MONOREPO_ORGS = {
 const OPERATOR_DATABASE = 'epr'
 const CASE_MANAGEMENT_DATABASE = 'epr-register-case-management'
 
+// A stalled Docker daemon fails the call rather than hanging the run.
+const DOCKER_TIMEOUT_MS = 30000
+
 /**
  * The monorepo's MongoDB container: the compose service named mongodb that
  * publishes 27017 on this machine (this repo's sandbox keeps its MongoDB
  * unpublished, so it never matches). MONOREPO_MONGO_CONTAINER overrides it.
+ * Looked up once per worker.
  */
+let container
+
 function mongoContainer() {
+  container ??= findMongoContainer()
+  return container
+}
+
+function findMongoContainer() {
   if (process.env.MONOREPO_MONGO_CONTAINER) {
     return process.env.MONOREPO_MONGO_CONTAINER
   }
@@ -54,7 +88,7 @@ function mongoContainer() {
       '--filter',
       'publish=27017'
     ],
-    { encoding: 'utf8' }
+    { encoding: 'utf8', timeout: DOCKER_TIMEOUT_MS }
   )
     .split('\n')
     .filter(Boolean)
@@ -78,7 +112,7 @@ function mongosh(script) {
   const output = execFileSync(
     'docker',
     ['exec', mongoContainer(), 'mongosh', '--quiet', '--eval', script],
-    { encoding: 'utf8' }
+    { encoding: 'utf8', timeout: DOCKER_TIMEOUT_MS }
   )
   return JSON.parse(output.trim().split('\n').pop())
 }

@@ -11,6 +11,7 @@ import {
   recordCreatedOrganisation
 } from './seeding/created-organisations.js'
 import { registerWithRegisterEnrolDefraId } from './seeding/register-enrol-defra-id.js'
+import { startRun } from './run-id.js'
 import {
   logRunOrganisation,
   startRunOrganisationsLog,
@@ -38,6 +39,9 @@ const seedsHere = () => SEEDS_IN.includes(process.env.ENVIRONMENT)
  */
 export async function prepareSeededOrganisation() {
   const environment = process.env.ENVIRONMENT
+  // Before anything is written, so the snapshot and the organisation's entry
+  // are this run's, and the workers forked after this inherit the run.
+  startRun()
   startRunOrganisationsLog()
   // Whatever an earlier run left: off test the specs then find no
   // organisation and skip rather than sign in as one that has been deleted.
@@ -45,6 +49,21 @@ export async function prepareSeededOrganisation() {
   removeSnapshot()
   if (!seedsHere()) {
     return
+  }
+
+  // What runs that died before cleaning up left behind. Never another run
+  // that is still going, nor (yet) this one, which has created nothing.
+  try {
+    const { deleted } = await deleteCreatedOrganisations()
+    for (const { orgId, id } of deleted) {
+      process.stdout.write(
+        `Deleted organisation ${orgId} (${id}) left by an earlier run\n`
+      )
+    }
+  } catch (err) {
+    process.stdout.write(
+      `Clearing earlier runs' organisations failed: ${err}\n`
+    )
   }
 
   const reuseId = process.env.SEEDED_ORGANISATION_ID
@@ -126,8 +145,9 @@ export async function prepareSeededOrganisationOrRecordFailure() {
 }
 
 /**
- * wdio onComplete hook. Deletes every organisation listed in
- * CREATED_ORGANISATIONS_FILE, this run's and any an earlier run left behind.
+ * wdio onComplete hook, whether the specs passed or failed. Deletes this run's
+ * organisation, and any a run that is no longer going left behind in
+ * CREATED_ORGANISATIONS_FILE; another run still in progress keeps its own.
  * KEEP_SEEDED_ORGANISATIONS=true keeps them, e.g. to look at what a failed run
  * left; the next run that does not set it deletes them.
  */

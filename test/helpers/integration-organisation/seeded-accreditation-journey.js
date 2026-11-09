@@ -3,7 +3,6 @@ import ReexHomePage from 'page-objects/reex-home.page'
 import ReexRegistrationPage from 'page-objects/reex-registration.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
-import AddOrsSiteLocationPage from 'page-objects/add-ors-site-location.page'
 import AddOrsSiteContactPage from 'page-objects/add-ors-site-contact.page'
 import AddOrsRecyclingOperationPage from 'page-objects/add-ors-recycling-operation.page'
 import AddOrsBaselCodesPage from 'page-objects/add-ors-basel-codes.page'
@@ -217,9 +216,8 @@ export async function addRegisteredSitesToAccreditation(
 
 /**
  * Fills in what an overseas site's check-your-answers page shows as missing
- * (location, contact, recycling operations, Basel codes, rejected loads),
- * page by page, and saves it. Starts and ends on that check-your-answers
- * page's site list.
+ * (contact, recycling operations, Basel codes, rejected loads), page by page,
+ * and saves it. Starts and ends on that check-your-answers page's site list.
  */
 async function completeSiteDetails(
   applicationId,
@@ -235,27 +233,6 @@ async function completeSiteDetails(
     await enter()
     await continueFrom(page)
   }
-
-  // Sites seeded on the test environment come with an address and
-  // coordinates; the stub sites the monorepo's local stack serves have only a
-  // country. Fills in whichever are blank, and keeps the rest.
-  await fill(
-    'site-location',
-    'Overseas site location',
-    AddOrsSiteLocationPage,
-    async () => {
-      const blanks = [
-        [AddOrsSiteLocationPage.addressLine1Input, `${n} Industriestrasse`],
-        [AddOrsSiteLocationPage.townOrCityInput, 'Duisburg'],
-        [AddOrsSiteLocationPage.coordinatesInput, '51.4344, 6.7623']
-      ]
-      for (const [input, value] of blanks) {
-        if (!(await input.getValue())) {
-          await input.setValue(value)
-        }
-      }
-    }
-  )
 
   await fill(
     'site-contact-details',

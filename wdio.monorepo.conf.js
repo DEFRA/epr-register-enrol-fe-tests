@@ -4,7 +4,7 @@ import allure from 'allure-commandline'
 import { fetch } from 'undici'
 
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
-import { MONOREPO_TAG } from './test/helpers/monorepo.js'
+import { MONOREPO_RUN_FLAG, MONOREPO_TAG } from './test/helpers/monorepo.js'
 
 // The @monorepo specs (test/specs/monorepo): full journeys run from this
 // machine against the DEFRA/epr-register-enrol monorepo's local stack - start
@@ -18,6 +18,10 @@ import { MONOREPO_TAG } from './test/helpers/monorepo.js'
 // Local only: no other config (and so no CI run) picks these specs up. Each
 // spec clears its organisation's application and work items in the monorepo's
 // MongoDB first (test/helpers/monorepo.js), so it can be run again and again.
+
+// The specs skip without this (test/helpers/monorepo.js), so they only ever
+// run through this config, never on a deployed environment.
+process.env[MONOREPO_RUN_FLAG] = 'true'
 
 // The monorepo's case management frontend, which test/config.js reads in
 // each worker (they inherit this process's environment). Always set, so a

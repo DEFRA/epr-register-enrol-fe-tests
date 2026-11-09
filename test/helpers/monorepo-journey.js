@@ -4,6 +4,8 @@ import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import TaskListPage from 'page-objects/tasklist.page'
 
 import { clearApplications, workItemsFor } from './monorepo.js'
+import { completeStubOverseasSites } from './monorepo-overseas-sites.js'
+import { confirmOverseasSites } from './query-response-journey.js'
 import { reportDetails } from './report-step.js'
 import {
   completeOutstandingTasks,
@@ -68,7 +70,9 @@ export async function submitAccreditation({ org, isExporter }) {
     { timeout: 30000, timeoutMsg: 'Did not reach the task list' }
   )
 
-  const journeyMaterial = await completeOutstandingTasks({ isExporter })
+  const journeyMaterial = isExporter
+    ? await completeExporterTasks()
+    : await completeOutstandingTasks({ isExporter: false })
   await TaskListPage.assertAllTasksCompleted({ isExporter })
   await TaskListPage.continueToSubmit()
 
@@ -81,10 +85,35 @@ export async function submitAccreditation({ org, isExporter }) {
       workItemsFor(org).some((item) => item.applicationReference === reference),
     {
       timeout: 30000,
+      // Each check is a docker exec, so not every 250ms.
+      interval: 2000,
       timeoutMsg: `No case management work item for application ${reference}`
     }
   )
 
   reportDetails('Submitted', { reference, workItems: workItemsFor(org) })
   return reference
+}
+
+/**
+ * Exporter tasks: the shared ones first, as the overseas sites task only
+ * opens once they are done. Then the stub overseas sites, which need filling
+ * in before they can be confirmed (monorepo-overseas-sites.js), and last the
+ * BES evidence. Leaves the browser on the task list.
+ *
+ * @returns {Promise<string>} the material, as the journey names it
+ */
+async function completeExporterTasks() {
+  const material = await completeOutstandingTasks({ isExporter: false })
+  const applicationId = (await browser.getUrl())
+    .split('/accreditation/task-list/')[1]
+    .split(/[/?]/)[0]
+
+  await completeStubOverseasSites(applicationId)
+  await confirmOverseasSites()
+  await expect(TaskListPage.overseasSitesStatus).toHaveText('COMPLETED')
+
+  // What is left: BES evidence.
+  await completeOutstandingTasks({ isExporter: true })
+  return material
 }

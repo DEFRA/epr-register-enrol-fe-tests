@@ -1,6 +1,7 @@
 import { browser, expect } from '@wdio/globals'
 import CmWorkItemPage from 'page-objects/cm-work-item.page'
 import CmWorkItemsPage from 'page-objects/cm-work-items.page'
+import CmWorkItemReviewPage from 'page-objects/cm-work-item-review.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import QueryTaskListPage from 'page-objects/query-task-list.page'
 import { QUERY_SECTIONS } from 'page-objects/cm-query.page'
@@ -8,17 +9,19 @@ import { QUERY_SECTIONS } from 'page-objects/cm-query.page'
 import {
   WORK_ITEM_STATES,
   approveWorkItem,
-  caseManagementDate,
-  changeDeterminationDeadline,
-  changePaymentDate,
   confirmApplicantContact,
-  continueReview,
   dulyMakeWorkItem,
   findWorkItem,
   queryWorkItem,
   signInToCaseManagement
 } from '../../helpers/case-management-journey.js'
-import { MONOREPO_ORGS } from '../../helpers/monorepo.js'
+import {
+  caseManagementDate,
+  changeDeterminationDeadline,
+  changePaymentDate,
+  continueReview
+} from '../../helpers/monorepo-case-management.js'
+import { MONOREPO_ORGS, skipUnlessMonorepoRun } from '../../helpers/monorepo.js'
 import {
   openAccreditation,
   signInAsOperator,
@@ -135,6 +138,10 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
     }
   }
 
+  before(function () {
+    skipUnlessMonorepoRun(this)
+  })
+
   before(async () => {
     await startFresh(MONOREPO_ORGS.reprocessor, MONOREPO_ORGS.exporter)
   })
@@ -173,7 +180,9 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
           progress[type].workItemId = workItem.workItemId
           await CmWorkItemsPage.openWorkItem(workItem.workItemId)
           await CmWorkItemPage.waitUntilLoaded()
-          await expect(CmWorkItemPage.paymentDate).toHaveText('Not received')
+          await expect(CmWorkItemReviewPage.paymentDate).toHaveText(
+            'Not received'
+          )
         }
       )
 
@@ -184,7 +193,7 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
           await expect(CmWorkItemPage.stateTag).toHaveText(
             WORK_ITEM_STATES.dulyMade
           )
-          await expect(CmWorkItemPage.paymentDate).toHaveText(
+          await expect(CmWorkItemReviewPage.paymentDate).toHaveText(
             caseManagementDate(PAYMENT_DATE)
           )
         }
@@ -197,7 +206,7 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
             paymentDate: CHANGED_PAYMENT_DATE,
             reason: 'The payment was received later than first recorded.'
           })
-          await expect(CmWorkItemPage.paymentDate).toHaveText(
+          await expect(CmWorkItemReviewPage.paymentDate).toHaveText(
             caseManagementDate(CHANGED_PAYMENT_DATE)
           )
         }
@@ -210,7 +219,7 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
             deadline: CHANGED_DEADLINE,
             reason: 'More time is needed to assess the application.'
           })
-          await expect(CmWorkItemPage.dueDate).toHaveText(
+          await expect(CmWorkItemReviewPage.dueDate).toHaveText(
             caseManagementDate(CHANGED_DEADLINE)
           )
         }
@@ -305,7 +314,7 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
     await CmWorkItemPage.waitUntilLoaded()
     await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.updated)
     // What the regulator changed before the query is kept.
-    await expect(CmWorkItemPage.paymentDate).toHaveText(
+    await expect(CmWorkItemReviewPage.paymentDate).toHaveText(
       caseManagementDate(CHANGED_PAYMENT_DATE)
     )
   }
@@ -351,16 +360,14 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
       'Regulator: the reprocessor business plan and sampling plan show the update',
       async () => {
         await reopenUpdatedWorkItem('reprocessor')
-        await expect(
-          $('[data-testid="app-detail-value-business-plan"]')
-        ).toHaveText(
+        await expect(CmWorkItemReviewPage.businessPlanValue).toHaveText(
           expect.stringContaining(
             `New infrastructure — ${UPDATED_BUSINESS_PLAN[0]}% of PRN income`
           )
         )
-        await expect(
-          $('[data-testid="app-detail-value-sampling-inspection-plan"]')
-        ).toHaveText(expect.stringContaining(UPDATED_SAMPLING_PLAN))
+        await expect(CmWorkItemReviewPage.samplingPlanValue).toHaveText(
+          expect.stringContaining(UPDATED_SAMPLING_PLAN)
+        )
       }
     )
     await approveAndGrant('reprocessor')

@@ -3,8 +3,6 @@ import CmLoginPage from 'page-objects/cm-login.page'
 import CmWorkItemsPage from 'page-objects/cm-work-items.page'
 import CmWorkItemPage from 'page-objects/cm-work-item.page'
 import CmDulyMakePage from 'page-objects/cm-duly-make.page'
-import CmChangePaymentDatePage from 'page-objects/cm-change-payment-date.page'
-import CmChangeDeadlinePage from 'page-objects/cm-change-deadline.page'
 import CmQueryPage from 'page-objects/cm-query.page'
 import CmDecisionPage from 'page-objects/cm-decision.page'
 import CmConfirmContactPage from 'page-objects/cm-confirm-contact.page'
@@ -87,46 +85,6 @@ export async function dulyMakeWorkItem({ paymentDate = new Date() } = {}) {
 }
 
 /**
- * Replaces the payment date recorded when the work item was duly made.
- * Leaves the browser on the work item.
- */
-export async function changePaymentDate({ paymentDate, reason }) {
-  await CmWorkItemPage.startChangePaymentDate()
-  await expect(browser).toHaveUrl(
-    expect.stringContaining('/change-payment-date')
-  )
-
-  await CmChangePaymentDatePage.changePaymentDate(paymentDate, reason)
-
-  await CmWorkItemPage.waitUntilLoaded()
-}
-
-/**
- * Sets a new determination deadline (the work item's due date). Leaves the
- * browser on the work item.
- */
-export async function changeDeterminationDeadline({ deadline, reason }) {
-  await CmWorkItemPage.startChangeDeterminationDeadline()
-  await expect(browser).toHaveUrl(expect.stringContaining('/sla/extend'))
-
-  await CmChangeDeadlinePage.changeDeadline(deadline, reason)
-
-  await CmWorkItemPage.waitUntilLoaded()
-}
-
-/**
- * The date as the case management header shows it, e.g. "06 Nov 2026".
- *
- * @param {Date} date
- */
-export function caseManagementDate(date) {
-  // date-fns' "dd MMM yyyy", which writes September as Sep (Intl writes Sept).
-  const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${day} ${months[date.getMonth()]} ${date.getFullYear()}`
-}
-
-/**
  * Queries the given sections, which unlocks them for the operator to update.
  * Values come from QUERY_SECTIONS in cm-query.page.js.
  */
@@ -137,20 +95,6 @@ export async function queryWorkItem({ sections, reason }) {
   await CmQueryPage.sendQuery({ sections, reason })
 
   await CmWorkItemPage.waitUntilLoaded()
-}
-
-/**
- * On an Updated work item, continues the review of the operator's query
- * response, which assigns it to the caseworker and opens the determination.
- * The state tag still reads Updated, so it waits for the "Make determination"
- * link instead. Leaves the browser on the work item.
- */
-export async function continueReview() {
-  await CmWorkItemPage.continueReview()
-  await CmWorkItemPage.makeDeterminationLink.waitForDisplayed({
-    timeout: 30000,
-    timeoutMsg: 'Continue review did not open the determination'
-  })
 }
 
 /**
