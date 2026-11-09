@@ -89,13 +89,13 @@ const ids = (items, year) => items.map((item) => item.itemId(year))
 const {
   rotterdamUpdateQueried,
   dragonNewInProgress,
-  dragonUpdateSubmittedRegistrationOnly,
   bharatUpdateSubmitted,
   berlinUpdateUpdated,
   tonnageDulyMade,
   tonnageGranted,
   rotterdamUpdateGranted,
   bharatUpdateGranted,
+  dragonUpdateRefusedRegistrationOnly,
   tonnageRefused,
   berlinUpdateRefused,
   dragonNewRefused,
@@ -105,13 +105,13 @@ const {
 const FIRST_PAGE = [
   rotterdamUpdateQueried,
   dragonNewInProgress,
-  dragonUpdateSubmittedRegistrationOnly,
   bharatUpdateSubmitted,
   berlinUpdateUpdated,
   tonnageDulyMade,
   tonnageGranted,
   rotterdamUpdateGranted,
   bharatUpdateGranted,
+  dragonUpdateRefusedRegistrationOnly,
   tonnageRefused
 ]
 const SECOND_PAGE = [
@@ -260,11 +260,11 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expectRows(
         [
           rotterdamUpdateQueried,
-          dragonUpdateSubmittedRegistrationOnly,
           bharatUpdateSubmitted,
           berlinUpdateUpdated,
           rotterdamUpdateGranted,
           bharatUpdateGranted,
+          dragonUpdateRefusedRegistrationOnly,
           berlinUpdateRefused,
           rotterdamUpdateWithdrawn
         ],
@@ -301,6 +301,13 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(ChangeRequestsPage.siteAddress(queriedId)).toHaveText(
         'Industrieweg 44, Netherlands'
       )
+      // A registration-only row finds its site by ORS id, as its site id is
+      // the ORS id's integer value, not the accreditation's.
+      await expect(
+        ChangeRequestsPage.siteAddress(
+          dragonUpdateRefusedRegistrationOnly.itemId(year)
+        )
+      ).toHaveText('8 Harbour Avenue, Vietnam')
       await expect(
         ChangeRequestsPage.siteName(tonnageDulyMade.itemId(year))
       ).toHaveText('Not applicable')
@@ -535,7 +542,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
     // RA-697 task 014: a registration-only request on an accredited exporter.
     it('shows the registration-only ORS update on Dragon, opened from the list', async () => {
-      const item = dragonUpdateSubmittedRegistrationOnly
+      const item = dragonUpdateRefusedRegistrationOnly
       const itemId = item.itemId(year)
       await ChangeRequestsPage.open(LIST_PATH)
 
@@ -557,7 +564,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(detail.headerLocation).toHaveText(
         '8 Harbour Avenue, Vietnam'
       )
-      await expect(detail.statusTag).toHaveText('SUBMITTED')
+      await expect(detail.statusTag).toHaveText('REFUSED')
       await expectRequestDetails(item, year)
     })
 

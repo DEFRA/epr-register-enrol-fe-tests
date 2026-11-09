@@ -88,7 +88,7 @@ const ORS_IDS = {
 const orsSite = (name) => ({ siteId: ORS[name], orsId: ORS_IDS[name] })
 
 // The Plastic exporter's 14 items over 12 requests: each ORS has at most one
-// active accreditation item, Dragon's New ORS accreditation is the only draft
+// active item, Dragon's New ORS accreditation is the only draft
 // (In progress), and every other request was submitted. RA-697 task 014: the
 // registration also has one registration-only ORS update (no accreditation),
 // on Dragon, which the accreditation's pages list too. `sent` is the
@@ -178,10 +178,14 @@ export const CHANGE_ITEMS = {
     type: 'New ORS accreditation',
     status: 'IN PROGRESS'
   }),
-  dragonUpdateSubmittedRegistrationOnly: item('a', 12, 1, {
+  // Keyed by the ORS id's integer value, as every registration-only item is,
+  // not Dragon's accreditation site id; Refused, as Dragon's draft is its one
+  // active item.
+  dragonUpdateRefusedRegistrationOnly: item('a', 12, 1, {
     ...orsSite('dragon'),
+    siteId: 4,
     type: 'ORS update',
-    status: 'SUBMITTED',
+    status: 'REFUSED',
     sent: dayOf(9, 15)
   })
 }
