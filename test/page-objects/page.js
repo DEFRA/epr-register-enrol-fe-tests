@@ -87,21 +87,15 @@ class Page {
   }
 
   // Waits until the browser is on a URL that satisfies predicate, fully
-  // loaded, for a page reached without a click (e.g. a form that submits
-  // itself). Returns that URL.
+  // loaded: after a click (waitToLeave) or for a page that loads without one,
+  // such as a form that submits itself.
   async waitUntilLoadedAt(predicate, timeoutMsg) {
-    let url
     await browser.waitUntil(
-      async () => {
-        url = await browser.getUrl()
-        return (
-          predicate(url) &&
-          (await browser.execute(() => document.readyState)) === 'complete'
-        )
-      },
+      async () =>
+        predicate(await browser.getUrl()) &&
+        (await browser.execute(() => document.readyState)) === 'complete',
       { timeout: 30000, timeoutMsg }
     )
-    return url
   }
 
   // clickReliably, then waits for the page the click loads, fully loaded. The
