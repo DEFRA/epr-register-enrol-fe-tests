@@ -10,7 +10,6 @@ import {
   skipDockerOnlyOnDeployedEnvironment
 } from '../helpers/docker-only.js'
 import { readSeededYear } from '../helpers/seeded-year.js'
-import { waitForUrl } from '../helpers/wait-for-url.js'
 import {
   ORGANISATION_NAME,
   MATERIAL,
@@ -131,18 +130,13 @@ const registrationOnlyJakartaGranted = registrationOnlyItem('GRANTED')
 // the order the page writes it, and then the page fully loaded.
 async function waitForListQuery(path, search) {
   let last
-  await waitForUrl((url) => {
+  await ChangeRequestsPage.waitUntilLoadedAt((url) => {
     last = url
     const { pathname, search: actual } = new URL(url)
     return pathname === path && actual === search
   }, `Did not reach ${path}${search}`).catch((error) => {
     throw new Error(`${error.message} (last at ${last})`)
   })
-  await browser.waitUntil(
-    async () =>
-      (await browser.execute(() => document.readyState)) === 'complete',
-    { timeoutMsg: `${path}${search} did not finish loading` }
-  )
 }
 
 async function expectRows(items, year) {

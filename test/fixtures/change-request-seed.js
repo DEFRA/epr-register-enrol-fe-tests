@@ -1,9 +1,9 @@
+import { yearSuffix } from './year-suffix.js'
+
 // RA-697: the backend dev seed's fixed change request ids, references and
 // dates (DevChangeRequestSeedService, mirrored by the frontend's
 // stub-change-request-seed.js; keep all three in step), shared by the orgs'
 // fixtures.
-
-const yearSuffix = (year) => String(year).slice(-2)
 
 // Fixed per year, org, accreditation ("a" exporter, "b" reprocessor; a
 // registration-only org's requests use "a" too), request (numbered from 1,

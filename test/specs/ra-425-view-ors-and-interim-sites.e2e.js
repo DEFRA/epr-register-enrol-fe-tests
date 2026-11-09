@@ -28,7 +28,7 @@ import { readSeededYear as readSeededYearFrom } from '../helpers/seeded-year.js'
  * Runs against org 50018 ("Manage Accreditation Test Ltd"), which no other
  * spec writes to. The backend's dev seed (DevExporterAccreditationSeedService,
  * on in this stack via DevSeedData__ManageExporterEnabled, which seeds only the
- * dedicated orgs 50018-50020) gives its Plastic registration an Approved
+ * dedicated orgs 50018-50022) gives its Plastic registration an Approved
  * accreditation for the calendar year the stack started in:
  *   - ORS 001 Rotterdam: Calais (current), Antwerp (also used by 002) and
  *     Old Depot (removed - must never show)

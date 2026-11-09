@@ -12,6 +12,7 @@ import {
   changeRequestReference,
   dayOf
 } from './change-request-seed.js'
+import { yearSuffix } from './year-suffix.js'
 
 const ORGANISATION_ID = '50018'
 export const ORGANISATION_NAME = 'Manage Accreditation Test Ltd'
@@ -46,8 +47,6 @@ export const INTERIM = {
 
 // The seed numbers the registration and accreditation for the year it was
 // seeded in, e.g. R26EX0500180001PL for 2026.
-const yearSuffix = (year) => String(year).slice(-2)
-
 export const registrationNumber = (year) => `R${yearSuffix(year)}EX0500180001PL`
 
 export const accreditationNumber = (year) =>

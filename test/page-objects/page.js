@@ -80,12 +80,28 @@ class Page {
   // read before the click, this waits until the browser is on another page,
   // fully loaded.
   async waitToLeave(url) {
-    await browser.waitUntil(
-      async () =>
-        (await browser.getUrl()) !== url &&
-        (await browser.execute(() => document.readyState)) === 'complete',
-      { timeout: 30000, timeoutMsg: `Did not move on from ${url}` }
+    await this.waitUntilLoadedAt(
+      (current) => current !== url,
+      `Did not move on from ${url}`
     )
+  }
+
+  // Waits until the browser is on a URL that satisfies predicate, fully
+  // loaded, for a page reached without a click (e.g. a form that submits
+  // itself). Returns that URL.
+  async waitUntilLoadedAt(predicate, timeoutMsg) {
+    let url
+    await browser.waitUntil(
+      async () => {
+        url = await browser.getUrl()
+        return (
+          predicate(url) &&
+          (await browser.execute(() => document.readyState)) === 'complete'
+        )
+      },
+      { timeout: 30000, timeoutMsg }
+    )
+    return url
   }
 
   // clickReliably, then waits for the page the click loads, fully loaded. The
