@@ -94,6 +94,41 @@ class CmWorkItemPage extends Page {
     await this.clickReliably(this.makeDeterminationLink)
   }
 
+  // Case header values: "Not received" / "—" until set, then dd MMM yyyy.
+  get paymentDate() {
+    return $('[data-testid="case-header-payment-date"]')
+  }
+
+  get dueDate() {
+    return $('[data-testid="case-header-due-on"]')
+  }
+
+  // On an Updated work item: takes the operator's query response back into
+  // review, after which a determination can be made.
+  get continueReviewButton() {
+    return $('[data-testid="action-continue-review"]')
+  }
+
+  async continueReview() {
+    await this.clickReliably(this.continueReviewButton)
+  }
+
+  get changePaymentDateLink() {
+    return $('[data-testid="change-payment-date-link"]')
+  }
+
+  get changeDeterminationDeadlineLink() {
+    return $('[data-testid="action-sla-extend"]')
+  }
+
+  async startChangePaymentDate() {
+    await this.clickReliably(this.changePaymentDateLink)
+  }
+
+  async startChangeDeterminationDeadline() {
+    await this.clickReliably(this.changeDeterminationDeadlineLink)
+  }
+
   get besValue() {
     return $('[data-testid="app-detail-value-bes"]')
   }

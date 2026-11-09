@@ -60,7 +60,8 @@ export const config = {
   // accreditation-workflow applies for and works them).
   specs: [
     './test/specs/*.js',
-    './test/specs/!(integration)/**/*.js',
+    // test/specs/monorepo/** runs only locally: wdio.monorepo.conf.js.
+    './test/specs/!(integration|monorepo)/**/*.js',
     ...(runsIntegration ? TEST_ENVIRONMENT_INTEGRATION_SPECS : [])
   ],
   // Tests to exclude: every integration spec but, on test, the ones that run

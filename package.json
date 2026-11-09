@@ -20,6 +20,8 @@
     "test:local:accessibility": "npm run clean && wdio run wdio.local.conf.js --spec 'test/specs/accessibility/**/*.accessibility.js'",
     "test:integration": "npm run clean && node --env-file-if-exists=.env node_modules/@wdio/cli/bin/wdio.js run wdio.integration.conf.js",
     "test:integration:headed": "npm run clean && HEADED=true node --env-file-if-exists=.env node_modules/@wdio/cli/bin/wdio.js run wdio.integration.conf.js",
+    "test:monorepo": "npm run clean && wdio run wdio.monorepo.conf.js",
+    "test:monorepo:headed": "npm run clean && HEADED=true wdio run wdio.monorepo.conf.js",
     "test:github": "npm run clean && wdio run wdio.github.conf.js",
     "test:github:browserstack": "npm run clean && wdio run wdio.github.browserstack.conf.js",
     "test:accessibility": "npm run clean && wdio run wdio.github.conf.js --spec 'test/specs/accessibility/**/*.accessibility.js'",
