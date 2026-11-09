@@ -892,7 +892,10 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       const detail = ChangeRequestDetailPage
       await expect(detail.pageHeading).toHaveText(item.siteName)
       await expect(detail.statusTag).toHaveText('GRANTED')
-      await expect(detail.interimSitesHeading).toHaveText('Interim sites (0)')
+      await expect(detail.interimSitesHeading).toHaveText('Interim sites')
+      await expect(detail.noInterimSites).toHaveText(
+        'No interim sites have been added.'
+      )
       await expectRequestDetails(item, year)
     })
   })

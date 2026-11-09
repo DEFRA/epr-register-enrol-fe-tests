@@ -221,7 +221,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     // f12: the unsubmitted request is signposted from the manage page.
     await expect(ManageOverseasSitesPage.requestsBanner).toHaveText(
       expect.stringContaining(
-        'You currently have 1 request ready for submission.'
+        'You currently have 1 change request ready for submission.'
       )
     )
     await ManageOverseasSitesPage.viewRequests()
@@ -402,7 +402,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     await waitForPath(OVERSEAS_SITES_PATH)
     await expect(ManageOverseasSitesPage.requestsBanner).toHaveText(
       expect.stringContaining(
-        'You currently have 2 requests ready for submission.'
+        'You currently have 2 change requests ready for submission.'
       )
     )
     expect(
