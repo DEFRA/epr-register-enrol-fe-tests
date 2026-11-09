@@ -451,7 +451,9 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(detail.pageCaption).toHaveText(
         `${ORGANISATION_NAME} (${year}, ${MATERIAL})`
       )
-      await expect(detail.pageHeading).toHaveText('Rotterdam Recycling BV')
+      await expect(detail.pageHeading).toHaveText(
+        `Rotterdam Recycling BV (${item.orsId})`
+      )
       await expect(detail.queryRaisedBanner).toHaveText(
         expect.stringContaining('A query has been raised on this request')
       )
@@ -499,7 +501,9 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await ChangeRequestDetailPage.open(`${LIST_PATH}/${item.itemId(year)}`)
 
       const detail = ChangeRequestDetailPage
-      await expect(detail.pageHeading).toHaveText('Rotterdam Recycling BV')
+      await expect(detail.pageHeading).toHaveText(
+        `Rotterdam Recycling BV (${item.orsId})`
+      )
       await expect(detail.statusTag).toHaveText('GRANTED')
       await expect(detail.queryRaisedBanner).not.toBeExisting()
       await expectRequestDetails(item, year)
@@ -518,7 +522,9 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await ChangeRequestDetailPage.open(`${LIST_PATH}/${item.itemId(year)}`)
 
       const detail = ChangeRequestDetailPage
-      await expect(detail.pageHeading).toHaveText('Dragon Recyclers')
+      await expect(detail.pageHeading).toHaveText(
+        `Dragon Recyclers (${item.orsId})`
+      )
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.headerLocation).toHaveText(
         '8 Harbour Avenue, Vietnam'
@@ -544,7 +550,9 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(detail.pageCaption).toHaveText(
         `${ORGANISATION_NAME} (${year}, ${MATERIAL})`
       )
-      await expect(detail.pageHeading).toHaveText('Dragon Recyclers')
+      await expect(detail.pageHeading).toHaveText(
+        `Dragon Recyclers (${item.orsId})`
+      )
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.headerLocation).toHaveText(
         '8 Harbour Avenue, Vietnam'
@@ -851,7 +859,9 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(detail.pageCaption).toHaveText(
         `${REGISTRATION_ONLY_ORGANISATION_NAME} (${year}, ${REGISTRATION_ONLY_MATERIAL})`
       )
-      await expect(detail.pageHeading).toHaveText(item.siteName)
+      await expect(detail.pageHeading).toHaveText(
+        `${item.siteName} (${item.orsId})`
+      )
 
       await expect(detail.headerLocation).toHaveText(item.siteAddress)
       await expect(detail.headerSiteId).toHaveText(item.orsId)
@@ -890,7 +900,9 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
 
       const detail = ChangeRequestDetailPage
-      await expect(detail.pageHeading).toHaveText(item.siteName)
+      await expect(detail.pageHeading).toHaveText(
+        `${item.siteName} (${item.orsId})`
+      )
       await expect(detail.statusTag).toHaveText('GRANTED')
       await expect(detail.interimSitesHeading).toHaveText('Interim sites')
       await expect(detail.noInterimSites).toHaveText(
