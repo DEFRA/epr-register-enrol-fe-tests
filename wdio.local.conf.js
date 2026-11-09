@@ -39,7 +39,9 @@ export const config = {
   // Patterns to exclude.
   // test/specs/integration/** drives a deployed environment through its real
   // sign-in, not this localhost stack - it has its own wdio.integration.conf.js.
-  exclude: ['./test/specs/integration/**'],
+  // test/specs/monorepo/** runs only against the epr-register-enrol monorepo's
+  // local stack - it has its own wdio.monorepo.conf.js.
+  exclude: ['./test/specs/integration/**', './test/specs/monorepo/**'],
   // injectGlobals: false,
   //
   // ============

@@ -50,6 +50,41 @@ npm run test:local
 npm run test:local:debug
 ```
 
+### Running the monorepo tests (`@monorepo`)
+
+`test/specs/monorepo` holds full journeys that run only from your machine
+against the
+[epr-register-enrol](https://github.com/DEFRA/epr-register-enrol) monorepo's
+local stack, which runs the real case management services. They are never
+run in CI, and no other config picks them up.
+
+- `case-management-workflow`: the operator submits a reprocessor and an
+  exporter application; the regulator (case
+  management, `http://localhost:5001`) duly makes each, changes its payment
+  date and determination deadline, and queries it; the operator answers both
+  queries, adding an overseas site with an interim site to the exporter, and
+  resubmits; the regulator sees each response, approves both and confirms
+  contact, so both are Granted, which the operator then sees.
+
+1. Start the monorepo's stack from its root: `docker compose up --build -d`.
+   It binds the same ports as this repo's own stack (3000, 8080), so stop
+   that first (`docker compose stop` here).
+2. Run the tests:
+
+   ```bash
+   npm run test:monorepo          # headless
+   npm run test:monorepo:headed   # watch it run
+   ```
+
+It first deletes both organisations' applications and case management work
+items from the monorepo's MongoDB (50016 for the reprocessor, 50015 for the
+exporter), so every run submits both afresh from NOT STARTED. The Granted
+applications are left in place afterwards, to look at, until the next run.
+`MONOREPO_BASE_URL`, `MONOREPO_CASE_MANAGEMENT_URL` and
+`MONOREPO_MONGO_CONTAINER` override the operator frontend
+(`http://localhost:3000`), the case management frontend
+(`http://localhost:5001`) and the MongoDB container, if yours differ.
+
 ## Production
 
 ### Running the tests

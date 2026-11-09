@@ -74,6 +74,18 @@ class OverseasReprocessingSitesPage extends withInterimSiteDisclosure(Page) {
     return $(`[data-testid="${prefix}-incomplete-${siteId}"]`)
   }
 
+  // Every site tagged Incomplete, in whichever section it is listed. Each
+  // tag's test id is "<section prefix>-incomplete-<site id>".
+  get incompleteTags() {
+    return $$('[data-testid*="-incomplete-"]')
+  }
+
+  // The Change link on a site's row, which opens it in the add-overseas-site
+  // wizard's check-your-answers page.
+  siteEditLink(prefix, siteId) {
+    return $(`[data-testid="${prefix}-row-${siteId}"] a[href*="/edit/"]`)
+  }
+
   removeAccreditedButton(siteId) {
     return $(`[data-testid="remove-button-accredited-${siteId}"]`)
   }
