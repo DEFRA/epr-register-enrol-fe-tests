@@ -459,7 +459,9 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         `Rotterdam Recycling BV (${item.orsId})`
       )
       await expect(detail.queryRaisedBanner).toHaveText(
-        expect.stringContaining('A query has been raised on this request')
+        expect.stringContaining(
+          'A query has been raised on this application for change.'
+        )
       )
 
       await expect(detail.headerLocation).toHaveText(
