@@ -119,7 +119,8 @@ export const CHANGE_ITEMS = {
     orsId: ORS_IDS.dragon,
     type: 'New ORS accreditation',
     status: 'WITHDRAWN',
-    sent: dayOf(4, 6)
+    sent: dayOf(4, 6),
+    validTo: dayOf(6, 15)
   }),
   berlinUpdateRefused: item('a', 5, 1, {
     orsId: ORS_IDS.berlin,
