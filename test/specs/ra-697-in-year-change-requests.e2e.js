@@ -38,6 +38,7 @@ import {
   PORTO_INTERIM_SITES,
   registrationNumber as registrationOnlyRegistrationNumber
 } from '../fixtures/registration-only-org.js'
+import { SUBMITTER_NAME } from '../fixtures/change-request-seed.js'
 
 /**
  * RA-697: an operator views the in-year change requests on its current
@@ -101,6 +102,8 @@ const {
   rotterdamUpdateWithdrawn,
   dragonNewWithdrawn
 } = CHANGE_ITEMS
+// Rotterdam precedes Bharat: the sort (status, then sent) is stable, so one
+// request's items keep the request's sites order (the seed writes 001, 002).
 const FIRST_PAGE = [
   rotterdamUpdateQueried,
   dragonNewInProgress,
@@ -165,7 +168,7 @@ async function expectRequestDetails(item, year, { submitted = true } = {}) {
   await expect(detail.requestType).toHaveText(item.type)
   if (submitted) {
     await expect(detail.requestSent).toHaveText(item.sent(year))
-    await expect(detail.requestSubmittedBy).toHaveText('Sam Patel')
+    await expect(detail.requestSubmittedBy).toHaveText(SUBMITTER_NAME)
     await expect(detail.requestReference).toHaveText(item.reference(year))
   } else {
     await expect(detail.requestSent).toHaveText('Not submitted')

@@ -7,11 +7,7 @@
 // (src/server/common/constants/test-orgs.js) define the same org: keep all
 // three in step.
 
-import {
-  changeItemId,
-  changeRequestReference,
-  dayOf
-} from './change-request-seed.js'
+import { dayOf, seededIds } from './change-request-seed.js'
 import { yearSuffix } from './year-suffix.js'
 
 const ORGANISATION_ID = '50018'
@@ -69,10 +65,7 @@ export const reprocessorAccreditationNumber = (year) =>
 // as change-request-seed.js describes.
 const item = (side, request, itemNumber, fields) => ({
   ...fields,
-  itemId: (year) =>
-    changeItemId(ORGANISATION_ID, year, side, request, itemNumber),
-  reference: (year) =>
-    changeRequestReference(ORGANISATION_ID, year, side, request)
+  ...seededIds(ORGANISATION_ID, side, request, itemNumber)
 })
 
 // The ORS ids the pages show for the ORSs above.
@@ -82,9 +75,6 @@ const ORS_IDS = {
   berlin: '003',
   dragon: '004'
 }
-
-// Each ORS item keeps the ORS id the pages show with the site id it is for.
-const orsSite = (name) => ({ siteId: ORS[name], orsId: ORS_IDS[name] })
 
 // The Plastic exporter's 14 items over 12 requests: each ORS has at most one
 // active item, Dragon's New ORS accreditation is the only draft
@@ -96,7 +86,7 @@ const orsSite = (name) => ({ siteId: ORS[name], orsId: ORS_IDS[name] })
 // withdrawn New ORS accreditation was never granted).
 export const CHANGE_ITEMS = {
   rotterdamUpdateGranted: item('a', 1, 1, {
-    ...orsSite('rotterdam'),
+    orsId: ORS_IDS.rotterdam,
     type: 'ORS update',
     status: 'GRANTED',
     sent: dayOf(2, 3),
@@ -104,13 +94,15 @@ export const CHANGE_ITEMS = {
     validTo: dayOf(12, 31)
   }),
   bharatUpdateGranted: item('a', 1, 2, {
-    ...orsSite('bharat'),
+    orsId: ORS_IDS.bharat,
     type: 'ORS update',
     status: 'GRANTED',
-    sent: dayOf(2, 3)
+    sent: dayOf(2, 3),
+    validFrom: dayOf(3, 2),
+    validTo: dayOf(12, 31)
   }),
   dragonNewRefused: item('a', 2, 1, {
-    ...orsSite('dragon'),
+    orsId: ORS_IDS.dragon,
     type: 'New ORS accreditation',
     status: 'REFUSED',
     sent: dayOf(2, 20)
@@ -124,19 +116,19 @@ export const CHANGE_ITEMS = {
     validTo: dayOf(12, 31)
   }),
   dragonNewWithdrawn: item('a', 4, 1, {
-    ...orsSite('dragon'),
+    orsId: ORS_IDS.dragon,
     type: 'New ORS accreditation',
     status: 'WITHDRAWN',
     sent: dayOf(4, 6)
   }),
   berlinUpdateRefused: item('a', 5, 1, {
-    ...orsSite('berlin'),
+    orsId: ORS_IDS.berlin,
     type: 'ORS update',
     status: 'REFUSED',
     sent: dayOf(5, 12)
   }),
   rotterdamUpdateWithdrawn: item('a', 6, 1, {
-    ...orsSite('rotterdam'),
+    orsId: ORS_IDS.rotterdam,
     type: 'ORS update',
     status: 'WITHDRAWN',
     sent: dayOf(6, 2),
@@ -149,19 +141,19 @@ export const CHANGE_ITEMS = {
     sent: dayOf(6, 25)
   }),
   rotterdamUpdateQueried: item('a', 8, 1, {
-    ...orsSite('rotterdam'),
+    orsId: ORS_IDS.rotterdam,
     type: 'ORS update',
     status: 'QUERIED',
     sent: dayOf(7, 14)
   }),
   bharatUpdateSubmitted: item('a', 8, 2, {
-    ...orsSite('bharat'),
+    orsId: ORS_IDS.bharat,
     type: 'ORS update',
     status: 'SUBMITTED',
     sent: dayOf(7, 14)
   }),
   berlinUpdateUpdated: item('a', 9, 1, {
-    ...orsSite('berlin'),
+    orsId: ORS_IDS.berlin,
     type: 'ORS update',
     status: 'UPDATED',
     sent: dayOf(8, 20)
@@ -173,16 +165,13 @@ export const CHANGE_ITEMS = {
     sent: dayOf(9, 8)
   }),
   dragonNewInProgress: item('a', 11, 1, {
-    ...orsSite('dragon'),
+    orsId: ORS_IDS.dragon,
     type: 'New ORS accreditation',
     status: 'IN PROGRESS'
   }),
-  // Keyed by the ORS id's integer value, as every registration-only item is,
-  // not Dragon's accreditation site id; Refused, as Dragon's draft is its one
-  // active item.
+  // Refused, as Dragon's draft is its one active item.
   dragonUpdateRefusedRegistrationOnly: item('a', 12, 1, {
-    ...orsSite('dragon'),
-    siteId: 4,
+    orsId: ORS_IDS.dragon,
     type: 'ORS update',
     status: 'REFUSED',
     sent: dayOf(9, 15)
@@ -194,7 +183,9 @@ export const REPROCESSOR_CHANGE_ITEMS = {
   tonnageGranted: item('b', 1, 1, {
     type: 'Tonnage band upgrade',
     status: 'GRANTED',
-    sent: dayOf(3, 3)
+    sent: dayOf(3, 3),
+    validFrom: dayOf(4, 1),
+    validTo: dayOf(12, 31)
   }),
   tonnageRefused: item('b', 2, 1, {
     type: 'Tonnage band upgrade',

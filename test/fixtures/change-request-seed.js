@@ -18,7 +18,19 @@ export const changeItemId = (organisationId, year, side, request, item) =>
 export const changeRequestReference = (organisationId, year, side, request) =>
   `CR${yearSuffix(year)}${organisationId.padStart(6, '0')}${side.toUpperCase()}${String(request).padStart(3, '0')}`
 
-// Seed dates are 09:00 UTC on a day of the seed's year, as the pages show it.
+// A seeded item's id and its request's reference, by year.
+export const seededIds = (organisationId, side, request, item = 1) => ({
+  itemId: (year) => changeItemId(organisationId, year, side, request, item),
+  reference: (year) =>
+    changeRequestReference(organisationId, year, side, request)
+})
+
+// Who the seed says submitted every submitted request.
+export const SUBMITTER_NAME = 'Sam Patel'
+
+// Seed dates fall on a day of the seed's year (created, valid from and
+// withdrawn at 09:00 UTC; sent, the submitted date, 2 hours after creation,
+// at 11:00 UTC), and the pages show only the day.
 const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
 export const dayOf = (month, day) => (year) =>
   `${day} ${MONTHS[month - 1]} ${year}`

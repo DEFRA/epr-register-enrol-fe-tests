@@ -4,11 +4,7 @@
 // the frontend (src/server/common/constants/test-orgs.js) define the same
 // org: keep all three in step.
 
-import {
-  changeItemId,
-  changeRequestReference,
-  dayOf
-} from './change-request-seed.js'
+import { dayOf, seededIds } from './change-request-seed.js'
 import { yearSuffix } from './year-suffix.js'
 
 const ORGANISATION_ID = '50021'
@@ -57,9 +53,7 @@ export const PORTO_INTERIM_SITES = [
 const orsUpdate = (request, orsId, status, fields) => {
   const ors = REGISTERED_ORS.find((site) => site.orsId === orsId)
   return {
-    itemId: (year) => changeItemId(ORGANISATION_ID, year, 'a', request, 1),
-    reference: (year) =>
-      changeRequestReference(ORGANISATION_ID, year, 'a', request),
+    ...seededIds(ORGANISATION_ID, 'a', request),
     orsId,
     siteName: ors.name,
     siteAddress: ors.address,
