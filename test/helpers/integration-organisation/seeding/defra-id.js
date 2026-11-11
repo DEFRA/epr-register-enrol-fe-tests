@@ -76,7 +76,10 @@ export async function signInDefraIdUser(email) {
     // eslint-disable-next-line camelcase
     redirect_uri: 'http://0.0.0.0:3001/health',
     state: 'state',
-    scope: 'email'
+    // The stub issues an access token only when the scope includes the
+    // client id (epr-re-ex-defra-id-stub PR #30); without one, the link call
+    // is sent "Bearer undefined" and answers 401 Invalid token structure.
+    scope: `openid offline_access ${CLIENT_ID}`
   })
   const authorise = await stubCall('GET', `/authorize?${query}`)
   await authorise.body.dump()
