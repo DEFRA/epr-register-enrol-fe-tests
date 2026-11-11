@@ -13,16 +13,24 @@ import { yearSuffix } from './year-suffix.js'
 export const changeItemId = (organisationId, year, side, request, item) =>
   `0000${year}-0000-${String(item).padStart(4, '0')}-${side}000-${organisationId.padStart(6, '0')}${String(request).padStart(6, '0')}`
 
-// The case management reference the seed gives each submitted request,
-// e.g. CR26050018A008.
-export const changeRequestReference = (organisationId, year, side, request) =>
-  `CR${yearSuffix(year)}${organisationId.padStart(6, '0')}${side.toUpperCase()}${String(request).padStart(3, '0')}`
+// The case management reference the seed gives each item of a submitted
+// request: the request's, e.g. CR26050018A008, then the item's number within
+// it (RA-739: Case Management makes each site its own application), e.g.
+// CR26050018A008-1.
+export const changeItemReference = (
+  organisationId,
+  year,
+  side,
+  request,
+  item
+) =>
+  `CR${yearSuffix(year)}${organisationId.padStart(6, '0')}${side.toUpperCase()}${String(request).padStart(3, '0')}-${item}`
 
-// A seeded item's id and its request's reference, by year.
+// A seeded item's id and reference, by year.
 export const seededIds = (organisationId, side, request, item = 1) => ({
   itemId: (year) => changeItemId(organisationId, year, side, request, item),
   reference: (year) =>
-    changeRequestReference(organisationId, year, side, request)
+    changeItemReference(organisationId, year, side, request, item)
 })
 
 // Who the seed says submitted every submitted request.
