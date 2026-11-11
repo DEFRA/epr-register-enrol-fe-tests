@@ -72,6 +72,7 @@ describe('RA-000: upload status page for an expired or unknown upload @docker-on
     await UploadNotFoundPage.pageHeading.waitForDisplayed({ timeout: 30000 })
     expect(await currentPath()).toBe(statusPath)
     await expect(UploadNotFoundPage.pageHeading).toHaveText(HEADING)
+    await expect(browser).toHaveTitle(expect.stringContaining(HEADING))
     await expect(UploadNotFoundPage.message).toHaveText(MESSAGE)
     await expect(UploadNotFoundPage.uploadAgainLink).toHaveText(UPLOAD_AGAIN)
     await expect(UploadNotFoundPage.metaRefresh).not.toExist()
