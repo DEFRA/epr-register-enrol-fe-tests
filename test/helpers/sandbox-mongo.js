@@ -86,10 +86,21 @@ function watchWithMongosh(script, timeout) {
       return
     }
     if (containerPid !== undefined) {
-      // The shell's own kill, so it needs nothing from the image.
-      await docker([...EXEC_MONGODB, 'sh', '-c', `kill ${containerPid}`], {
-        cwd: COMPOSE_PROJECT_DIR
-      }).catch(() => {})
+      // The shell's own kill, so it needs nothing from the image. Succeeds if
+      // the kill did, or if the process is already gone (it finished between
+      // the exited() check and here); fails only if mongosh is still running.
+      const script = `kill ${containerPid} 2>/dev/null || [ ! -e /proc/${containerPid} ]`
+      try {
+        await docker([...EXEC_MONGODB, 'sh', '-c', script], {
+          cwd: COMPOSE_PROJECT_DIR
+        })
+      } catch (err) {
+        child.kill()
+        throw new Error(
+          `Could not stop the pendingUploads watcher (mongosh pid ${containerPid} in the mongodb container); it may still delete a later upload's record: ${err.message}`,
+          { cause: err }
+        )
+      }
     }
     child.kill()
   }
@@ -154,12 +165,24 @@ export async function expirePendingUploadOf(s3PathSuffix, upload) {
   // Always stopped, so a failed upload (or a watcher that never got ready)
   // cannot leave it running to delete a later upload's record.
   let deletedId
+  let failure
   try {
     await watcher.ready
     await upload()
     deletedId = await watcher.result
-  } finally {
+  } catch (err) {
+    failure = err
+  }
+  try {
     await watcher.stop()
+  } catch (stopFailure) {
+    // Report both: the watcher left running, and whatever stopped the upload.
+    throw failure
+      ? new AggregateError([failure, stopFailure], stopFailure.message)
+      : stopFailure
+  }
+  if (failure) {
+    throw failure
   }
   if (deletedId === null) {
     throw new Error(
