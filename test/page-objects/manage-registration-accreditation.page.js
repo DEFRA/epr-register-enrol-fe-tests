@@ -1,10 +1,16 @@
 import { Page } from 'page-objects/page'
 
-// RA-425: "Manage your registration and accreditation", the first /manage
+// RA-425: "Manage registration and accreditation", the first /manage
 // page. Re/Ex's material page links to it.
 class ManageRegistrationAccreditationPage extends Page {
   get applicationStatusTag() {
     return $('[data-testid="application-status-tag"]')
+  }
+
+  // RA-697: a registration-only operator sees the registration's status
+  // instead of the application's.
+  get registrationStatusTag() {
+    return $('[data-testid="registration-status-tag"]')
   }
 
   get accreditationNumber() {
@@ -38,6 +44,43 @@ class ManageRegistrationAccreditationPage extends Page {
 
   get backLink() {
     return $('[data-testid="back-link"]')
+  }
+
+  // RA-697: the "In year change requests" section, one row per change type
+  // with active items.
+  get changeRequestsHeading() {
+    return $('[data-testid="change-requests-heading"]')
+  }
+
+  get changeRequestsSummaryTable() {
+    return $('[data-testid="change-requests-summary-table"]')
+  }
+
+  changeRequestsSummaryStatus(changeType) {
+    return $(`[data-testid="change-requests-summary-status-${changeType}"]`)
+  }
+
+  changeRequestsSummaryViewLink(changeType) {
+    return $(`[data-testid="change-requests-summary-view-${changeType}"]`)
+  }
+
+  get noActiveChangeRequests() {
+    return $('[data-testid="no-active-change-requests"]')
+  }
+
+  get viewChangeRequestsLink() {
+    return $('[data-testid="view-change-requests-link"]')
+  }
+
+  async changeRequestsSummaryTypes() {
+    const types = []
+    for (const row of [
+      ...(await $$('[data-testid^="change-requests-summary-row-"]'))
+    ]) {
+      const testId = await row.getAttribute('data-testid')
+      types.push(testId.slice('change-requests-summary-row-'.length))
+    }
+    return types
   }
 
   async openManageOverseasSites() {

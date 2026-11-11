@@ -31,6 +31,10 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     return $(`[data-testid="${name}-sites-panel"]`)
   }
 
+  emptyMessage(name) {
+    return $(`[data-testid="${name}-sites-empty"]`)
+  }
+
   siteRow(name, siteId) {
     return $(`[data-testid="${name}-site-row-${siteId}"]`)
   }
@@ -72,6 +76,11 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
   // summary.
   addToAccreditationButton(siteId) {
     return $(`[data-testid="add-to-accreditation-${siteId}"]`)
+  }
+
+  // RA-697: a registration-only exporter has none on any site.
+  get anyAddToAccreditationButton() {
+    return $('[data-testid^="add-to-accreditation-"]')
   }
 
   // Replaces the add button on a registered site already in the in-progress

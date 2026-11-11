@@ -221,7 +221,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     // f12: the unsubmitted request is signposted from the manage page.
     await expect(ManageOverseasSitesPage.requestsBanner).toHaveText(
       expect.stringContaining(
-        'You currently have 1 request ready for submission.'
+        'You currently have 1 change request ready for submission.'
       )
     )
     await ManageOverseasSitesPage.viewRequests()
@@ -402,7 +402,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     await waitForPath(OVERSEAS_SITES_PATH)
     await expect(ManageOverseasSitesPage.requestsBanner).toHaveText(
       expect.stringContaining(
-        'You currently have 2 requests ready for submission.'
+        'You currently have 2 change requests ready for submission.'
       )
     )
     expect(
@@ -437,6 +437,19 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     ).toEqual(expect.arrayContaining([completeSite, incompleteSite]))
     expect(request.sites).toHaveLength(2)
     expect(request.charge.totalPence).toBe(65600)
+    // RA-697: the items later screens read.
+    for (const item of request.sites) {
+      expect(item).toEqual(
+        expect.objectContaining({
+          itemId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+          changeType: 'add-overseas-site',
+          status: 'Submitted',
+          validFrom: null,
+          withdrawnAt: null
+        })
+      )
+    }
+    expect(request.tonnageBandUpgrade).toBeNull()
 
     // The approved accreditation is untouched: no new ORS record, and the
     // submitted sites are still only registered until the regulator approves.
@@ -454,7 +467,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
 
     await expect(ManageOverseasSitesPage.pendingChangeBanner).toHaveText(
       expect.stringContaining(
-        'You have a change pending. Your regulator is reviewing your request to add 2 overseas reprocessing sites to this accreditation. You cannot change these sites until your regulator has made a decision.'
+        'Your regulator is reviewing your application to add 2 overseas reprocessing sites to your accreditation. You will not be able to apply for any other changes to these sites until your regulator makes their decisions.'
       )
     )
     await expect(ManageOverseasSitesPage.requestsBanner).not.toExist()
