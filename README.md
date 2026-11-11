@@ -65,6 +65,14 @@ run in CI, and no other config picks them up.
   queries, adding an overseas site with an interim site to the exporter, and
   resubmits; the regulator sees each response, approves both and confirms
   contact, so both are Granted, which the operator then sees.
+- `add-ors-to-case-management` (RA-739): the operator adds two registered
+  overseas reprocessing sites to org 50019's accreditation and submits the
+  request; case management raises one application per site, each with its
+  own `IYC-ORS-…` reference and the shared `SUB-…` reference, listed as
+  "New ORS accreditation" with "(2 requests)" under the "In-year change"
+  application type; the operator's change request shows each site's own
+  reference. The monorepo's operator backend has
+  `AccreditationChanges__SubmitToCaseManagement` on for this.
 
 1. Start the monorepo's stack from its root: `docker compose up --build -d`.
    It binds the same ports as this repo's own stack (3000, 8080), so stop
@@ -76,10 +84,12 @@ run in CI, and no other config picks them up.
    npm run test:monorepo:headed   # watch it run
    ```
 
-It first deletes both organisations' applications and case management work
-items from the monorepo's MongoDB (50016 for the reprocessor, 50015 for the
-exporter), so every run submits both afresh from NOT STARTED. The Granted
-applications are left in place afterwards, to look at, until the next run.
+Each spec first deletes its organisations' data from the monorepo's MongoDB,
+so every run starts afresh: `case-management-workflow` deletes the
+applications and case management work items of 50016 (the reprocessor) and
+50015 (the exporter), so both start from NOT STARTED; `add-ors-to-case-management`
+deletes 50019's change requests and the work items and submissions they
+raised. What a run leaves is kept, to look at, until the next run.
 `MONOREPO_BASE_URL`, `MONOREPO_CASE_MANAGEMENT_URL` and
 `MONOREPO_MONGO_CONTAINER` override the operator frontend
 (`http://localhost:3000`), the case management frontend

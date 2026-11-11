@@ -29,12 +29,48 @@ class CmWorkItemsPage extends Page {
     return $$('[data-testid="application-tile"]')
   }
 
-  async filterByOrganisation(name) {
+  get applicationTypeFilterSection() {
+    return $('[data-testid="filter-section-application-type"]')
+  }
+
+  get applicationTypeFilterToggle() {
+    return $('[data-testid="filter-section-application-type-toggle"]')
+  }
+
+  // An "Application type" option's checkbox, by value: re-accreditation,
+  // registration or in-year-change.
+  applicationTypeOption(value) {
+    return $(`input[name="applicationType"][value="${value}"]`)
+  }
+
+  /**
+   * Filters the list by organisation and, optionally, by application type.
+   *
+   * @param {string} name organisation name or ID
+   * @param {object} [options]
+   * @param {string} [options.applicationType] an Application type option's
+   *   value, e.g. in-year-change
+   */
+  async filterByOrganisation(name, { applicationType } = {}) {
     await this.organisationFilterToggle.waitForDisplayed({ timeout: 30000 })
     if (!(await this.organisationFilterInput.isDisplayed())) {
       await this.clickReliably(this.organisationFilterToggle)
     }
     await this.organisationFilterInput.setValue(name)
+    if (applicationType) {
+      if (
+        (await this.applicationTypeFilterSection.getAttribute('open')) === null
+      ) {
+        await this.clickReliably(this.applicationTypeFilterToggle)
+      }
+      // GOV.UK checkboxes hide the input under their own drawn box, so it
+      // never counts as displayed: tick it from script.
+      const option = this.applicationTypeOption(applicationType)
+      await option.waitForExist()
+      if (!(await option.isSelected())) {
+        await browser.execute((input) => input.click(), await option)
+      }
+    }
     await this.clickReliably(this.applyFiltersButton)
     // Applying the form also switches on the "Your applications" assignment
     // filter, which hides every unassigned work item — including one just
@@ -79,8 +115,13 @@ class CmWorkItemsPage extends Page {
    * Read in one go rather than per cell: the list is up to 20 tiles and the
    * caller only needs their text to choose one.
    *
+   * An in-year change card also gives its submission reference with its
+   * request count, its site line and its request type; other cards leave
+   * those empty.
+   *
    * @returns {Promise<Array<{workItemId: string, reference: string,
-   *   state: string, material: string, applicantType: string}>>}
+   *   state: string, material: string, applicantType: string,
+   *   submissionReference: string, site: string, requestType: string}>>}
    */
   async workItems() {
     return browser.execute(() =>
@@ -96,7 +137,10 @@ class CmWorkItemsPage extends Page {
             reference: link.innerText.trim(),
             state: text('work-item-state-tag-'),
             material: text('material'),
-            applicantType: text('applicant-type')
+            applicantType: text('applicant-type'),
+            submissionReference: text('submission-reference'),
+            site: text('application-site'),
+            requestType: text('request-type')
           }
         }
       )

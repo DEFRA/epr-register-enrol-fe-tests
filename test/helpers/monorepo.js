@@ -179,3 +179,68 @@ export async function workItemsFor({ registrationId }) {
     ))
   `)
 }
+
+/** The case management work item type an add-ORS change request raises. */
+const ADD_OVERSEAS_SITE_TYPE_ID = 'add-overseas-site'
+
+/**
+ * Deletes every in-year change request the organisation has, the add-ORS
+ * work items case management raised for them, and the submissions those
+ * came in, so the organisation's registered ORSs can be added afresh.
+ *
+ * @param {{ organisationId: string }} org
+ * @returns {Promise<{ changeRequests: number, workItems: number, submissions: number }>} how many were deleted
+ */
+export async function clearChangeRequests({ organisationId }) {
+  const filter = JSON.stringify({ organisationId })
+  const workItemFilter = JSON.stringify({
+    typeId: ADD_OVERSEAS_SITE_TYPE_ID,
+    'payload.operatorOrganisationId': organisationId
+  })
+
+  return mongosh(`
+    const changeRequests = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationChangeRequests.deleteMany(${filter}).deletedCount
+    const caseManagement = db.getSiblingDB('${CASE_MANAGEMENT_DATABASE}')
+    const requestIds = caseManagement.workItems
+      .distinct('payload.operatorRequestId', ${workItemFilter})
+    const submissions = caseManagement.submissions
+      .deleteMany({ _id: { $in: requestIds } }).deletedCount
+    const workItems = caseManagement.workItems
+      .deleteMany(${workItemFilter}).deletedCount
+    print(JSON.stringify({ changeRequests, workItems, submissions }))
+  `)
+}
+
+/**
+ * The add-ORS work items case management raised for the organisation, one
+ * per site.
+ *
+ * @param {{ organisationId: string }} org
+ * @returns {Promise<Array<{ id: string, stateId: string, siteId: number,
+ *   orsId: string, applicationReference: string,
+ *   submissionReference: string, submissionSize: number }>>}
+ */
+export async function addOverseasSiteWorkItemsFor({ organisationId }) {
+  const filter = JSON.stringify({
+    typeId: ADD_OVERSEAS_SITE_TYPE_ID,
+    'payload.operatorOrganisationId': organisationId
+  })
+
+  return mongosh(`
+    print(JSON.stringify(
+      db.getSiblingDB('${CASE_MANAGEMENT_DATABASE}').workItems
+        .find(${filter})
+        .toArray()
+        .map((w) => ({
+          id: String(w._id),
+          stateId: w.stateId,
+          siteId: w.payload.site.siteId,
+          orsId: w.payload.site.orsId,
+          applicationReference: w.payload.applicationReference,
+          submissionReference: w.payload.submissionReference,
+          submissionSize: w.payload.submissionSize
+        }))
+    ))
+  `)
+}
