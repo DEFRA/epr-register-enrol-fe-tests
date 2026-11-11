@@ -24,6 +24,32 @@ export async function docker(args, { cwd, timeout = DOCKER_TIMEOUT_MS } = {}) {
 }
 
 /**
+ * The operator backend's MongoDB database (Mongo__DatabaseName in compose.yml,
+ * and in the epr-register-enrol monorepo's stack).
+ */
+export const OPERATOR_DATABASE = 'epr'
+
+/**
+ * The docker arguments that run `script` in mongosh, after the `execArgs` that
+ * reach the MongoDB container.
+ *
+ * @param {string[]} execArgs e.g. ['exec', containerId]
+ * @param {string} script
+ */
+export function mongoshArgs(execArgs, script) {
+  return [...execArgs, 'mongosh', '--quiet', '--eval', script]
+}
+
+/**
+ * The JSON value a mongosh script printed last.
+ *
+ * @param {string} output the script's stdout
+ */
+export function lastJsonLine(output) {
+  return JSON.parse(output.trim().split('\n').pop())
+}
+
+/**
  * Runs a mongosh script through `docker <execArgs> mongosh` and returns what it
  * prints as JSON.
  *
@@ -33,9 +59,5 @@ export async function docker(args, { cwd, timeout = DOCKER_TIMEOUT_MS } = {}) {
  * @param {{ cwd?: string, timeout?: number }} [options]
  */
 export async function mongosh(execArgs, script, options) {
-  const output = await docker(
-    [...execArgs, 'mongosh', '--quiet', '--eval', script],
-    options
-  )
-  return JSON.parse(output.trim().split('\n').pop())
+  return lastJsonLine(await docker(mongoshArgs(execArgs, script), options))
 }

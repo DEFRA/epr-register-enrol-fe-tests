@@ -15,10 +15,10 @@ import { completeOverseasSites } from '../helpers/case-management.js'
 import { expirePendingUploadOf } from '../helpers/sandbox-mongo.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 
-// RA-000: the backend now answers 404 from an upload's status route once it has
+// The backend answers 404 from an upload's status route once it has
 // no record of the upload (the pending-upload record expired, or the id was
-// never issued there), where it used to answer "pending" for ever, and the
-// operator's status page polled it for ever. This proves the whole chain end to
+// never issued there), rather than "pending" for ever, so the operator's
+// status page has something to stop polling on. This proves the whole chain end to
 // end, which the backend's and frontend's unit tests each only cover half of: a
 // real upload whose record goes missing lands the operator on the "could not
 // find your file upload" page, that page stops polling (no meta refresh, and a
@@ -35,7 +35,7 @@ import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 // ra-605-max-files.e2e.js, so it does not race the other exporter specs; the
 // helper only deletes the record this upload creates, under this application's
 // own S3 path.
-describe('RA-000: upload status page for an expired or unknown upload @docker-only', () => {
+describe('Upload status page for an expired or unknown upload @docker-only', () => {
   before(function () {
     skipDockerOnlyOnDeployedEnvironment(this)
   })

@@ -1,6 +1,13 @@
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { mongosh } from './docker.js'
+import { escapeRegExp } from './escape-regexp.js'
+import {
+  docker,
+  lastJsonLine,
+  mongosh,
+  mongoshArgs,
+  OPERATOR_DATABASE
+} from './docker.js'
 
 /**
  * Helpers that reach into the docker-compose sandbox's MongoDB (compose.yml's
@@ -14,38 +21,44 @@ import { mongosh } from './docker.js'
 // resolves the same project `docker compose up` started there.
 const COMPOSE_PROJECT_DIR = fileURLToPath(new URL('../../', import.meta.url))
 
-const OPERATOR_DATABASE = 'epr'
-
 // How long to wait for the upload under test to create its pending record.
 const PENDING_UPLOAD_TIMEOUT_MS = 30000
 
 const EXEC_MONGODB = ['compose', 'exec', '-T', 'mongodb']
 
-// The line watchWithMongosh's scripts print once they are watching.
+// What watchWithMongosh's scripts print, followed by their mongosh process id
+// in the MongoDB container, once they are watching.
 const READY = '__watching__'
+const READY_LINE = new RegExp(`${READY} (\\d+)`)
 
 function sandboxMongosh(script) {
   return mongosh(EXEC_MONGODB, script, { cwd: COMPOSE_PROJECT_DIR })
 }
 
-// Starts a long-running mongosh script that prints READY once it is watching,
-// and its JSON result last. `ready` settles on the READY line, `result` on the
-// script's exit; both reject if it fails or exits early.
+// Starts a long-running mongosh script that prints READY_LINE once it is
+// watching, and its JSON result last. `ready` settles on the READY_LINE,
+// `result` on the script's exit; both reject if it fails or exits early.
+// `stop()` ends the script if it is still running: killing the local
+// `docker compose exec` client alone would leave mongosh running in the
+// container (exec does not forward signals), so it kills that process by the
+// id the script printed.
 function watchWithMongosh(script, timeout) {
-  const child = spawn(
-    'docker',
-    [...EXEC_MONGODB, 'mongosh', '--quiet', '--eval', script],
-    { cwd: COMPOSE_PROJECT_DIR, timeout }
-  )
+  const child = spawn('docker', mongoshArgs(EXEC_MONGODB, script), {
+    cwd: COMPOSE_PROJECT_DIR,
+    timeout
+  })
   let stdout = ''
   let stderr = ''
+  let containerPid
   let markReady
   const ready = new Promise((resolve) => {
     markReady = resolve
   })
   child.stdout.setEncoding('utf8').on('data', (chunk) => {
     stdout += chunk
-    if (stdout.includes(READY)) {
+    const match = READY_LINE.exec(stdout)
+    if (match && containerPid === undefined) {
+      containerPid = match[1]
       markReady()
     }
   })
@@ -63,15 +76,26 @@ function watchWithMongosh(script, timeout) {
         )
         return
       }
-      resolve(JSON.parse(stdout.trim().split('\n').pop()))
+      resolve(lastJsonLine(stdout))
     })
   })
-  // An early exit rejects `result`; make `ready` give up with it too.
-  return { ready: Promise.race([ready, result]), result }
-}
+  const exited = () => child.exitCode !== null || child.signalCode !== null
 
-function escapeRegExp(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  async function stop() {
+    if (exited()) {
+      return
+    }
+    if (containerPid !== undefined) {
+      // The shell's own kill, so it needs nothing from the image.
+      await docker([...EXEC_MONGODB, 'sh', '-c', `kill ${containerPid}`], {
+        cwd: COMPOSE_PROJECT_DIR
+      }).catch(() => {})
+    }
+    child.kill()
+  }
+
+  // An early exit rejects `result`; make `ready` give up with it too.
+  return { ready: Promise.race([ready, result]), result, stop }
 }
 
 /**
@@ -83,7 +107,8 @@ function escapeRegExp(text) {
  * never-issued `fileUploadId`.
  *
  * Records already there before `upload` runs are left alone, so earlier
- * uploads to the same application are untouched.
+ * uploads to the same application are untouched. The watcher is stopped
+ * however `upload` ends.
  *
  * @param {string} s3PathSuffix e.g. `accreditation/sampling-plan/${applicationId}`
  * @param {() => Promise<void>} upload
@@ -109,7 +134,7 @@ export async function expirePendingUploadOf(s3PathSuffix, upload) {
     const existing = new Set(${JSON.stringify(existingIds)})
     const deadline = Date.now() + ${PENDING_UPLOAD_TIMEOUT_MS}
     let deletedId = null
-    print('${READY}')
+    print('${READY} ' + process.pid)
     while (deletedId === null && Date.now() < deadline) {
       const created = ${collection}
         .find(${filter}, { _id: 1 })
@@ -126,11 +151,16 @@ export async function expirePendingUploadOf(s3PathSuffix, upload) {
   `,
     PENDING_UPLOAD_TIMEOUT_MS + 30000
   )
-  await watcher.ready
-
-  await upload()
-
-  const deletedId = await watcher.result
+  // Always stopped, so a failed upload (or a watcher that never got ready)
+  // cannot leave it running to delete a later upload's record.
+  let deletedId
+  try {
+    await watcher.ready
+    await upload()
+    deletedId = await watcher.result
+  } finally {
+    await watcher.stop()
+  }
   if (deletedId === null) {
     throw new Error(
       `No pending upload record for an S3 path ending ${s3PathSuffix} appeared within ${PENDING_UPLOAD_TIMEOUT_MS}ms`

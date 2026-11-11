@@ -1,8 +1,6 @@
 import { expect } from '@wdio/globals'
 import ManageRegistrationAccreditationPage from 'page-objects/manage-registration-accreditation.page'
-
-// Org names can hold regex metacharacters ("Smith & Co. (UK) Ltd").
-const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+import { escapeRegExp } from './escape-regexp.js'
 
 // The seed's year follows the backend's clock when the stack started, which
 // is not this runner's clock if the stack was started before 1 January, so it

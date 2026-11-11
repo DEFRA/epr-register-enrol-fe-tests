@@ -1,4 +1,4 @@
-import { docker, mongosh as mongoshVia } from './docker.js'
+import { docker, mongosh as mongoshVia, OPERATOR_DATABASE } from './docker.js'
 
 /**
  * Helpers for the @monorepo specs (test/specs/monorepo), which run from this
@@ -54,7 +54,6 @@ export const MONOREPO_ORGS = {
   }
 }
 
-const OPERATOR_DATABASE = 'epr'
 const CASE_MANAGEMENT_DATABASE = 'epr-register-case-management'
 
 /**
