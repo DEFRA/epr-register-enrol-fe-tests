@@ -38,10 +38,12 @@ function sandboxMongosh(script) {
 // Starts a long-running mongosh script that prints READY_LINE once it is
 // watching, and its JSON result last. `ready` settles on the READY_LINE,
 // `result` on the script's exit; both reject if it fails or exits early.
-// `stop()` ends the script if it is still running: killing the local
+// `stop()` ends the script if it may still be running: killing the local
 // `docker compose exec` client alone would leave mongosh running in the
 // container (exec does not forward signals), so it kills that process by the
-// id the script printed.
+// id the script printed. The local client exiting on its own means mongosh has
+// ended; it being killed (stop(), or spawn's `timeout`) does not. With no id
+// printed, it cannot be stopped, so stop() throws rather than leave it running.
 function watchWithMongosh(script, timeout) {
   const child = spawn('docker', mongoshArgs(EXEC_MONGODB, script), {
     cwd: COMPOSE_PROJECT_DIR,
@@ -79,30 +81,41 @@ function watchWithMongosh(script, timeout) {
       resolve(lastJsonLine(stdout))
     })
   })
-  const exited = () => child.exitCode !== null || child.signalCode !== null
+  const exitedOnItsOwn = () => child.exitCode !== null
+  const killLocalClient = () => {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill()
+    }
+  }
 
   async function stop() {
-    if (exited()) {
+    // No pid: docker never started (the spawn `error`), so nothing is running.
+    if (child.pid === undefined || exitedOnItsOwn()) {
       return
     }
-    if (containerPid !== undefined) {
-      // The shell's own kill, so it needs nothing from the image. Succeeds if
-      // the kill did, or if the process is already gone (it finished between
-      // the exited() check and here); fails only if mongosh is still running.
-      const script = `kill ${containerPid} 2>/dev/null || [ ! -e /proc/${containerPid} ]`
-      try {
-        await docker([...EXEC_MONGODB, 'sh', '-c', script], {
-          cwd: COMPOSE_PROJECT_DIR
-        })
-      } catch (err) {
-        child.kill()
-        throw new Error(
-          `Could not stop the pendingUploads watcher (mongosh pid ${containerPid} in the mongodb container); it may still delete a later upload's record: ${err.message}`,
-          { cause: err }
-        )
-      }
+    if (containerPid === undefined) {
+      killLocalClient()
+      throw new Error(
+        "Could not stop the pendingUploads watcher: mongosh never printed its process id, so it may still be running in the mongodb container and delete a later upload's record"
+      )
     }
-    child.kill()
+    // The shell's own kill, so it needs nothing from the image. Succeeds if
+    // the kill did, or if the process is already gone (it finished between
+    // the exitedOnItsOwn() check and here); fails only if mongosh is still
+    // running.
+    const script = `kill ${containerPid} 2>/dev/null || [ ! -e /proc/${containerPid} ]`
+    try {
+      await docker([...EXEC_MONGODB, 'sh', '-c', script], {
+        cwd: COMPOSE_PROJECT_DIR
+      })
+    } catch (err) {
+      killLocalClient()
+      throw new Error(
+        `Could not stop the pendingUploads watcher (mongosh pid ${containerPid} in the mongodb container); it may still delete a later upload's record: ${err.message}`,
+        { cause: err }
+      )
+    }
+    killLocalClient()
   }
 
   // An early exit rejects `result`; make `ready` give up with it too.
