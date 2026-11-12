@@ -15,10 +15,8 @@ FAILED
 # Local secrets, e.g. for npm run seed:organisation
 .env
 
-# Postman environments hold the CDP API key and Entra credentials
-postman/*.postman_environment.json
-# Ready-to-send payloads carry the contact email from .env
-postman/*.ready.json
+# JUnit report from the accreditation API tests (test/api/run.js)
+reports/accreditation-api/
 
 # Organisation seeded for an integrated run (test/helpers/integration-organisation)
 .integration/
