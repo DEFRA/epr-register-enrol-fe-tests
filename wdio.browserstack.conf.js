@@ -86,7 +86,8 @@ export const config = {
     ]
   ],
 
-  execArgv: ['--loader', 'esm-module-alias/loader'],
+  // The repo's own alias loader: esm-module-alias's builds invalid URLs on Windows.
+  execArgv: ['--loader', new URL('./loader.mjs', import.meta.url).href],
 
   logLevel: 'info',
 

@@ -46,7 +46,8 @@ const debug = process.env.DEBUG === 'true'
 const headed = process.env.HEADED === 'true' || debug
 const oneMinute = 60 * 1000
 
-const execArgv = ['--loader', 'esm-module-alias/loader']
+// The repo's own alias loader: esm-module-alias's builds invalid URLs on Windows.
+const execArgv = ['--loader', new URL('./loader.mjs', import.meta.url).href]
 
 if (debug) {
   execArgv.push('--inspect')
