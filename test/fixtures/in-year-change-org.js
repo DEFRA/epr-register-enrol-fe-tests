@@ -23,6 +23,9 @@ export const ORS = {
   hamburg: { siteId: 901901, orsId: '001' },
   // France: complete, so nothing to add and no BES evidence.
   lyon: { siteId: 901910, orsId: '005' },
+  // Netherlands (RA-739): complete like Lyon, and listed straight after it,
+  // with one interim site, so two complete sites can be added together.
+  rotterdam: { siteId: 901914, orsId: '009' },
   // India: country only, so coordinates, R code and conditions of export are
   // missing, and BES evidence is required unless it meets the conditions of
   // export.
