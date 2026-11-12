@@ -50,7 +50,7 @@ import {
 //                 application type
 //   3 regulator   opens Lyon's application from the list: its header has the
 //                 reference as its caption, "Site name (ORS id)" as its
-//                 title and the site's own £328.00 charge; it has only the
+//                 title and the site's own £328 charge; it has only the
 //                 Application summary and Application history tabs; and its
 //                 Application summary shows the site's name and location
 //   4 operator    sees each site's own reference on its change request
@@ -277,7 +277,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
         `${site.siteName} (${site.orsId})`
       )
       // The site's own charge, not the two-site submission's.
-      await expect(CmWorkItemPage.headerCharge).toHaveText('£328.00')
+      await expect(CmWorkItemPage.headerCharge).toHaveText('£328')
     })
 
     await reportStep(
