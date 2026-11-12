@@ -140,6 +140,11 @@ describe('analytics cookie consent', () => {
         await $(
           `[data-testid="cookie-banner-${first === 'accepted' ? 'accept' : 'reject'}"]`
         ).click()
+        // The response to the banner sets the cookie: wait for it, as its
+        // confirmation, before reading the cookie.
+        await expect(confirmation()).toHaveText(
+          expect.stringContaining(`You've ${first} analytics cookies.`)
+        )
         expect(await consentCookieValue()).toBe(first)
 
         await $('[data-testid="footer-cookies"]').click()
