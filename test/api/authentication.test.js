@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
 import { before, describe, it } from 'node:test'
 
 import {
@@ -106,25 +107,18 @@ describe('Accreditation API: authentication', { skip: notConfigured }, () => {
     )
   })
 
-  it(
-    "answers 401 invalid_signature for another client's secret",
-    {
-      skip:
-        !process.env.ACCREDITATION_API_OTHER_CLIENT_SECRET &&
-        'ACCREDITATION_API_OTHER_CLIENT_SECRET is not set'
-    },
-    async () => {
-      assertProblem(
-        await getAccreditationApi(path, {
-          headers: signedHeaders({
-            secret: process.env.ACCREDITATION_API_OTHER_CLIENT_SECRET
-          })
-        }),
-        401,
-        'invalid_signature'
-      )
-    }
-  )
+  it("answers 401 invalid_signature for another client's secret", async () => {
+    // A dummy secret shaped like a real one (32 random bytes, base64), new
+    // each run: our client id, signed with a secret that is not its own.
+    const otherClientSecret = randomBytes(32).toString('base64')
+    assertProblem(
+      await getAccreditationApi(path, {
+        headers: signedHeaders({ secret: otherClientSecret })
+      }),
+      401,
+      'invalid_signature'
+    )
+  })
 
   it('answers 405 to anything but GET', async () => {
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
