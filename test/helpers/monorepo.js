@@ -1,7 +1,4 @@
-import { promisify } from 'node:util'
-import { execFile as execFileCallback } from 'node:child_process'
-
-const execFile = promisify(execFileCallback)
+import { docker, mongosh as mongoshVia, OPERATOR_DATABASE } from './docker.js'
 
 /**
  * Helpers for the @monorepo specs (test/specs/monorepo), which run from this
@@ -57,11 +54,7 @@ export const MONOREPO_ORGS = {
   }
 }
 
-const OPERATOR_DATABASE = 'epr'
 const CASE_MANAGEMENT_DATABASE = 'epr-register-case-management'
-
-// A stalled Docker daemon fails the call rather than hanging the run.
-const DOCKER_TIMEOUT_MS = 30000
 
 /**
  * The monorepo's MongoDB container: the compose service named mongodb that
@@ -74,16 +67,6 @@ let container
 async function mongoContainer() {
   container ??= await findMongoContainer()
   return container
-}
-
-// Asynchronous, so a slow Docker never blocks the worker: a waitUntil around
-// these keeps its own timeout, and the WebDriver session is not left idle.
-async function docker(args) {
-  const { stdout } = await execFile('docker', args, {
-    encoding: 'utf8',
-    timeout: DOCKER_TIMEOUT_MS
-  })
-  return stdout
 }
 
 async function findMongoContainer() {
@@ -120,15 +103,7 @@ async function findMongoContainer() {
  * @param {string} script must end by printing one JSON value
  */
 async function mongosh(script) {
-  const output = await docker([
-    'exec',
-    await mongoContainer(),
-    'mongosh',
-    '--quiet',
-    '--eval',
-    script
-  ])
-  return JSON.parse(output.trim().split('\n').pop())
+  return mongoshVia(['exec', await mongoContainer()], script)
 }
 
 /**
