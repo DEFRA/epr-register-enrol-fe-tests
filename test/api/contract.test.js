@@ -281,14 +281,41 @@ describe(
       )
     })
 
-    it('pages the search by limit and pageNumber', async () => {
-      const { status, body } = await getAccreditationApi(
-        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&pageNumber=2&limit=1`
+    it('pages the search by limit and pageNumber', async (t) => {
+      const page = async (pageNumber) => {
+        const { status, body } = await getAccreditationApi(
+          `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&pageNumber=${pageNumber}&limit=1`
+        )
+        assert.equal(status, 200)
+        assert.equal(body.pageNumber, pageNumber)
+        assert.equal(body.limit, 1)
+        return body
+      }
+      const first = await page(1)
+      if (first.totalItems < 2) {
+        t.skip(
+          `the organisation has ${first.totalItems} accreditation(s) served, so there is no second page to compare`
+        )
+        return
+      }
+      const second = await page(2)
+      assert.equal(second.totalItems, first.totalItems)
+      assert.equal(first.items.length, 1, 'page 1 does not hold one item')
+      assert.equal(second.items.length, 1, 'page 2 does not hold one item')
+      assert.notEqual(
+        second.items[0].registrationNumber,
+        first.items[0].registrationNumber,
+        'page 2 repeats page 1'
       )
-      assert.equal(status, 200)
-      assert.equal(body.pageNumber, 2)
-      assert.equal(body.limit, 1)
-      assert.ok(body.items.length <= 1)
+      const served = context.served.map(
+        ({ registrationNumber }) => registrationNumber
+      )
+      for (const { items } of [first, second]) {
+        assert.ok(
+          served.includes(items[0].registrationNumber),
+          `${items[0].registrationNumber} is not one of the organisation's accreditations`
+        )
+      }
     })
 
     it('defaults the search to page 1 of 20', async () => {
@@ -296,7 +323,9 @@ describe(
       assert.equal(status, 200)
       assert.equal(body.pageNumber, 1)
       assert.equal(body.limit, 20)
-      assert.ok(body.items.length <= 20)
+      // Every accreditation on test that the API serves, so its first page is
+      // full whenever there are 20 or more, and holds them all otherwise.
+      assert.equal(body.items.length, Math.min(body.totalItems, 20))
     })
 
     it('answers a search that matches nothing with an empty page, not 404', async () => {
