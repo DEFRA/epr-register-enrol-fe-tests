@@ -319,12 +319,24 @@ export const config = {
         // The accreditation API tests (test/api), on the organisation the
         // frontend specs just worked, before it is deleted. Their results go
         // to allure-results with the frontend tests'.
-        const { runAccreditationApiTests } = await import('./test/api/run.js')
-        const apiExitCode = await runAccreditationApiTests()
-        if (apiExitCode !== 0) {
+        // A run that cannot start says why in FAILED, not only on stdout, and
+        // never stops the clean-up below.
+        let api
+        try {
+          const { runAccreditationApiTests } = await import('./test/api/run.js')
+          api = await runAccreditationApiTests()
+        } catch (err) {
+          api = { exitCode: 1, reason: `${err?.stack ?? err}` }
+        }
+        if (api.reason) {
           fs.appendFileSync(
             'FAILED',
-            `\nThe accreditation API tests failed (exit code ${apiExitCode})\n`
+            `\nThe accreditation API tests could not run: ${api.reason}\n`
+          )
+        } else if (api.exitCode !== 0) {
+          fs.appendFileSync(
+            'FAILED',
+            `\nThe accreditation API tests failed (exit code ${api.exitCode})\n`
           )
         }
       }

@@ -25,8 +25,15 @@ frontend=$?
 
 echo
 echo "── 2/3 Accreditation API tests ──"
-npm run test:api:integration
-api=$?
+# Step 1 clears the snapshot before seeding and writes it only once seeding
+# succeeds, so without it there is no organisation to test.
+if [[ -f .integration/seeded-organisation.json ]]; then
+  npm run test:api:integration
+  api=$?
+else
+  echo "Skipped: step 1 seeded no organisation (.integration/seeded-organisation.json is missing)"
+  api=1
+fi
 
 echo
 echo "── 3/3 Deleting the seeded organisation ──"

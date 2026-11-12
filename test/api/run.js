@@ -17,14 +17,20 @@ import { fileURLToPath } from 'node:url'
 const root = resolvePath(dirname(fileURLToPath(import.meta.url)), '../..')
 
 /**
- * @returns {Promise<number>} the test run's exit code: 0 when every test
- *   passed or skipped
+ * @returns {Promise<{exitCode: number, reason?: string}>} the test run's exit
+ *   code, 0 when every test passed or skipped, and why it could not run or
+ *   finish when that is not a failing test
  */
 export function runAccreditationApiTests() {
-  const reportsDir = resolvePath(root, 'reports/accreditation-api')
-  mkdirSync(reportsDir, { recursive: true })
-
   return new Promise((resolve) => {
+    let reportsDir
+    try {
+      reportsDir = resolvePath(root, 'reports/accreditation-api')
+      mkdirSync(reportsDir, { recursive: true })
+    } catch (err) {
+      resolve({ exitCode: 1, reason: `could not create ${reportsDir}: ${err}` })
+      return
+    }
     const child = spawn(
       process.execPath,
       [
@@ -41,16 +47,25 @@ export function runAccreditationApiTests() {
       { cwd: root, stdio: 'inherit', env: process.env }
     )
     child.on('error', (err) => {
-      process.stdout.write(
-        `Could not run the accreditation API tests: ${err}\n`
-      )
-      resolve(1)
+      resolve({ exitCode: 1, reason: `could not start node --test: ${err}` })
     })
-    child.on('exit', (code, signal) => resolve(signal ? 1 : (code ?? 1)))
+    child.on('exit', (code, signal) => {
+      if (signal) {
+        resolve({ exitCode: 1, reason: `node --test was killed by ${signal}` })
+      } else {
+        resolve({ exitCode: code ?? 1 })
+      }
+    })
   })
 }
 
 // npm run test:api:integration
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  process.exit(await runAccreditationApiTests())
+  const { exitCode, reason } = await runAccreditationApiTests()
+  if (reason) {
+    process.stdout.write(
+      `Could not run the accreditation API tests: ${reason}\n`
+    )
+  }
+  process.exit(exitCode)
 }

@@ -17,6 +17,10 @@ import {
 // What the API serves for the seeded organisation: the reprocessor and
 // exporter accreditations the frontend integration run granted, each as its
 // seeded registration, and nothing for the rest.
+//
+// Unlike the other files, which skip a test (requireGranted) when nothing of
+// its type was granted, this one fails: it asserts what the frontend run
+// should have granted, so a missing accreditation is the finding here.
 
 describe(
   'Accreditation API: the seeded organisation',
