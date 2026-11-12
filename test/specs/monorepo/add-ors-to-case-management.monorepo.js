@@ -5,6 +5,7 @@ import AddOrsRecyclingOperationPage from 'page-objects/add-ors-recycling-operati
 import AddToAccreditationPage from 'page-objects/add-to-accreditation.page'
 import ChangeRequestDetailPage from 'page-objects/change-request-detail.page'
 import ChangeRequestsPage from 'page-objects/change-requests.page'
+import CmWorkItemPage from 'page-objects/cm-work-item.page'
 import CmWorkItemsPage from 'page-objects/cm-work-items.page'
 import ManageOverseasSitesPage from 'page-objects/manage-overseas-sites.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
@@ -47,7 +48,12 @@ import {
 //                 with its own IYC-ORS reference and the shared SUB
 //                 reference with "(2 requests)", under the "In-year change"
 //                 application type
-//   3 operator    sees each site's own reference on its change request
+//   3 regulator   opens Lyon's application from the list: its header has the
+//                 reference as its caption, "Site name (ORS id)" as its
+//                 title and the site's own £328.00 charge; it has only the
+//                 Application summary and Application history tabs; and its
+//                 Application summary shows the site's name and location
+//   4 operator    sees each site's own reference on its change request
 //
 // Org 50019 is seeded by the operator backend's DevExporterAccreditationSeedService
 // (test/fixtures/in-year-change-org.js). Its Lyon ORS is complete; Izmir lacks
@@ -58,6 +64,15 @@ import {
 // skips when the one before it did not get as far as it needs.
 
 const SITES = [ORS.lyon, ORS.izmir]
+
+// Lyon's name, and its location as case management's Application summary
+// shows it: the seed's address line 1, town or city, then country. Kept out
+// of the ORS fixture, which the RA-492 spec compares whole.
+const LYON = {
+  ...ORS.lyon,
+  siteName: 'Lyon Plastiques SA',
+  location: '901910 Industrial Estate, Port, France'
+}
 
 const IN_YEAR_CHANGE_REFERENCE = /^IYC-ORS-\d{4}-\d{5}$/
 const SUBMISSION_REFERENCE = /^SUB-\d{4}-\d{4,}$/
@@ -235,7 +250,57 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
         })
       )
     }
+    progress.cards = listed
     progress.listed = true
+  })
+
+  it("Regulator: opens a site's application from the list, with its header, tabs and Application summary", async function () {
+    requireStage(this, 'listed')
+
+    // Lyon: complete, so everything the page shows came from its ORS.
+    const site = LYON
+    const item = progress.items[site.siteId]
+    const card = progress.cards.find(
+      ({ reference }) => reference === item.reference
+    )
+
+    await reportStep(`Regulator: open ${item.reference}`, async () => {
+      // Still on the filtered list the test before left.
+      await CmWorkItemsPage.openWorkItem(card.workItemId)
+      await waitForPath(`/work-items/${card.workItemId}`)
+      await CmWorkItemPage.waitUntilLoaded()
+    })
+
+    await reportStep('Regulator: the header names the site', async () => {
+      await expect(CmWorkItemPage.headerCaption).toHaveText(item.reference)
+      await expect(CmWorkItemPage.headerTitle).toHaveText(
+        `${site.siteName} (${site.orsId})`
+      )
+      // The site's own charge, not the two-site submission's.
+      await expect(CmWorkItemPage.headerCharge).toHaveText('£328.00')
+    })
+
+    await reportStep(
+      'Regulator: only the Application summary and Application history tabs',
+      async () => {
+        expect(await CmWorkItemPage.tabNames()).toEqual([
+          'Application summary',
+          'Application history'
+        ])
+      }
+    )
+
+    await reportStep(
+      "Regulator: the Application summary shows the site's name and location",
+      async () => {
+        await expect(CmWorkItemPage.summaryValue('site-name')).toHaveText(
+          site.siteName
+        )
+        await expect(CmWorkItemPage.summaryValue('location')).toHaveText(
+          site.location
+        )
+      }
+    )
   })
 
   it("Operator: each site's change request shows its own case management reference", async function () {
