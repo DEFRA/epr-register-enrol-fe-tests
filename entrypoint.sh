@@ -19,7 +19,9 @@ if [ "$PROFILE" = "GenerateOrgs" ]; then
 fi
 # On test this includes the integrated journeys (test/specs/integration), on
 # an organisation the run seeds and deletes: see wdio.conf.js. Their seeding
-# needs the same secrets as GenerateOrgs.
+# needs the same secrets as GenerateOrgs. The accreditation API tests (test/api)
+# then run on that organisation before it is deleted; they need
+# ACCREDITATION_API_CLIENT_SECRET as a secret too, and are skipped without it.
 npm test
 test_exit_code=$?
 
