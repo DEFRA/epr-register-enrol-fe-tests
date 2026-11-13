@@ -88,6 +88,12 @@ export const config = {
 
   execArgv: ['--loader', 'esm-module-alias/loader'],
 
+  // Chrome is headless (and usually in its own driver container), so no X
+  // display is needed. Left on, @wdio/xvfb spawns every worker through
+  // 'xvfb-run', which breaks the worker's IPC channel on ubuntu-26.04 runners:
+  // the first process.send throws 'write EINVAL' and no spec ever runs.
+  autoXvfb: false,
+
   logLevel: 'info',
 
   // Number of failures before the test suite bails.
