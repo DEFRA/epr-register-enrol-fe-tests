@@ -11,8 +11,9 @@ const oneMinute = 60 * 1000
 
 // On test, the integration specs that run there (the `integration` suite
 // below) run as part of this suite, after the standard specs, on an
-// organisation onPrepare seeds for the run and onComplete deletes. Their
-// workers get their own timeouts (beforeSession). Elsewhere none run.
+// organisation onPrepare seeds for the run and onComplete deletes. Before
+// deleting it, onComplete runs the accreditation API tests (test/api) on it.
+// Their workers get their own timeouts (beforeSession). Elsewhere none run.
 const runsIntegration = process.env.ENVIRONMENT === 'test'
 
 // Imported only then: seeding refuses to load at all against prod.
@@ -315,6 +316,30 @@ export const config = {
           'FAILED',
           `\nSeeding the integration specs' organisation failed: ${seedingError}\n`
         )
+      } else {
+        // The accreditation API tests (test/api), on the organisation the
+        // frontend specs just worked, before it is deleted. Their results go
+        // to allure-results with the frontend tests'.
+        // A run that cannot start says why in FAILED, not only on stdout, and
+        // never stops the clean-up below.
+        let api
+        try {
+          const { runAccreditationApiTests } = await import('./test/api/run.js')
+          api = await runAccreditationApiTests()
+        } catch (err) {
+          api = { exitCode: 1, reason: `${err?.stack ?? err}` }
+        }
+        if (api.reason) {
+          fs.appendFileSync(
+            'FAILED',
+            `\nThe accreditation API tests could not run: ${api.reason}\n`
+          )
+        } else if (api.exitCode !== 0) {
+          fs.appendFileSync(
+            'FAILED',
+            `\nThe accreditation API tests failed (exit code ${api.exitCode})\n`
+          )
+        }
       }
 
       // Whether or not the tests passed. A clean-up that throws still leaves
