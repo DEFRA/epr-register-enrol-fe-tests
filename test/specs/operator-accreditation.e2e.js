@@ -16,6 +16,10 @@ import { getApplication } from '../helpers/case-management.js'
 import { expectedCaptionText } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import {
+  assertStoredPaymentReference,
+  englandPaymentReference
+} from '../helpers/payment-reference.js'
 
 const TOP_NAV_TEST_TITLE =
   'Should show Home, Manage account and Sign out in the operator top nav'
@@ -445,9 +449,14 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     // RA-426: the bank payment reference is a regulator-tailored format,
     // no longer the application reference. This is an England Reprocessor
     // journey (see the bank details asserted above), so PR/PK/REP/{orgId}.
-    const paymentRef =
-      await ApplicationSubmittedPage.bankPaymentReference.getText()
-    await expect(paymentRef).toBe(`PR/PK/REP/${organisationId}`)
+    // RA-000: checked, with the view-payment-details page, at the end.
+    const expectedPaymentReference = englandPaymentReference({
+      orgNumber: organisationId,
+      isExporter: false
+    })
+    await expect(ApplicationSubmittedPage.bankPaymentReference).toHaveText(
+      expectedPaymentReference
+    )
 
     // RA-426: "Contact your regulator" (name + email, nation-specific) sits
     // below the payment reference and above the return-home link — it was
@@ -461,6 +470,14 @@ describe('RA-102: Operator Accreditation - Full Journey (Plastic)', () => {
     await expect(contactRegulatorDetails).toContain(
       'packagingnotifications@environment-agency.gov.uk'
     )
+
+    // RA-000: the reference is the one the backend built and stored at
+    // submit, and view-payment-details shows that same string.
+    await assertStoredPaymentReference({
+      organisationId,
+      applicationId,
+      expected: expectedPaymentReference
+    })
   })
 
   // ── RA-374 regression ────────────────────────────────────────────────────
