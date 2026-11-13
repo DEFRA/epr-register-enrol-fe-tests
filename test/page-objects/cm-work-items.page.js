@@ -45,13 +45,14 @@ class CmWorkItemsPage extends Page {
 
   /**
    * Filters the list by organisation and, optionally, by application type.
+   * Removes the "Your applications" filter that applying the form adds.
    *
    * @param {string} name organisation name or ID
    * @param {object} [options]
    * @param {string} [options.applicationType] an Application type option's
    *   value, e.g. in-year-change
    */
-  async filterByOrganisation(name, { applicationType } = {}) {
+  async filterApplications(name, { applicationType } = {}) {
     await this.organisationFilterToggle.waitForDisplayed({ timeout: 30000 })
     if (!(await this.organisationFilterInput.isDisplayed())) {
       await this.clickReliably(this.organisationFilterToggle)
@@ -64,11 +65,13 @@ class CmWorkItemsPage extends Page {
         await this.clickReliably(this.applicationTypeFilterToggle)
       }
       // GOV.UK checkboxes hide the input under their own drawn box, so it
-      // never counts as displayed: tick it from script.
+      // never counts as displayed: tick it through its label.
       const option = this.applicationTypeOption(applicationType)
       await option.waitForExist()
       if (!(await option.isSelected())) {
-        await browser.execute((input) => input.click(), await option)
+        await this.clickReliably(
+          $(`label[for="${await option.getAttribute('id')}"]`)
+        )
       }
     }
     await this.clickReliably(this.applyFiltersButton)

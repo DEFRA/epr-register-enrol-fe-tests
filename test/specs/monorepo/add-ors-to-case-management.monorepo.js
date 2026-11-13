@@ -226,7 +226,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
       'Regulator: filter the applications by organisation and In-year change',
       async () => {
         await CmWorkItemsPage.open()
-        await CmWorkItemsPage.filterByOrganisation(ORGANISATION_NAME, {
+        await CmWorkItemsPage.filterApplications(ORGANISATION_NAME, {
           applicationType: 'in-year-change'
         })
         await expect(
@@ -304,7 +304,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   })
 
   it("Operator: each site's change request shows its own case management reference", async function () {
-    requireStage(this, 'listed')
+    requireStage(this, 'submitted')
     await signInAsOperator()
 
     for (const item of Object.values(progress.items)) {
