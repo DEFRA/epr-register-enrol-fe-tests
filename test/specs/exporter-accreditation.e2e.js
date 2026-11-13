@@ -30,6 +30,10 @@ import { expectedCaptionText } from '../helpers/applicationHeader.js'
 import { assertEligiblePersonWording } from '../helpers/declaration.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import {
+  assertStoredPaymentReference,
+  englandPaymentReference
+} from '../helpers/payment-reference.js'
 
 // RA-470: shared "add a new overseas site via the wizard, submit, land back on
 // select-overseas-sites with the success banner" walk, for tests that only
@@ -1424,5 +1428,22 @@ describe('Exporter Accreditation - Full Journey (Plastic 2027) @docker-only', ()
     )
     const ref = await ApplicationSubmittedPage.referenceNumber.getText()
     await expect(ref).toMatch(/AP\d{2}[A-Z]{2}/)
+
+    // RA-000: the payment reference is the one the backend built at submit
+    // from the stored org number: this seeded numeric org's URL id, in the
+    // England exporter format. The confirmation page, the stored application
+    // and view-payment-details all carry that same string.
+    const expectedPaymentReference = englandPaymentReference({
+      orgNumber: organisationId,
+      isExporter: true
+    })
+    await expect(ApplicationSubmittedPage.bankPaymentReference).toHaveText(
+      expectedPaymentReference
+    )
+    await assertStoredPaymentReference({
+      organisationId,
+      applicationId,
+      expected: expectedPaymentReference
+    })
   })
 })

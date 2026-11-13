@@ -24,6 +24,7 @@ import {
 } from '../helpers/docker-only.js'
 import { readSeededYear } from '../helpers/seeded-year.js'
 import { waitForUrl } from '../helpers/wait-for-url.js'
+import { englandPaymentReference } from '../helpers/payment-reference.js'
 import {
   ORGANISATION_ID,
   ORGANISATION_NAME,
@@ -422,6 +423,16 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     )
     await expect(ViewPaymentDetailsPage.bankAmount).toHaveText(
       expect.stringContaining('£656.00')
+    )
+    // RA-000: the backend builds the reference at in-year submit from the
+    // org number stored on the accreditation: this seeded numeric org's id,
+    // in the England exporter format.
+    const expectedPaymentReference = englandPaymentReference({
+      orgNumber: ORGANISATION_ID,
+      isExporter: true
+    })
+    await expect(ViewPaymentDetailsPage.bankPaymentReference).toHaveText(
+      expectedPaymentReference
     )
 
     // AC07: Submitted, against the existing ORS records and ids.

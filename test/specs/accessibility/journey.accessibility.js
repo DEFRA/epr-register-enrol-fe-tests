@@ -28,6 +28,7 @@ import AddInterimSiteCyaPage from 'page-objects/add-interim-site-cya.page'
 import ConfirmOverseasSitesPage from 'page-objects/confirm-overseas-sites.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
+import ViewPaymentDetailsPage from 'page-objects/view-payment-details.page'
 import QueryTaskListPage from 'page-objects/query-task-list.page'
 import QueryDeclarationPage from 'page-objects/query-declaration.page'
 import WithdrawApplicationPage from 'page-objects/withdraw-application.page'
@@ -418,8 +419,7 @@ describe('Accessibility — operator journey @docker-only', () => {
     {
       page: 'View payment details',
       url: '/accreditation/view-payment-details/',
-      reach: () =>
-        browser.url(`/accreditation/view-payment-details/${applicationId}`)
+      reach: () => ViewPaymentDetailsPage.open(applicationId)
     },
     {
       page: 'Regulator query - task list',
