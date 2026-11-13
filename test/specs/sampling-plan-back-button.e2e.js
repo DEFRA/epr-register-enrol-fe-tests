@@ -11,6 +11,7 @@ import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 describe('RA-436: S&I plan upload page vs the browser back button @docker-only', () => {
   before(function () {
@@ -54,7 +55,7 @@ describe('RA-436: S&I plan upload page vs the browser back button @docker-only',
     ).pathname
       .split('/')
       .filter(Boolean)
-    const year = String(3000 + (Date.now() % 1000))
+    const year = disposableYear()
     await browser.url(
       `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
     )

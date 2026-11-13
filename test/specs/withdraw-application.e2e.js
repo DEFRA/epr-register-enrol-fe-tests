@@ -14,6 +14,7 @@ import SamplingPlanPage from 'page-objects/sampling-plan.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 describe('RA-252: Withdraw an accreditation application @docker-only', () => {
   before(function () {
@@ -77,7 +78,7 @@ describe('RA-252: Withdraw an accreditation application @docker-only', () => {
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(3000 + (Date.now() % 1000))
+    year = disposableYear()
     await browser.url(landingUrl())
 
     await OperatorAccreditationPage.clickContinue()

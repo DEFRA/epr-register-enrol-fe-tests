@@ -9,6 +9,7 @@ import BusinessPlanPage from 'page-objects/business-plan.page'
 import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
+import { disposableYear } from './disposable-year.js'
 
 const TASK_LIST_PATH = '/accreditation/task-list/'
 
@@ -26,7 +27,7 @@ export async function startDisposableGlassExporterApplication() {
   ).pathname
     .split('/')
     .filter(Boolean)
-  const year = String(3000 + (Date.now() % 1000))
+  const year = disposableYear()
   await browser.url(
     `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
   )

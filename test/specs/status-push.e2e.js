@@ -18,6 +18,7 @@ import {
   patchSection
 } from '../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   before(function () {
@@ -125,7 +126,7 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   }
 
   it('reflects duly-made (kept after a start), updated, awaiting decision then approved statuses pushed from case management', async () => {
-    const year = String(3000 + (Date.now() % 1000))
+    const year = disposableYear()
     const applicationId = await reachSubmittedApplication(year)
 
     await pushStatusChanged(organisationId, applicationId, {

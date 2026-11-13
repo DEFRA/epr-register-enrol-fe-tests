@@ -16,6 +16,7 @@ import SubmitApplicationPage from 'page-objects/submit-application.page'
 import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import { listApplicationsForYear } from '../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 const WITHDRAWAL_REASON = 'Submitted the wrong tonnage band'
 
@@ -71,9 +72,9 @@ describe('RA-357: Start a new application after withdrawing one @docker-only', (
   // named `mongodb-data` volume) and withdrawal is terminal, so a fixed year
   // would find last run's records and assert against the wrong ones. A fresh,
   // run-unique year sends the landing controller down its seed-on-miss path
-  // every time. The 4000 band keeps it clear of the 3000 band
-  // withdraw-application.e2e.js uses, so the two specs can never collide on a
-  // year even when their millisecond offsets happen to agree.
+  // every time. disposableYear() gives each spec file its own block of years,
+  // so this spec can never collide on a year with withdraw-application.e2e.js
+  // or any other spec.
   async function reachWithdrawnApplication() {
     await OperatorPage.navigateToWithdrawnApplicationTestOrg()
 
@@ -83,7 +84,7 @@ describe('RA-357: Start a new application after withdrawing one @docker-only', (
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(4000 + (Date.now() % 1000))
+    year = disposableYear()
     await browser.url(landingUrl())
 
     // Only Submitted/Queried/Updated applications can be withdrawn, and a
