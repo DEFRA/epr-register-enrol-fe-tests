@@ -6,6 +6,11 @@ import {
   isIntegrationSpec,
   selectsIntegrationSpecs
 } from './test/helpers/integration-organisation/integration-specs.js'
+import { chooseDisposableYearOffset } from './test/helpers/disposable-year.js'
+
+// Picked once in the launcher; the workers inherit it. See
+// test/helpers/disposable-year.js.
+chooseDisposableYearOffset()
 
 const oneMinute = 60 * 1000
 

@@ -1,5 +1,10 @@
 import allure from 'allure-commandline'
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
+import { chooseDisposableYearOffset } from './test/helpers/disposable-year.js'
+
+// Picked once in the launcher; the workers inherit it. See
+// test/helpers/disposable-year.js.
+chooseDisposableYearOffset()
 
 const oneMinute = 60 * 1000
 

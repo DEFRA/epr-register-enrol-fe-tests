@@ -2,6 +2,11 @@ import fs from 'node:fs'
 import { ProxyAgent, setGlobalDispatcher } from 'undici'
 import { bootstrap } from 'global-agent'
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
+import { chooseDisposableYearOffset } from './test/helpers/disposable-year.js'
+
+// Picked once in the launcher; the workers inherit it. See
+// test/helpers/disposable-year.js.
+chooseDisposableYearOffset()
 
 /**
  * Enable webdriver.io to use the outbound proxy.

@@ -72,9 +72,10 @@ describe('RA-357: Start a new application after withdrawing one @docker-only', (
   // named `mongodb-data` volume) and withdrawal is terminal, so a fixed year
   // would find last run's records and assert against the wrong ones. A fresh,
   // run-unique year sends the landing controller down its seed-on-miss path
-  // every time. disposableYear() gives each spec file its own block of years,
-  // so this spec can never collide on a year with withdraw-application.e2e.js
-  // or any other spec.
+  // every time. disposableYear() gives each spec file in a run its own block
+  // of years, so this spec cannot collide on a year with
+  // withdraw-application.e2e.js or any other spec file in the same run, and
+  // the block moves between runs.
   async function reachWithdrawnApplication() {
     await OperatorPage.navigateToWithdrawnApplicationTestOrg()
 
