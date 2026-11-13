@@ -4,14 +4,17 @@
 // spec may share it. The backend (DevSeed, alongside RA-425's org 50018) and
 // the frontend's stub define the same org: keep all three in step.
 
+import { seededRegistrationYear, yearSuffix } from './year-suffix.js'
+
 export const ORGANISATION_ID = '50019'
 export const ORGANISATION_NAME = 'In-Year Change Exports Ltd'
-const REGISTRATION_ID = 'aaa000000000000000050019'
 export const MATERIAL = 'Plastic'
 
+export const registrationNumber = (year) => `R${yearSuffix(year)}EX0500190001PL`
+
 // RA-425's manage registration and accreditation page, and its "Manage
-// overseas reprocessing sites" page.
-export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/${MATERIAL}`
+// overseas reprocessing sites" page. RA-739: by registration number.
+export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${registrationNumber(seededRegistrationYear())}/${MATERIAL}`
 export const OVERSEAS_SITES_PATH = `${MANAGE_PATH}/overseas-sites`
 
 // The seeded overseas reprocessing sites (ORSs): the site id the routes and

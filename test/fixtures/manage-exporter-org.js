@@ -8,16 +8,12 @@
 // three in step.
 
 import { dayOf, seededIds } from './change-request-seed.js'
-import { yearSuffix } from './year-suffix.js'
+import { seededRegistrationYear, yearSuffix } from './year-suffix.js'
 
 const ORGANISATION_ID = '50018'
 export const ORGANISATION_NAME = 'Manage Accreditation Test Ltd'
 const REGISTRATION_ID = 'aaa000000000000000050018'
 export const MATERIAL = 'Plastic'
-
-// The manage registration and accreditation page, which Re/Ex and the
-// operator page link to.
-export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/${MATERIAL}`
 
 // The Re/Ex material page the manage pages lead back to. The Re/Ex base URL
 // differs by environment, so match on the end of the href.
@@ -45,18 +41,22 @@ export const INTERIM = {
 // seeded in, e.g. R26EX0500180001PL for 2026.
 export const registrationNumber = (year) => `R${yearSuffix(year)}EX0500180001PL`
 
+// The manage registration and accreditation page, which Re/Ex and the
+// operator page link to. RA-739: by registration number.
+export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${registrationNumber(seededRegistrationYear())}/${MATERIAL}`
+
 export const accreditationNumber = (year) =>
   `A${yearSuffix(year)}EX0500180001PL`
 
 // RA-697: the org's Glass (remelt) reprocessor registration and accreditation.
-const REPROCESSOR_REGISTRATION_ID = 'bbb000000000000000050018'
 export const REPROCESSOR_MATERIAL = 'Glass'
 // The manage page's caption names the glass recycling process.
 export const REPROCESSOR_CAPTION_MATERIAL = 'Glass - Remelt'
-export const REPROCESSOR_MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REPROCESSOR_REGISTRATION_ID}/${REPROCESSOR_MATERIAL}`
 
 export const reprocessorRegistrationNumber = (year) =>
   `R${yearSuffix(year)}ER0500180002GR`
+
+export const REPROCESSOR_MANAGE_PATH = `/manage/${ORGANISATION_ID}/${reprocessorRegistrationNumber(seededRegistrationYear())}/${REPROCESSOR_MATERIAL}`
 
 export const reprocessorAccreditationNumber = (year) =>
   `A${yearSuffix(year)}ER0500180002GR`
