@@ -68,6 +68,12 @@ export const config = {
   // The repo's own alias loader: esm-module-alias's builds invalid URLs on Windows.
   execArgv: ['--loader', new URL('./loader.mjs', import.meta.url).href],
 
+  // Chrome is headless (and usually in its own driver container), so no X
+  // display is needed. Left on, @wdio/xvfb spawns every worker through
+  // 'xvfb-run', which breaks the worker's IPC channel on ubuntu-26.04 runners:
+  // the first process.send throws 'write EINVAL' and no spec ever runs.
+  autoXvfb: false,
+
   logLevel: 'info',
 
   logLevels: {
