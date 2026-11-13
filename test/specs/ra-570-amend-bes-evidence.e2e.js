@@ -18,6 +18,7 @@ import {
 } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 // RA-570: "Amend BES evidence". Mirrors the RA-481 section-lock pattern
 // already proven end to end for other sections (query-resubmit.e2e.js,
@@ -93,7 +94,7 @@ describe('RA-570: Amend BES evidence @docker-only', () => {
       .split('/')
       .filter(Boolean)
     if (!year) {
-      year = String(3000 + (Date.now() % 1000))
+      year = disposableYear()
     }
     await browser.url(landingUrl())
 
