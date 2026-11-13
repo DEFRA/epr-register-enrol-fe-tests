@@ -6,7 +6,8 @@ const debug = process.env.DEBUG
 const oneMinute = 60 * 1000
 const oneHour = 60 * 60 * 1000
 
-const execArgv = ['--loader', 'esm-module-alias/loader']
+// The repo's own alias loader: esm-module-alias's builds invalid URLs on Windows.
+const execArgv = ['--loader', new URL('./loader.mjs', import.meta.url).href]
 
 if (debug) {
   execArgv.push('--inspect')
@@ -97,6 +98,12 @@ export const config = {
   // Define all options that are relevant for the WebdriverIO instance here
   //
   // Level of logging verbosity: trace | debug | info | warn | error | silent
+  // Chrome is headless (and usually in its own driver container), so no X
+  // display is needed. Left on, @wdio/xvfb spawns every worker through
+  // 'xvfb-run', which breaks the worker's IPC channel on ubuntu-26.04 runners:
+  // the first process.send throws 'write EINVAL' and no spec ever runs.
+  autoXvfb: false,
+
   logLevel: debug ? 'debug' : 'info',
 
   logLevels: {

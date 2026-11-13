@@ -21,6 +21,35 @@ class CmWorkItemPage extends Page {
     return $('[data-testid="case-header-accreditation-ref"]')
   }
 
+  // RA-739. An add-ORS (in-year change) header: the application reference as
+  // its caption, "Site name (ORS id)" as its title, and the site's charge.
+  get headerCaption() {
+    return $('[data-testid="case-header-caption"]')
+  }
+
+  get headerTitle() {
+    return $('[data-testid="case-header-title"]')
+  }
+
+  get headerCharge() {
+    return $('[data-testid="case-header-charge"]')
+  }
+
+  /** The case tabs' names, in order. */
+  async tabNames() {
+    const tabs = await $$('[data-testid="case-tabs"] [data-testid^="tab-"]')
+    return Promise.all([...tabs].map((tab) => tab.getText()))
+  }
+
+  /**
+   * A row's value in the Application summary, e.g. site-name or location.
+   *
+   * @param {string} key the row's key in its app-detail-value-* testid
+   */
+  summaryValue(key) {
+    return $(`[data-testid="app-detail-value-${key}"]`)
+  }
+
   get notificationBanner() {
     return $('.govuk-notification-banner')
   }

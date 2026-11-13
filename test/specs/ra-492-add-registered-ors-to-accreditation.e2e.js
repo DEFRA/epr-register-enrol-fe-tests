@@ -59,6 +59,8 @@ import {
 //                      conditions of export missing, and outside the
 //                      EU/OECD, so BES evidence is required unless it meets
 //                      the conditions of export
+//   901914 / ORS 009 - Netherlands, complete, with an interim site (RA-739):
+//                      left alone here, for adding two complete sites in demos
 //   901912 / ORS 007 - left alone, to prove an untouched site stays addable
 // Submitting is one-way (there is no reset endpoint), so the `it()` blocks
 // below run in file order against the one request they build up, as
@@ -140,7 +142,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
       'Accredited (1)'
     )
     await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-      'Registered (3)'
+      'Registered (4)'
     )
     await ManageOverseasSitesPage.openTab('registered')
     for (const { siteId } of [completeSite, incompleteSite, untouchedSite]) {
@@ -479,7 +481,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
       'Accredited (1)'
     )
     await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-      'Registered (3)'
+      'Registered (4)'
     )
     await ManageOverseasSitesPage.openTab('registered')
     for (const { siteId } of [completeSite, incompleteSite]) {
