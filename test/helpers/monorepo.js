@@ -154,3 +154,69 @@ export async function workItemsFor({ registrationId }) {
     ))
   `)
 }
+
+/**
+ * RA-763: removes every accreditation number from the registration's current
+ * version in the domain model, so the next seed has to write last year's
+ * again. Does nothing when the domain model holds no registration yet (the
+ * seed dual-write is off, or it has not seeded this one).
+ *
+ * @param {{ registrationId: string }} org
+ * @returns {Promise<{ registrations: number }>} how many were changed
+ */
+export async function forgetRegistrationAccreditationNumbers({
+  registrationId
+}) {
+  const filter = JSON.stringify({
+    reExRegistrationId: registrationId,
+    isCurrent: true
+  })
+
+  return mongosh(`
+    const registrations = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .registrationVersions
+      .updateMany(${filter}, { $set: { accreditationNumbers: [] } })
+      .modifiedCount
+    print(JSON.stringify({ registrations }))
+  `)
+}
+
+/**
+ * RA-763: the numbers a seed stored for the registration's application for
+ * the year: the registration number and last year's accreditation number,
+ * with its year, on the application, and the accreditation numbers by year on the
+ * registration's current version in the domain model.
+ *
+ * @param {{ organisationId: string, registrationId: string }} org
+ * @param {string} year the application's accreditation year, e.g. '2027'
+ * @returns {Promise<{ registrationReference: string|null, lastYearsAccreditation: { year: number, accreditationNumber: string }|null, registrationAccreditationNumbers: Array<{ year: number, accreditationNumber: string }> }>}
+ */
+export async function seededAccreditationNumbers(
+  { organisationId, registrationId },
+  year
+) {
+  const applicationFilter = JSON.stringify({
+    organisationId,
+    registrationId,
+    year: Number(year)
+  })
+  const registrationFilter = JSON.stringify({
+    reExRegistrationId: registrationId,
+    isCurrent: true
+  })
+
+  return mongosh(`
+    const operator = db.getSiblingDB('${OPERATOR_DATABASE}')
+    const application = operator.accreditationApplications.findOne(${applicationFilter})
+    const registration = operator.registrationVersions.findOne(${registrationFilter})
+    print(JSON.stringify({
+      registrationReference: application?.registrationReference ?? null,
+      lastYearsAccreditation: application?.lastYearsAccreditation
+        ? { year: application.lastYearsAccreditation.year, accreditationNumber: application.lastYearsAccreditation.accreditationNumber }
+        : null,
+      registrationAccreditationNumbers: (registration?.accreditationNumbers ?? []).map(
+        (a) => ({ year: a.year, accreditationNumber: a.accreditationNumber })
+      )
+    }))
+  `)
+}
