@@ -13,6 +13,11 @@ import {
   ONE_LOGIN_INTEGRATION_SPECS,
   TEST_ENVIRONMENT_INTEGRATION_SPECS
 } from './test/helpers/integration-organisation/integration-specs.js'
+import { chooseDisposableYearOffset } from './test/helpers/disposable-year.js'
+
+// Picked once in the launcher; the workers inherit it. See
+// test/helpers/disposable-year.js.
+chooseDisposableYearOffset()
 
 // Local integration run against a deployed environment (ENVIRONMENT, dev by
 // default), driving the real Re-Ex frontend and epr-register-enrol-frontend

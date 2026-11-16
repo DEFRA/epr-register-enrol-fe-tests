@@ -18,6 +18,7 @@ import {
   patchSection
 } from '../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   before(function () {
@@ -125,7 +126,7 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   }
 
   it('reflects duly-made (kept after a start), updated, awaiting decision then approved statuses pushed from case management', async () => {
-    const year = String(3000 + (Date.now() % 1000))
+    const year = disposableYear()
     const applicationId = await reachSubmittedApplication(year)
 
     await pushStatusChanged(organisationId, applicationId, {
@@ -238,7 +239,7 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   // this needs a second application - the one above is already spent on
   // reaching Approved.
   it('reflects a rejected status pushed from case management', async () => {
-    const year = String(3000 + ((Date.now() + 500) % 1000))
+    const year = disposableYear()
     const applicationId = await reachSubmittedApplication(year)
 
     await pushStatusChanged(organisationId, applicationId, {
@@ -284,7 +285,7 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   // backend guard itself - the authoritative check behind OJ's own withdraw
   // link - now accepts the request instead of wrongly returning 409.
   it('accepts a withdrawal of an application awaiting decision, pushed directly to the withdraw endpoint', async () => {
-    const year = String(3000 + ((Date.now() + 1500) % 1000))
+    const year = disposableYear()
     const applicationId = await reachSubmittedApplication(year)
 
     await pushStatusChanged(organisationId, applicationId, {

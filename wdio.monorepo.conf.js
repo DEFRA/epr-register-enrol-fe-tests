@@ -6,6 +6,11 @@ import { SevereServiceError } from 'webdriverio'
 
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
 import { MONOREPO_RUN_FLAG, MONOREPO_TAG } from './test/helpers/monorepo.js'
+import { chooseDisposableYearOffset } from './test/helpers/disposable-year.js'
+
+// Picked once in the launcher; the workers inherit it. See
+// test/helpers/disposable-year.js.
+chooseDisposableYearOffset()
 
 // The @monorepo specs (test/specs/monorepo): full journeys run from this
 // machine against the DEFRA/epr-register-enrol monorepo's local stack - start
