@@ -16,6 +16,7 @@ import {
 } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 // RA-583: a Case Management query raised against BOTH the overseas
 // reprocessing sites (ORS) and broadly-equivalent-standards (BES) sections
@@ -71,7 +72,7 @@ describe('RA-583: BES status after an ORS+BES query resubmission @docker-only', 
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(3000 + (Date.now() % 1000))
+    year = disposableYear()
     await browser.url(landingUrl())
 
     await OperatorAccreditationPage.clickContinue()

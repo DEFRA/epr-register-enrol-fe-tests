@@ -1,6 +1,11 @@
 import allure from 'allure-commandline'
 import { fetch } from 'undici'
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
+import { chooseDisposableYearOffset } from './test/helpers/disposable-year.js'
+
+// Picked once in the launcher; the workers inherit it. See
+// test/helpers/disposable-year.js.
+chooseDisposableYearOffset()
 
 const debug = process.env.DEBUG
 const oneMinute = 60 * 1000
@@ -96,6 +101,12 @@ export const config = {
   // ===================
   // Define all options that are relevant for the WebdriverIO instance here
   //
+  // Chrome is headless (and usually in its own driver container), so no X
+  // display is needed. Left on, @wdio/xvfb spawns every worker through
+  // 'xvfb-run', which breaks the worker's IPC channel on ubuntu-26.04 runners:
+  // the first process.send throws 'write EINVAL' and no spec ever runs.
+  autoXvfb: false,
+
   // Level of logging verbosity: trace | debug | info | warn | error | silent
   logLevel: debug ? 'debug' : 'info',
 

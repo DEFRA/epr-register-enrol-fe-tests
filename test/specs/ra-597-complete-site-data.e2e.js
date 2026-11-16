@@ -16,6 +16,7 @@ import {
 } from '../helpers/case-management.js'
 import { completePrnBusinessPlanSamplingPlan } from '../helpers/accreditation-journey.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 // RA-597: every overseas site in the application must have everything a fresh
 // add asks for - wherever its data came from. ReEx supplies a name, address and
@@ -77,7 +78,7 @@ describe('RA-597: every overseas site in the application must be complete @docke
       .split('/')
       .filter(Boolean)
     if (!year) {
-      year = String(3000 + (Date.now() % 1000))
+      year = disposableYear()
     }
     await browser.url(landingUrl())
     await OperatorAccreditationPage.clickContinue()
