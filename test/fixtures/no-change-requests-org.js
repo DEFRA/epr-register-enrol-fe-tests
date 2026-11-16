@@ -1,4 +1,4 @@
-import { yearSuffix } from './year-suffix.js'
+import { seededRegistrationYear, yearSuffix } from './year-suffix.js'
 
 // RA-697: org 50020 ("No Change Requests Ltd", Plastic exporter), an Approved
 // current-year accreditation with no in-year change requests, for the change
@@ -9,10 +9,12 @@ import { yearSuffix } from './year-suffix.js'
 
 const ORGANISATION_ID = '50020'
 export const ORGANISATION_NAME = 'No Change Requests Ltd'
-const REGISTRATION_ID = 'aaa000000000000000050020'
 export const MATERIAL = 'Plastic'
 
-export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/${MATERIAL}`
+const registrationNumber = (year) => `R${yearSuffix(year)}EX0500200001PL`
+
+// RA-739: by registration number.
+export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${registrationNumber(seededRegistrationYear())}/${MATERIAL}`
 
 export const accreditationNumber = (year) =>
   `A${yearSuffix(year)}EX0500200001PL`

@@ -5,16 +5,16 @@
 // org: keep all three in step.
 
 import { dayOf, seededIds } from './change-request-seed.js'
-import { yearSuffix } from './year-suffix.js'
+import { seededRegistrationYear, yearSuffix } from './year-suffix.js'
 
 const ORGANISATION_ID = '50021'
 export const ORGANISATION_NAME = 'Registration Only Exports Ltd'
-const REGISTRATION_ID = 'aaa000000000000000050021'
 export const MATERIAL = 'Plastic'
 
-export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${REGISTRATION_ID}/${MATERIAL}`
-
 export const registrationNumber = (year) => `R${yearSuffix(year)}EX0500210001PL`
+
+// RA-739: by registration number.
+export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${registrationNumber(seededRegistrationYear())}/${MATERIAL}`
 
 // RA-697 task 012: the registration's four Active ORSs, from the backend dev
 // seed (DevExporterAccreditationSeedService.RegisteredOverseasSites, mirrored

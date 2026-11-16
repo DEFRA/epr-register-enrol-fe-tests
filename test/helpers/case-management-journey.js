@@ -45,7 +45,7 @@ export async function findWorkItem({
   reference
 }) {
   await CmWorkItemsPage.open()
-  await CmWorkItemsPage.filterByOrganisation(organisation)
+  await CmWorkItemsPage.filterApplications(organisation)
 
   const workItems = await CmWorkItemsPage.workItems()
   const match = workItems.find(

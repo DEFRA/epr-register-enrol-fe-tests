@@ -108,7 +108,8 @@ export const config = {
     }
   ],
 
-  execArgv: ['--loader', 'esm-module-alias/loader'],
+  // The repo's own alias loader: esm-module-alias's builds invalid URLs on Windows.
+  execArgv: ['--loader', new URL('./loader.mjs', import.meta.url).href],
 
   // Chrome is headless (and usually in its own driver container), so no X
   // display is needed. Left on, @wdio/xvfb spawns every worker through
