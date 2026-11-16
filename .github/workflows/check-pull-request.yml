@@ -42,7 +42,9 @@ jobs:
 
   tests:
     name: Run Journey Tests
-    runs-on: ubuntu-latest
+    # Pinned: on ubuntu-26.04 (what ubuntu-latest now resolves to) wdio's local runner crashes every
+    # spec with "write EINVAL" before it runs. Move back to ubuntu-latest once that is fixed.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout journey-tests repo
         uses: actions/checkout@v7

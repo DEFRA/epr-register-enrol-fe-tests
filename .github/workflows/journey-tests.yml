@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     name: Run Journey Tests
-    runs-on: ubuntu-latest
+    # Pinned: on ubuntu-26.04 (what ubuntu-latest now resolves to) wdio's local runner crashes every
+    # spec with "write EINVAL" before it runs. Move back to ubuntu-latest once that is fixed.
+    runs-on: ubuntu-24.04
     steps:
       - uses: DEFRA/cdp-node-journey-test-suite-template/run-journey-tests@9a64cc929475ffd21b34b2caac72f8f627c70657 # main
