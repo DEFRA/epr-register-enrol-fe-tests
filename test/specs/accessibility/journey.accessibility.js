@@ -38,6 +38,7 @@ import {
 } from '../../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../../helpers/docker-only.js'
 import { waitForUrl } from '../../helpers/wait-for-url.js'
+import { disposableYear } from '../../helpers/disposable-year.js'
 
 const CHECK_ANSWERS_HEADING = 'Check your answers before continuing'
 
@@ -112,7 +113,7 @@ describe('Accessibility — operator journey @docker-only', () => {
           .split('/')
           .filter(Boolean)
         organisationId = orgId
-        const year = String(3000 + (Date.now() % 1000))
+        const year = disposableYear()
         await browser.url(
           `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
         )

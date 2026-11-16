@@ -15,6 +15,7 @@ import QueryTaskListPage from 'page-objects/query-task-list.page'
 import { raiseQuery } from '../helpers/case-management.js'
 import { regulatorQueryDisabledFrontendUrl } from '../config.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
+import { disposableYear } from '../helpers/disposable-year.js'
 
 // Reachability is checked directly against the container's own healthcheck
 // endpoint (see compose.yml), not by swallowing errors from the actual
@@ -79,7 +80,7 @@ describe('RA-439: REGULATOR_QUERY_TEXT_DISABLED kill switch for the regulator-qu
     ).pathname
       .split('/')
       .filter(Boolean)
-    year = String(3000 + (Date.now() % 1000))
+    year = disposableYear()
     await browser.url(
       `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
     )

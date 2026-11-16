@@ -6,6 +6,11 @@ import { SevereServiceError } from 'webdriverio'
 
 import { seedCookieConsentOnNavigation } from './test/helpers/cookie-consent.js'
 import { MONOREPO_RUN_FLAG, MONOREPO_TAG } from './test/helpers/monorepo.js'
+import { chooseDisposableYearOffset } from './test/helpers/disposable-year.js'
+
+// Picked once in the launcher; the workers inherit it. See
+// test/helpers/disposable-year.js.
+chooseDisposableYearOffset()
 
 // The @monorepo specs (test/specs/monorepo): full journeys run from this
 // machine against the DEFRA/epr-register-enrol monorepo's local stack - start
@@ -73,6 +78,12 @@ export const config = {
   ],
 
   execArgv,
+
+  // Chrome is headless (and usually in its own driver container), so no X
+  // display is needed. Left on, @wdio/xvfb spawns every worker through
+  // 'xvfb-run', which breaks the worker's IPC channel on ubuntu-26.04 runners:
+  // the first process.send throws 'write EINVAL' and no spec ever runs.
+  autoXvfb: false,
 
   logLevel: debug ? 'debug' : 'info',
 
