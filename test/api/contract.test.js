@@ -23,13 +23,13 @@ const MATERIALS = [
   'Paper',
   'Plastic'
 ]
-const STATUSES = ['approved', 'suspended', 'cancelled']
+const STATUSES = ['approved', 'suspended', 'cancelled', 'withdrawn']
 const BANDS = ['up_to_500', 'up_to_5000', 'up_to_10000', 'over_10000']
 const GLASS = ['glass_re_melt', 'glass_other']
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
-// Today in the UK, as effectiveDate is written.
+// Today in the UK, as effectiveFromDate is written.
 const todayUk = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/London'
 }).format(new Date())
@@ -47,26 +47,79 @@ function assertOneOf(value, allowed, what) {
   )
 }
 
+// The day before an ISO date (yyyy-MM-dd), as effectiveToDate is written.
+function dayBefore(date) {
+  const day = new Date(`${date}T00:00:00Z`)
+  day.setUTCDate(day.getUTCDate() - 1)
+  return day.toISOString().slice(0, 10)
+}
+
+// Each entry shows the period the status applies: from effectiveFromDate to
+// effectiveToDate, which is the day before the next entry starts and null on
+// the latest. effectiveToDate is always present, so a missing one is a failure.
 function assertStatusHistory(history, what) {
   assert.ok(
     Array.isArray(history) && history.length > 0,
     `${what} has no statusHistory`
   )
-  for (const entry of history) {
+  history.forEach((entry, index) => {
     assertOneOf(entry.status, STATUSES, `${what} status`)
-    assert.match(entry.effectiveDate, DATE_ONLY, `${what} effectiveDate`)
+    assert.match(
+      entry.effectiveFromDate,
+      DATE_ONLY,
+      `${what} effectiveFromDate`
+    )
+    assert.ok(
+      'effectiveToDate' in entry,
+      `${what} entry has no effectiveToDate`
+    )
     assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
-  }
+    assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
+
+    // A period never ends before it starts, and the entries run in order.
+    if (entry.effectiveToDate !== null) {
+      assert.ok(
+        entry.effectiveToDate >= entry.effectiveFromDate,
+        `${what} effectiveToDate ${entry.effectiveToDate} is before effectiveFromDate ${entry.effectiveFromDate}`
+      )
+    }
+    const next = history[index + 1]
+    if (next) {
+      assert.ok(
+        next.effectiveFromDate >= entry.effectiveFromDate,
+        `${what} effectiveFromDate goes backwards`
+      )
+      // The day before the next entry starts. Where the next starts the same
+      // day (a tie, won by the later recordedAt), this one is kept and ends on
+      // that same day.
+      const expectedTo =
+        next.effectiveFromDate === entry.effectiveFromDate
+          ? entry.effectiveFromDate
+          : dayBefore(next.effectiveFromDate)
+      assert.equal(
+        entry.effectiveToDate,
+        expectedTo,
+        `${what} effectiveToDate is the day before the next entry starts`
+      )
+    } else {
+      assert.equal(
+        entry.effectiveToDate,
+        null,
+        `${what} latest entry has no effectiveToDate`
+      )
+    }
+  })
 }
 
-// The latest entry effective on or before today; approved when none is yet,
-// as the backend projects it.
+// The latest entry that starts on or before today; approved when none has yet,
+// as the backend projects it. Where two start on the same date, the one
+// recorded later takes precedence.
 function projectedStatus(history) {
   const effective = history
-    .filter((entry) => entry.effectiveDate <= todayUk)
+    .filter((entry) => entry.effectiveFromDate <= todayUk)
     .sort(
       (a, b) =>
-        a.effectiveDate.localeCompare(b.effectiveDate) ||
+        a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
         a.recordedAt.localeCompare(b.recordedAt)
     )
   return effective.at(-1)?.status ?? 'approved'
@@ -155,9 +208,8 @@ function assertOverseasSite(site, includeWithdrawn = false) {
   if ('contact' in site) {
     assert.equal(typeof site.contact, 'object')
   }
-  if ('validFrom' in site) {
-    assert.match(site.validFrom, DATE_TIME)
-  }
+  // validFrom is no longer served: the status history carries the dates.
+  assertAbsent(site, ['validFrom'], what)
   assertOneOf(site.status, STATUSES, `${what} status`)
   assertStatusHistory(site.statusHistory, what)
   assert.equal(
@@ -211,8 +263,9 @@ describe(
         for (const entry of body.tonnageBandHistory) {
           assertOneOf(entry.tonnageBand, BANDS, 'tonnageBandHistory')
           assert.match(entry.recordedAt, DATE_TIME)
-          assert.ok(
-            !('effectiveDate' in entry),
+          assertAbsent(
+            entry,
+            ['effectiveDate', 'effectiveFromDate', 'effectiveToDate'],
             'a tonnage band cannot be dated'
           )
         }
