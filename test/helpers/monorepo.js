@@ -219,3 +219,25 @@ export async function addOverseasSiteWorkItemsFor({ organisationId }) {
     ))
   `)
 }
+
+/**
+ * RA-495: each submitted add-ORS item's case management work item id, by
+ * site id, read from the operator backend's own store: the change requests
+ * view does not show it, and case management's status pushes are keyed by it.
+ *
+ * @param {{ organisationId: string }} org
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function changeRequestWorkItemIdsFor({ organisationId }) {
+  const filter = JSON.stringify({ organisationId, status: 'Submitted' })
+
+  return mongosh(`
+    const ids = {}
+    db.getSiblingDB('${OPERATOR_DATABASE}').accreditationChangeRequests
+      .find(${filter})
+      .forEach((r) => r.sites
+        .filter((s) => s.caseManagementWorkItemId)
+        .forEach((s) => { ids[s.siteId] = String(s.caseManagementWorkItemId) }))
+    print(JSON.stringify(ids))
+  `)
+}

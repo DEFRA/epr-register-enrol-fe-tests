@@ -289,6 +289,32 @@ function accreditationChangesUrl(organisationId, applicationId, path = '') {
   return `${backendUrl}/api/v1/accreditation-changes/${organisationId}/${applicationId}${path}`
 }
 
+// RA-495: simulates case management pushing an add-ORS work item's status
+// change to the change request item it was raised for, as pushStatusChanged
+// does for an application, and with the same Development-mode auth bypass.
+// Returns the status code and the item, so a spec can prove a refusal too.
+export async function pushChangeRequestStatus(
+  workItemId,
+  { toStateId, toStateDisplayName, actionId, actionDisplayName, occurredAt }
+) {
+  const { statusCode, body } = await request(
+    `${backendUrl}/api/v1/accreditation-changes/case-management/${workItemId}/status`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        toStateId,
+        toStateDisplayName,
+        actionId,
+        actionDisplayName,
+        occurredAt: occurredAt ?? new Date().toISOString()
+      })
+    }
+  )
+  const text = await body.text()
+  return { statusCode, item: text ? JSON.parse(text) : null }
+}
+
 // The approved application's sites (each with accreditationStatus and any
 // pending request) plus every change request against it, newest first.
 export async function getAccreditationChanges(organisationId, applicationId) {
