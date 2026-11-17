@@ -254,17 +254,37 @@ export async function changeRequestWorkItemIdsFor({ organisationId }) {
  * grants it can run again. Only the legacy application: the monorepo stack
  * runs without dual-write, so the domain model holds no grant.
  *
- * @param {{ organisationId: string, siteId: number }} site
+ * @param {{ organisationId: string, siteId: number, unanswered?: string[] }} site
+ *   unanswered: the fields the seed leaves the site without (operationCodes,
+ *   conditionsOfExport, coordinates, country), cleared again
  * @returns {Promise<{ applications: number }>} how many were changed
  */
-export async function unaccreditOverseasSite({ organisationId, siteId }) {
+export async function unaccreditOverseasSite({
+  organisationId,
+  siteId,
+  unanswered = []
+}) {
   const filter = JSON.stringify({
     organisationId,
     'overseasSites.sites.siteId': siteId
   })
+  // RA-495 (3bb.29): a grant also writes the answers the operator supplied on
+  // the request, so a site seeded without them is put back without them.
+  // Operation codes are an empty list when unanswered; the others are absent.
+  const field = (name) => `overseasSites.sites.$[site].${name}`
   const update = JSON.stringify({
-    $set: { 'overseasSites.sites.$[site].selected': false },
-    $unset: { 'overseasSites.sites.$[site].validFrom': '' }
+    $set: {
+      [field('selected')]: false,
+      ...(unanswered.includes('operationCodes')
+        ? { [field('operationCodes')]: [] }
+        : {})
+    },
+    $unset: Object.fromEntries(
+      [
+        'validFrom',
+        ...unanswered.filter((name) => name !== 'operationCodes')
+      ].map((name) => [field(name), ''])
+    )
   })
   const arrayFilters = JSON.stringify([{ 'site.siteId': siteId }])
 

@@ -1,5 +1,7 @@
 import { browser, expect } from '@wdio/globals'
 import AccreditationRequestsPage from 'page-objects/accreditation-requests.page'
+import AddOrsConditionsOfExportPage from 'page-objects/add-ors-conditions-of-export.page'
+import AddOrsRecyclingOperationPage from 'page-objects/add-ors-recycling-operation.page'
 import AddToAccreditationPage from 'page-objects/add-to-accreditation.page'
 import ChangeRequestDetailPage from 'page-objects/change-request-detail.page'
 import ChangeRequestsPage from 'page-objects/change-requests.page'
@@ -370,5 +372,204 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
     await expect(
       ManageOverseasSitesPage.siteRow('registered', SITE.siteId)
     ).not.toBeExisting()
+  })
+})
+
+// RA-495 (3bb.29): granting a site also writes the answers the operator
+// supplied on the request, as the operator's own add-to-accreditation journey
+// writes them onto the site:
+//
+//   1 operator    adds Izmir, supplying its missing recycling operation and
+//                 conditions of export answer, and submits
+//   2 regulator   duly makes, approves and confirms contact, granting it
+//   3 operator    Izmir is accredited and holds the supplied answers, which
+//                 are now locked as its own
+//
+// Izmir is seeded without them (test/fixtures/in-year-change-org.js), so the
+// hooks put it back to registered and clear them again.
+
+const IZMIR = ORS.izmir
+const IZMIR_UNANSWERED = ['operationCodes', 'conditionsOfExport']
+
+describe("RA-495: a granted add-ORS request writes the operator's supplied answers @monorepo", () => {
+  const progress = {}
+
+  function requireStage(context, stage) {
+    if (!progress[stage]) {
+      reportDetails('Skipped', { reason: `not ${stage}` })
+      context.skip()
+    }
+  }
+
+  async function waitForPath(suffix, { timeout = 30000 } = {}) {
+    await waitForUrl(
+      (url) => new URL(url).pathname.endsWith(suffix),
+      `Did not reach ${suffix}`,
+      { timeout }
+    )
+  }
+
+  async function resetOrganisation() {
+    const cleared = await clearChangeRequests({
+      organisationId: ORGANISATION_ID
+    })
+    const unaccredited = await unaccreditOverseasSite({
+      organisationId: ORGANISATION_ID,
+      siteId: IZMIR.siteId,
+      unanswered: IZMIR_UNANSWERED
+    })
+    reportDetails(`Reset organisation ${ORGANISATION_ID}`, {
+      ...cleared,
+      ...unaccredited
+    })
+  }
+
+  async function currentItem() {
+    const { requests, sites } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      progress.applicationId
+    )
+    const request = requests.find((r) =>
+      r.sites.some((s) => s.itemId === progress.itemId)
+    )
+    return {
+      item: request.sites.find((s) => s.itemId === progress.itemId),
+      site: sites.find((s) => s.siteId === IZMIR.siteId)
+    }
+  }
+
+  async function waitForItemStatus(status) {
+    await browser.waitUntil(
+      async () => (await currentItem()).item.status === status,
+      {
+        timeout: PUSH_TIMEOUT,
+        interval: 500,
+        timeoutMsg: `Izmir's change request item never reached ${status}`
+      }
+    )
+  }
+
+  async function openWorkItem() {
+    await CmWorkItemPage.open(progress.workItemId)
+    await CmWorkItemPage.waitUntilLoaded()
+  }
+
+  before(function () {
+    skipUnlessMonorepoRun(this)
+  })
+
+  before(async () => {
+    await resetOrganisation()
+
+    await browser.deleteCookies()
+    await signInAsOperator()
+  })
+
+  after(async () => {
+    if (process.env[MONOREPO_RUN_FLAG] === 'true') {
+      await resetOrganisation()
+    }
+  })
+
+  it('Operator: adds Izmir with its missing information and submits the request', async () => {
+    const year = await readSeededYear({
+      managePath: MANAGE_PATH,
+      organisationName: ORGANISATION_NAME,
+      material: MATERIAL
+    })
+    progress.applicationId = accreditationApplicationId(year)
+
+    await reportStep(
+      `Operator: add ORS ${IZMIR.orsId}, with its missing information, and submit`,
+      async () => {
+        await browser.url(OVERSEAS_SITES_PATH)
+        await ManageOverseasSitesPage.openTab('registered')
+        await ManageOverseasSitesPage.addToAccreditation(IZMIR.siteId)
+        await waitForPath(`/add/${IZMIR.siteId}`)
+
+        await AddToAccreditationPage.openRowAction('recycling-operation')
+        await waitForPath(`/add/${IZMIR.siteId}/recycling-operation`)
+        progress.operationCode =
+          await AddOrsRecyclingOperationPage.selectPrimaryOperationCode()
+        await AddOrsRecyclingOperationPage.continue()
+        await waitForPath(`/add/${IZMIR.siteId}`)
+
+        await AddToAccreditationPage.openRowAction('conditions-of-export')
+        await waitForPath(`/add/${IZMIR.siteId}/conditions-of-export`)
+        await AddOrsConditionsOfExportPage.selectNo()
+        await AddOrsConditionsOfExportPage.continue()
+        await waitForPath(`/add/${IZMIR.siteId}`)
+
+        await AddToAccreditationPage.continue()
+        await waitForPath('/requests')
+        await AccreditationRequestsPage.continue()
+        await waitForPath('/declaration')
+        await SubmitApplicationPage.submitApplication()
+        await waitForPath('/payment')
+      }
+    )
+
+    const { requests } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      progress.applicationId
+    )
+    const request = requests.find((r) => r.status === 'Submitted')
+    progress.itemId = request.sites[0].itemId
+    progress.workItemId = (
+      await changeRequestWorkItemIdsFor({ organisationId: ORGANISATION_ID })
+    )[IZMIR.siteId]
+    reportDetails('Submitted', progress)
+    expect(progress.operationCode).toBeTruthy()
+    expect(progress.workItemId).toBeTruthy()
+    progress.submitted = true
+  })
+
+  it('Regulator: duly makes, approves and confirms contact, granting it', async function () {
+    requireStage(this, 'submitted')
+    await signInToCaseManagement()
+
+    await reportStep(
+      'Regulator: duly make, approve and confirm contact',
+      async () => {
+        await openWorkItem()
+        await dulyMakeWorkItem()
+        await expect(CmWorkItemPage.stateTag).toHaveText(
+          WORK_ITEM_STATES.dulyMade
+        )
+        await waitForItemStatus('DulyMade')
+
+        await openWorkItem()
+        await approveWorkItem({ note: 'RA-495 e2e: the site is suitable.' })
+        await expect(CmWorkItemPage.stateTag).toHaveText(
+          WORK_ITEM_STATES.approved
+        )
+
+        await openWorkItem()
+        await confirmApplicantContact()
+        await expect(CmWorkItemPage.stateTag).toHaveText(
+          WORK_ITEM_STATES.granted
+        )
+      }
+    )
+    progress.granted = true
+  })
+
+  it('Operator: Izmir is accredited with the answers supplied on the request', async function () {
+    requireStage(this, 'granted')
+
+    const { item, site } = await currentItem()
+    reportDetails('Operator backend: Izmir', site)
+    expect(item.status).toBe('Approved')
+    expect(site.accreditationStatus).toBe('Accredited')
+    expect(site.site.operationCodes).toEqual([progress.operationCode])
+    expect(site.site.conditionsOfExport).toBe(false)
+    // The site now holds them, so a later request could not supply them again.
+    expect(site.lockedFields).toEqual(expect.arrayContaining(IZMIR_UNANSWERED))
+
+    await browser.url(OVERSEAS_SITES_PATH)
+    await ManageOverseasSitesPage.openTab('accredited')
+    await expect(
+      ManageOverseasSitesPage.siteRow('accredited', IZMIR.siteId)
+    ).toBeExisting()
   })
 })
