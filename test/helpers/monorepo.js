@@ -296,3 +296,55 @@ export async function unaccreditOverseasSite({
     print(JSON.stringify({ applications }))
   `)
 }
+
+/**
+ * RA-495 (3bb.38): gives an ORS on the organisation's accreditation
+ * applications the BES evidence files named, Clean, as if uploaded on the
+ * application, so a spec can check a change request's upload against the
+ * files the site already holds. No names removes them again, as the dev seed
+ * leaves the site. Only the legacy application.
+ *
+ * @param {{ organisationId: string, siteId: number, filenames?: string[] }} site
+ * @returns {Promise<{ applications: number }>} how many were changed
+ */
+export async function setOverseasSiteBesEvidence({
+  organisationId,
+  siteId,
+  filenames = []
+}) {
+  const filter = JSON.stringify({
+    organisationId,
+    'overseasSites.sites.siteId': siteId
+  })
+  const field = 'overseasSites.sites.$[site].besEvidence'
+  const update = JSON.stringify(
+    filenames.length === 0
+      ? { $unset: { [field]: '' } }
+      : {
+          $set: {
+            [field]: {
+              besEvidenceUploads: filenames.map((filename, index) => ({
+                fileId: `e2e-held-${siteId}-${index + 1}`,
+                filename,
+                contentType: 'application/pdf',
+                scanStatus: 'Clean',
+                besEvidenceValidFromDate: '2026-01-01T00:00:00.000Z',
+                besEvidenceExpiryDate: '2027-12-31T00:00:00.000Z',
+                s3Key: `bes-evidence/e2e-held-${siteId}-${index + 1}`,
+                s3Bucket: 'bes-evidence'
+              })),
+              doYouWantToUploadMoreEvidence: false
+            }
+          }
+        }
+  )
+  const arrayFilters = JSON.stringify([{ 'site.siteId': siteId }])
+
+  return mongosh(`
+    const applications = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationApplications
+      .updateMany(${filter}, ${update}, { arrayFilters: ${arrayFilters} })
+      .modifiedCount
+    print(JSON.stringify({ applications }))
+  `)
+}

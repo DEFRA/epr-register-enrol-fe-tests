@@ -13,6 +13,8 @@ const FIXTURES_DIR = path.resolve(__dirname, '../fixtures')
 // (and clean up) the copies made by the current process — no cross-process
 // coordination, and no per-spec afterEach/afterAll needed.
 const createdCopies = new Set()
+// The folders exactName copies are made in, removed after their copies.
+const createdFolders = new Set()
 let cleanupRegistered = false
 
 function registerCleanupOnExit() {
@@ -28,6 +30,13 @@ function registerCleanupOnExit() {
         // Best-effort: already removed, or the process is exiting too
         // abruptly to reach the filesystem. Either way there is nothing
         // further to do here.
+      }
+    }
+    for (const folder of createdFolders) {
+      try {
+        fs.rmdirSync(folder)
+      } catch {
+        // Best-effort, as above.
       }
     }
   })
@@ -54,11 +63,26 @@ function registerCleanupOnExit() {
 // upload the same on-disk fixture under a name with characters outside Latin-1
 // (e.g. Vietnamese diacritics) without committing a binary for each. The uuid suffix
 // is kept, so the RA-571 uniqueness guarantee above still holds.
-export function uniqueFixtureCopy(fixtureFilename, { baseName } = {}) {
+//
+// RA-495 (3bb.38): `exactName` uploads the fixture under exactly that name
+// (in its own temp folder, so concurrent copies cannot clash), for a spec that
+// checks a duplicate filename is refused.
+export function uniqueFixtureCopy(
+  fixtureFilename,
+  { baseName, exactName } = {}
+) {
   const sourcePath = path.resolve(FIXTURES_DIR, fixtureFilename)
   const ext = path.extname(fixtureFilename)
   const base = baseName ?? path.basename(fixtureFilename, ext)
-  const uniquePath = path.join(os.tmpdir(), `${base}-${randomUUID()}${ext}`)
+  let uniquePath
+  if (exactName) {
+    const folder = path.join(os.tmpdir(), randomUUID())
+    fs.mkdirSync(folder)
+    createdFolders.add(folder)
+    uniquePath = path.join(folder, exactName)
+  } else {
+    uniquePath = path.join(os.tmpdir(), `${base}-${randomUUID()}${ext}`)
+  }
   fs.copyFileSync(sourcePath, uniquePath)
   createdCopies.add(uniquePath)
   registerCleanupOnExit()
