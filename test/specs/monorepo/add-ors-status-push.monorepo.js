@@ -11,9 +11,11 @@ import {
   pushChangeRequestStatus
 } from '../../helpers/case-management.js'
 import {
+  MONOREPO_RUN_FLAG,
   changeRequestWorkItemIdsFor,
   clearChangeRequests,
-  skipUnlessMonorepoRun
+  skipUnlessMonorepoRun,
+  unaccreditOverseasSite
 } from '../../helpers/monorepo.js'
 import { signInAsOperator } from '../../helpers/monorepo-journey.js'
 import { reportDetails, reportStep } from '../../helpers/report-step.js'
@@ -43,10 +45,13 @@ import {
 //                 and Lyon stays locked (no "Add to accreditation")
 //   3 push        updated: UPDATED; a push older than that one is ignored
 //   4 push        rejected: REFUSED, and a later "duly-made" is refused (409)
-//   5 operator    can add Lyon to a new change request again
+//   5 operator    can add Lyon to a new change request again, and submits it
+//   6 push        duly-made then approved (task 007): GRANTED, valid from the
+//                 request's submission date, and Lyon is on the Accredited tab
 //
-// Tests share the one request and run in order; each skips when the one
-// before it did not get as far as it needs.
+// Tests share the requests and run in order; each skips when the one before
+// it did not get as far as it needs. Granting Lyon selects it on the seeded
+// accreditation application, so the hooks put it back to registered only.
 
 const SITE = ORS.lyon
 
@@ -95,14 +100,41 @@ describe('RA-495: case management status pushes reach an add-ORS change request 
     skipUnlessMonorepoRun(this)
   })
 
-  before(async () => {
+  async function resetOrganisation() {
     const cleared = await clearChangeRequests({
       organisationId: ORGANISATION_ID
     })
-    reportDetails(`Cleared organisation ${ORGANISATION_ID}`, cleared)
+    const unaccredited = await unaccreditOverseasSite({
+      organisationId: ORGANISATION_ID,
+      siteId: SITE.siteId
+    })
+    reportDetails(`Reset organisation ${ORGANISATION_ID}`, {
+      ...cleared,
+      ...unaccredited
+    })
+  }
+
+  // The submitted add-ORS request for the site (newest first) and its item.
+  async function submittedItem() {
+    const { requests } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      progress.applicationId
+    )
+    const request = requests.find((r) => r.status === 'Submitted')
+    return { request, item: request.sites[0] }
+  }
+
+  before(async () => {
+    await resetOrganisation()
 
     await browser.deleteCookies()
     await signInAsOperator()
+  })
+
+  after(async () => {
+    if (process.env[MONOREPO_RUN_FLAG] === 'true') {
+      await resetOrganisation()
+    }
   })
 
   it('Operator: adds Lyon to the accreditation and submits the request', async () => {
@@ -177,11 +209,65 @@ describe('RA-495: case management status pushes reach an add-ORS change request 
     progress.refused = true
   })
 
-  it('Operator: can request the refused site again', async function () {
+  it('Operator: can request the refused site again, and submits it', async function () {
     requireStage(this, 'refused')
 
     await browser.url(OVERSEAS_SITES_PATH)
     await ManageOverseasSitesPage.addToAccreditation(SITE.siteId)
     await waitForPath(`/add/${SITE.siteId}`)
+    await AddToAccreditationPage.continue()
+    await waitForPath('/requests')
+    await AccreditationRequestsPage.continue()
+    await waitForPath('/declaration')
+    await SubmitApplicationPage.submitApplication()
+    await waitForPath('/payment')
+
+    const { request, item } = await submittedItem()
+    progress.itemId = item.itemId
+    progress.submittedAt = request.submittedAt
+    // Only the new item: the refused one is no longer being decided.
+    progress.workItemId = (
+      await changeRequestWorkItemIdsFor({ organisationId: ORGANISATION_ID })
+    )[SITE.siteId]
+    reportDetails('Submitted again', progress)
+    expect(progress.workItemId).toBeTruthy()
+    progress.resubmitted = true
+  })
+
+  it('Case management: approved shows GRANTED from the submission date, and the site is accredited', async function () {
+    requireStage(this, 'resubmitted')
+
+    expect((await push('duly-made')).statusCode).toBe(200)
+    const granted = await push('approved')
+    expect(granted.statusCode).toBe(200)
+    expect(granted.item.status).toBe('Approved')
+    expect(new Date(granted.item.validFrom).toISOString()).toBe(
+      new Date(progress.submittedAt).toISOString()
+    )
+    // Final: a repeat is accepted with no change, anything else is refused.
+    expect((await push('approved')).statusCode).toBe(200)
+    expect((await push('rejected')).statusCode).toBe(409)
+
+    await expectStatus('GRANTED')
+    await expect(ChangeRequestDetailPage.requestValidFrom).not.toHaveText(
+      'Not applicable'
+    )
+
+    await browser.url(OVERSEAS_SITES_PATH)
+    await ManageOverseasSitesPage.openTab('accredited')
+    await expect(
+      ManageOverseasSitesPage.siteRow('accredited', SITE.siteId)
+    ).toBeExisting()
+    await expect(
+      ManageOverseasSitesPage.siteRow('registered', SITE.siteId)
+    ).not.toBeExisting()
+
+    const { sites } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      progress.applicationId
+    )
+    const site = sites.find((s) => s.siteId === SITE.siteId)
+    expect(site.accreditationStatus).toBe('Accredited')
+    expect(site.pendingRequestId).toBeNull()
   })
 })

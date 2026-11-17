@@ -220,24 +220,59 @@ export async function addOverseasSiteWorkItemsFor({ organisationId }) {
   `)
 }
 
+/** An item no longer being decided: granted, refused or withdrawn. */
+const FINAL_ITEM_STATUSES = ['Approved', 'Rejected', 'Withdrawn']
+
 /**
  * RA-495: each submitted add-ORS item's case management work item id, by
  * site id, read from the operator backend's own store: the change requests
  * view does not show it, and case management's status pushes are keyed by it.
+ * Only items still being decided, so a site requested again after a refusal
+ * gives its new item's work item.
  *
  * @param {{ organisationId: string }} org
  * @returns {Promise<Record<string, string>>}
  */
 export async function changeRequestWorkItemIdsFor({ organisationId }) {
   const filter = JSON.stringify({ organisationId, status: 'Submitted' })
+  const final = JSON.stringify(FINAL_ITEM_STATUSES)
 
   return mongosh(`
     const ids = {}
     db.getSiblingDB('${OPERATOR_DATABASE}').accreditationChangeRequests
       .find(${filter})
       .forEach((r) => r.sites
-        .filter((s) => s.caseManagementWorkItemId)
+        .filter((s) => s.caseManagementWorkItemId && !${final}.includes(s.status))
         .forEach((s) => { ids[s.siteId] = String(s.caseManagementWorkItemId) }))
     print(JSON.stringify(ids))
+  `)
+}
+
+/**
+ * RA-495: puts a granted ORS back to registered only on the organisation's
+ * accreditation applications, as the dev seed leaves it, so a spec that
+ * grants it can run again. Only the legacy application: the monorepo stack
+ * runs without dual-write, so the domain model holds no grant.
+ *
+ * @param {{ organisationId: string, siteId: number }} site
+ * @returns {Promise<{ applications: number }>} how many were changed
+ */
+export async function unaccreditOverseasSite({ organisationId, siteId }) {
+  const filter = JSON.stringify({
+    organisationId,
+    'overseasSites.sites.siteId': siteId
+  })
+  const update = JSON.stringify({
+    $set: { 'overseasSites.sites.$[site].selected': false },
+    $unset: { 'overseasSites.sites.$[site].validFrom': '' }
+  })
+  const arrayFilters = JSON.stringify([{ 'site.siteId': siteId }])
+
+  return mongosh(`
+    const applications = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationApplications
+      .updateMany(${filter}, ${update}, { arrayFilters: ${arrayFilters} })
+      .modifiedCount
+    print(JSON.stringify({ applications }))
   `)
 }
