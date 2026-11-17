@@ -50,9 +50,9 @@ import {
 //                 application type
 //   3 regulator   opens Lyon's application from the list: its header has the
 //                 reference as its caption, "Site name (ORS id)" as its
-//                 title and the site's own £328 charge; it has only the
-//                 Application summary and Application history tabs; and its
-//                 Application summary shows the site's name and location
+//                 title and the site's own £328 charge; it has the four case
+//                 tabs (RA-495); and its Application summary shows the
+//                 site's name and location
 //   4 operator    sees each site's own reference on its change request
 //
 // Org 50019 is seeded by the operator backend's DevExporterAccreditationSeedService
@@ -280,15 +280,15 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
       await expect(CmWorkItemPage.headerCharge).toHaveText('£328')
     })
 
-    await reportStep(
-      'Regulator: only the Application summary and Application history tabs',
-      async () => {
-        expect(await CmWorkItemPage.tabNames()).toEqual([
-          'Application summary',
-          'Application history'
-        ])
-      }
-    )
+    // RA-495: the same four tabs as a re-accreditation case.
+    await reportStep('Regulator: the four case tabs', async () => {
+      expect(await CmWorkItemPage.tabNames()).toEqual([
+        'Application summary',
+        'Accreditation summary',
+        'Related applications',
+        'Application history'
+      ])
+    })
 
     await reportStep(
       "Regulator: the Application summary shows the site's name and location",

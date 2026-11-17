@@ -1,0 +1,374 @@
+import { browser, expect } from '@wdio/globals'
+import AccreditationRequestsPage from 'page-objects/accreditation-requests.page'
+import AddToAccreditationPage from 'page-objects/add-to-accreditation.page'
+import ChangeRequestDetailPage from 'page-objects/change-request-detail.page'
+import ChangeRequestsPage from 'page-objects/change-requests.page'
+import CmWorkItemPage from 'page-objects/cm-work-item.page'
+import ManageOverseasSitesPage from 'page-objects/manage-overseas-sites.page'
+import SubmitApplicationPage from 'page-objects/submit-application.page'
+
+import {
+  WORK_ITEM_STATES,
+  approveWorkItem,
+  confirmApplicantContact,
+  dulyMakeWorkItem,
+  refuseWorkItem,
+  signInToCaseManagement
+} from '../../helpers/case-management-journey.js'
+import { getAccreditationChanges } from '../../helpers/case-management.js'
+import {
+  MONOREPO_RUN_FLAG,
+  changeRequestWorkItemIdsFor,
+  clearChangeRequests,
+  skipUnlessMonorepoRun,
+  unaccreditOverseasSite
+} from '../../helpers/monorepo.js'
+import { signInAsOperator } from '../../helpers/monorepo-journey.js'
+import { reportDetails, reportStep } from '../../helpers/report-step.js'
+import { readSeededYear } from '../../helpers/seeded-year.js'
+import { waitForUrl } from '../../helpers/wait-for-url.js'
+import {
+  MANAGE_PATH,
+  MATERIAL,
+  ORGANISATION_ID,
+  ORGANISATION_NAME,
+  ORS,
+  OVERSEAS_SITES_PATH,
+  accreditationApplicationId
+} from '../../fixtures/in-year-change-org.js'
+
+// Runs only against the DEFRA/epr-register-enrol monorepo's local stack:
+// npm run test:monorepo (wdio.monorepo.conf.js). Never in CI.
+//
+// RA-495: an add-ORS change request decided in case management, end to end.
+// Case management pushes each status change to the operator backend's change
+// request status route, and confirming applicant contact applies the
+// decision there before case management records it:
+//
+//   1 operator    adds Lyon to org 50019's accreditation and submits
+//   2 regulator   duly makes Lyon's work item: the operator's request shows
+//                 DULY MADE, and Lyon stays locked (no "Add to accreditation")
+//   3 regulator   refuses it, and confirms the applicant has been contacted:
+//                 the case closes as Refused, the request shows REFUSED, Lyon
+//                 stays registered and can be requested again
+//   4 operator    requests Lyon again and submits
+//   5 regulator   duly makes and approves it: Lyon stays locked until the
+//                 regulator confirms the applicant has been contacted, which
+//                 grants it
+//   6 operator    the request shows GRANTED, valid from its submission date,
+//                 and Lyon is on the Accredited tab
+//
+// The tests share the requests and run in order; each skips when the one
+// before it did not get as far as it needs. Granting Lyon selects it on the
+// seeded accreditation application, so the hooks clear org 50019's change
+// requests (and the work items they raised) and put Lyon back to registered.
+// The monorepo stack runs without dual-write, so that is the legacy
+// application only.
+
+const SITE = ORS.lyon
+
+// Case management pushes a status change in the background once it has
+// recorded it, so the operator side catches up shortly afterwards.
+const PUSH_TIMEOUT = 30000
+
+describe('RA-495: an add-ORS change request decided in case management @monorepo', () => {
+  const progress = {}
+
+  function requireStage(context, stage) {
+    if (!progress[stage]) {
+      reportDetails('Skipped', { reason: `not ${stage}` })
+      context.skip()
+    }
+  }
+
+  async function waitForPath(suffix, { timeout = 30000 } = {}) {
+    await waitForUrl(
+      (url) => new URL(url).pathname.endsWith(suffix),
+      `Did not reach ${suffix}`,
+      { timeout }
+    )
+  }
+
+  async function resetOrganisation() {
+    const cleared = await clearChangeRequests({
+      organisationId: ORGANISATION_ID
+    })
+    const unaccredited = await unaccreditOverseasSite({
+      organisationId: ORGANISATION_ID,
+      siteId: SITE.siteId
+    })
+    reportDetails(`Reset organisation ${ORGANISATION_ID}`, {
+      ...cleared,
+      ...unaccredited
+    })
+  }
+
+  // The current item for the site, as the operator backend holds it.
+  async function currentItem() {
+    const { requests, sites } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      progress.applicationId
+    )
+    const request = requests.find((r) =>
+      r.sites.some((s) => s.itemId === progress.itemId)
+    )
+    return {
+      request,
+      item: request.sites.find((s) => s.itemId === progress.itemId),
+      site: sites.find((s) => s.siteId === SITE.siteId)
+    }
+  }
+
+  // Waits for case management's push to reach the operator backend.
+  async function waitForItemStatus(status) {
+    let last
+    await browser.waitUntil(
+      async () => {
+        last = await currentItem()
+        return last.item.status === status
+      },
+      {
+        timeout: PUSH_TIMEOUT,
+        interval: 500,
+        timeoutMsg: `Lyon's change request item never reached ${status}`
+      }
+    )
+    reportDetails(`Operator backend: item ${status}`, last.item)
+    return last
+  }
+
+  // The item's status tag on the change requests list and on its own page.
+  async function expectOperatorStatus(text) {
+    await browser.url(`${MANAGE_PATH}/change-requests`)
+    await expect(ChangeRequestsPage.status(progress.itemId)).toHaveText(text)
+    await ChangeRequestsPage.clickReliably(
+      ChangeRequestsPage.viewLink(progress.itemId)
+    )
+    await waitForPath(`/change-requests/${progress.itemId}`)
+    await expect(ChangeRequestDetailPage.statusTag).toHaveText(text)
+  }
+
+  async function expectSiteLocked() {
+    await browser.url(OVERSEAS_SITES_PATH)
+    await ManageOverseasSitesPage.openTab('registered')
+    await expect(
+      ManageOverseasSitesPage.siteRow('registered', SITE.siteId)
+    ).toBeExisting()
+    await expect(
+      ManageOverseasSitesPage.addToAccreditationButton(SITE.siteId)
+    ).not.toBeExisting()
+  }
+
+  // Adds Lyon to a new change request and submits it, then records the item
+  // and the case management work item raised for it.
+  async function requestSite() {
+    await browser.url(OVERSEAS_SITES_PATH)
+    await ManageOverseasSitesPage.addToAccreditation(SITE.siteId)
+    await waitForPath(`/add/${SITE.siteId}`)
+    await AddToAccreditationPage.continue()
+    await waitForPath('/requests')
+    await AccreditationRequestsPage.continue()
+    await waitForPath('/declaration')
+    await SubmitApplicationPage.submitApplication()
+    await waitForPath('/payment')
+
+    const { requests } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      progress.applicationId
+    )
+    // Newest first: the request just submitted.
+    const request = requests.find((r) => r.status === 'Submitted')
+    progress.itemId = request.sites[0].itemId
+    progress.submittedAt = request.submittedAt
+    // Only items still being decided, so a refused one is never picked.
+    progress.workItemId = (
+      await changeRequestWorkItemIdsFor({ organisationId: ORGANISATION_ID })
+    )[SITE.siteId]
+    reportDetails('Submitted', progress)
+    expect(progress.workItemId).toBeTruthy()
+  }
+
+  async function openWorkItem() {
+    await CmWorkItemPage.open(progress.workItemId)
+    await CmWorkItemPage.waitUntilLoaded()
+  }
+
+  before(function () {
+    skipUnlessMonorepoRun(this)
+  })
+
+  before(async () => {
+    await resetOrganisation()
+
+    await browser.deleteCookies()
+    await signInAsOperator()
+  })
+
+  after(async () => {
+    if (process.env[MONOREPO_RUN_FLAG] === 'true') {
+      await resetOrganisation()
+    }
+  })
+
+  it('Operator: adds Lyon to the accreditation and submits the request', async () => {
+    const year = await readSeededYear({
+      managePath: MANAGE_PATH,
+      organisationName: ORGANISATION_NAME,
+      material: MATERIAL
+    })
+    progress.applicationId = accreditationApplicationId(year)
+
+    await reportStep(`Operator: add ORS ${SITE.orsId} and submit`, () =>
+      requestSite()
+    )
+    progress.submitted = true
+  })
+
+  it('Regulator: duly makes it, which the operator sees, and Lyon stays locked', async function () {
+    requireStage(this, 'submitted')
+    await signInToCaseManagement()
+
+    await reportStep('Regulator: duly make the work item', async () => {
+      await openWorkItem()
+      await expect(CmWorkItemPage.stateTag).toHaveText(
+        WORK_ITEM_STATES.notStarted
+      )
+      await dulyMakeWorkItem()
+      await expect(CmWorkItemPage.stateTag).toHaveText(
+        WORK_ITEM_STATES.dulyMade
+      )
+    })
+
+    await waitForItemStatus('DulyMade')
+    await expectOperatorStatus('DULY MADE')
+    await expectSiteLocked()
+    progress.dulyMade = true
+  })
+
+  it('Regulator: refuses it; Lyon stays locked until the applicant is contacted', async function () {
+    requireStage(this, 'dulyMade')
+
+    await reportStep('Regulator: refuse the application', async () => {
+      await openWorkItem()
+      await refuseWorkItem({ note: 'RA-495 e2e: the site is not suitable.' })
+      await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.refused)
+      await expect(CmWorkItemPage.pendingContactBanner).toBeDisplayed()
+    })
+
+    // The determination alone is not pushed: the operator still sees the
+    // request being assessed.
+    const { item } = await currentItem()
+    expect(item.status).toBe('DulyMade')
+    await expectSiteLocked()
+    progress.refusalPending = true
+  })
+
+  it('Regulator: confirms contact, closing the case; the operator sees REFUSED and can request Lyon again', async function () {
+    requireStage(this, 'refusalPending')
+
+    await reportStep(
+      'Regulator: confirm the applicant was contacted',
+      async () => {
+        await openWorkItem()
+        await confirmApplicantContact()
+        await expect(CmWorkItemPage.stateTag).toHaveText(
+          WORK_ITEM_STATES.refused
+        )
+        await expect(CmWorkItemPage.outcomePanel).toBeDisplayed()
+        await expect(
+          CmWorkItemPage.confirmApplicantContactLink
+        ).not.toBeExisting()
+        await expect(CmWorkItemPage.pendingContactBanner).not.toBeExisting()
+      }
+    )
+
+    // Applied before case management recorded it, so already there.
+    const { item, site } = await currentItem()
+    expect(item.status).toBe('Rejected')
+    expect(site.accreditationStatus).toBe('Registered')
+    expect(site.pendingRequestId).toBeNull()
+    await expectOperatorStatus('REFUSED')
+
+    await browser.url(OVERSEAS_SITES_PATH)
+    await ManageOverseasSitesPage.openTab('registered')
+    await expect(
+      ManageOverseasSitesPage.addToAccreditationButton(SITE.siteId)
+    ).toBeExisting()
+    progress.refused = true
+  })
+
+  it('Operator: requests Lyon again and submits it', async function () {
+    requireStage(this, 'refused')
+
+    await reportStep(`Operator: add ORS ${SITE.orsId} again and submit`, () =>
+      requestSite()
+    )
+    progress.resubmitted = true
+  })
+
+  it('Regulator: duly makes and approves it; Lyon stays locked until the applicant is contacted', async function () {
+    requireStage(this, 'resubmitted')
+
+    await reportStep('Regulator: duly make and approve', async () => {
+      await openWorkItem()
+      await dulyMakeWorkItem()
+      await expect(CmWorkItemPage.stateTag).toHaveText(
+        WORK_ITEM_STATES.dulyMade
+      )
+      await waitForItemStatus('DulyMade')
+
+      await openWorkItem()
+      await approveWorkItem({ note: 'RA-495 e2e: the site is suitable.' })
+      await expect(CmWorkItemPage.stateTag).toHaveText(
+        WORK_ITEM_STATES.approved
+      )
+      await expect(CmWorkItemPage.pendingContactBanner).toBeDisplayed()
+    })
+
+    const { item } = await currentItem()
+    expect(item.status).toBe('DulyMade')
+    await expectSiteLocked()
+    progress.approvalPending = true
+  })
+
+  it('Regulator: confirms contact, granting it; the operator sees GRANTED and Lyon is accredited', async function () {
+    requireStage(this, 'approvalPending')
+
+    await reportStep(
+      'Regulator: confirm the applicant was contacted',
+      async () => {
+        await openWorkItem()
+        await confirmApplicantContact()
+        await expect(CmWorkItemPage.stateTag).toHaveText(
+          WORK_ITEM_STATES.granted
+        )
+        await expect(CmWorkItemPage.outcomePanel).toBeDisplayed()
+        await expect(
+          CmWorkItemPage.confirmApplicantContactLink
+        ).not.toBeExisting()
+      }
+    )
+
+    const { item, site } = await currentItem()
+    expect(item.status).toBe('Approved')
+    expect(new Date(item.validFrom).toISOString()).toBe(
+      new Date(progress.submittedAt).toISOString()
+    )
+    expect(site.accreditationStatus).toBe('Accredited')
+    expect(site.pendingRequestId).toBeNull()
+
+    await expectOperatorStatus('GRANTED')
+    await expect(ChangeRequestDetailPage.requestValidFrom).not.toHaveText(
+      'Not applicable'
+    )
+
+    await browser.url(OVERSEAS_SITES_PATH)
+    await ManageOverseasSitesPage.openTab('accredited')
+    await expect(
+      ManageOverseasSitesPage.siteRow('accredited', SITE.siteId)
+    ).toBeExisting()
+    await expect(
+      ManageOverseasSitesPage.siteRow('registered', SITE.siteId)
+    ).not.toBeExisting()
+  })
+})

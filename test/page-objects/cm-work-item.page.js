@@ -115,6 +115,12 @@ class CmWorkItemPage extends Page {
     return $('[data-testid="confirm-applicant-contact-cta"]')
   }
 
+  // RA-495: a closed case's read-only Outcome panel, shown instead of any
+  // action.
+  get outcomePanel() {
+    return $('[data-testid="re-accreditation-readonly-actions"]')
+  }
+
   async startConfirmApplicantContact() {
     await this.clickReliably(this.confirmApplicantContactLink)
   }

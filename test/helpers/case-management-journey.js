@@ -18,7 +18,10 @@ export const WORK_ITEM_STATES = {
   updated: 'Updated',
   // An approved determination still waiting on "Confirm applicant contact".
   approved: 'Approved',
-  granted: 'Granted'
+  granted: 'Granted',
+  // RA-495: a refused determination, both while it waits on "Confirm
+  // applicant contact" and once that closes the case.
+  refused: 'Refused'
 }
 
 export async function signInToCaseManagement() {
@@ -112,9 +115,24 @@ export async function approveWorkItem({ note } = {}) {
 }
 
 /**
+ * RA-495: logs a refusal on the work item, the first of its two steps. It
+ * moves to Refused, where it waits for confirmApplicantContact; it cannot be
+ * undone.
+ */
+export async function refuseWorkItem({ note } = {}) {
+  await CmWorkItemPage.startDetermination()
+  await expect(browser).toHaveUrl(expect.stringContaining('/decision'))
+
+  await CmDecisionPage.refuse({ note })
+
+  await CmWorkItemPage.waitUntilLoaded()
+}
+
+/**
  * The second step of the determination: confirms the applicant has been
  * contacted about it, which applies it. An Approved work item moves to
- * Granted. Leaves the browser on the work item.
+ * Granted; a Refused one stays Refused and its case closes. Leaves the
+ * browser on the work item.
  */
 export async function confirmApplicantContact() {
   await CmWorkItemPage.startConfirmApplicantContact()

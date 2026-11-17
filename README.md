@@ -73,6 +73,13 @@ run in CI, and no other config picks them up.
   application type; the operator's change request shows each site's own
   reference. The monorepo's operator backend has
   `AccreditationChanges__SubmitToCaseManagement` on for this.
+- `add-ors-case-management-decision` (RA-495): the operator requests
+  org 50019's Lyon site; the regulator duly makes it (the request reads
+  DULY MADE and the site stays locked), refuses it and confirms contact, so
+  the case closes, the request reads REFUSED and the site can be requested
+  again; the operator requests it again; the regulator duly makes, approves
+  and confirms contact, so the request reads GRANTED, valid from its
+  submission date, and Lyon is on the Accredited tab.
 
 1. Start the monorepo's stack from its root: `docker compose up --build -d`.
    It binds the same ports as this repo's own stack (3000, 8080), so stop
@@ -89,7 +96,12 @@ so every run starts afresh: `case-management-workflow` deletes the
 applications and case management work items of 50016 (the reprocessor) and
 50015 (the exporter), so both start from NOT STARTED; `add-ors-to-case-management`
 deletes 50019's change requests and the work items and submissions they
-raised. What a run leaves is kept, to look at, until the next run.
+raised, and `add-ors-case-management-decision` does the same and puts Lyon
+back to registered only. What a run leaves is kept, to look at, until the
+next run, except `add-ors-case-management-decision`, which resets 50019
+afterwards too: a granted Lyon would otherwise stop the other 50019 specs
+adding it. The mgmt-tests suite's ra-495-add-ors-operator-journey spec
+resets 50019 the same way, so never run the two at once.
 `MONOREPO_BASE_URL`, `MONOREPO_CASE_MANAGEMENT_URL` and
 `MONOREPO_MONGO_CONTAINER` override the operator frontend
 (`http://localhost:3000`), the case management frontend
