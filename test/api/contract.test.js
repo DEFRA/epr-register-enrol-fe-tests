@@ -76,8 +76,19 @@ function assertStatusHistory(history, what) {
     assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
     assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
 
+    // A period never ends before it starts, and the entries run in order.
+    if (entry.effectiveToDate !== null) {
+      assert.ok(
+        entry.effectiveToDate >= entry.effectiveFromDate,
+        `${what} effectiveToDate ${entry.effectiveToDate} is before effectiveFromDate ${entry.effectiveFromDate}`
+      )
+    }
     const next = history[index + 1]
     if (next) {
+      assert.ok(
+        next.effectiveFromDate >= entry.effectiveFromDate,
+        `${what} effectiveFromDate goes backwards`
+      )
       assert.equal(
         entry.effectiveToDate,
         dayBefore(next.effectiveFromDate),
