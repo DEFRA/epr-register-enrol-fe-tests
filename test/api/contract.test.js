@@ -89,9 +89,16 @@ function assertStatusHistory(history, what) {
         next.effectiveFromDate >= entry.effectiveFromDate,
         `${what} effectiveFromDate goes backwards`
       )
+      // The day before the next entry starts. Where the next starts the same
+      // day (a tie, won by the later recordedAt), this one is kept and ends on
+      // that same day.
+      const expectedTo =
+        next.effectiveFromDate === entry.effectiveFromDate
+          ? entry.effectiveFromDate
+          : dayBefore(next.effectiveFromDate)
       assert.equal(
         entry.effectiveToDate,
-        dayBefore(next.effectiveFromDate),
+        expectedTo,
         `${what} effectiveToDate is the day before the next entry starts`
       )
     } else {
