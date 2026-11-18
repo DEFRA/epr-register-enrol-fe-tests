@@ -85,8 +85,8 @@ run in CI, and no other config picks them up.
   holds on the accreditation. An upload over the 10-file cap is refused, and
   so is one that shares a name with a file already held (including a
   sampling plan file, which the backend refuses after the CDP upload).
-  Submit checks both rules again, and the requests page names the refused
-  site.
+  Submit checks both rules again, and the requests page shows the upload
+  message, linking to the refused site.
 
 1. Start the monorepo's stack from its root: `docker compose up --build -d`.
    It binds the same ports as this repo's own stack (3000, 8080), so stop

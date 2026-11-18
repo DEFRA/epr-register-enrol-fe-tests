@@ -47,7 +47,7 @@ import {
 // by the backend after the CDP upload, and the upload page then shows the
 // same duplicate message. 3bb.49: Submit applies both rules again, so a draft
 // whose files predate the checks (set up here directly) is refused, and the
-// requests page names the site.
+// requests page shows the upload message, linking to the site.
 
 const DELHI = ORS.delhi
 
@@ -214,7 +214,7 @@ describe('RA-495: an add-ORS BES upload is checked against the files the site al
     await setSamplingPlanFiles({ organisationId: ORGANISATION_ID })
   })
 
-  it('refuses at Submit a draft whose files and the site’s are over the cap, naming the site', async () => {
+  it('refuses at Submit a draft whose files and the site’s are over the cap, linking to the site', async () => {
     const { changeRequests } = await setChangeRequestSite({
       organisationId: ORGANISATION_ID,
       siteId: DELHI.siteId,
