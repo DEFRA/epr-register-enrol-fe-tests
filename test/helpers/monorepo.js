@@ -348,3 +348,89 @@ export async function setOverseasSiteBesEvidence({
     print(JSON.stringify({ applications }))
   `)
 }
+
+/**
+ * RA-495 (3bb.48): gives the organisation's accreditation applications the
+ * sampling plan files named, as if uploaded on the application, so a spec can
+ * check a change request's BES upload against a name the operator frontend
+ * cannot see. Only files this helper added are replaced; no names removes
+ * them again. Only the legacy application.
+ *
+ * @param {{ organisationId: string, filenames?: string[] }} org
+ * @returns {Promise<{ applications: number }>} how many were changed
+ */
+export async function setSamplingPlanFiles({ organisationId, filenames = [] }) {
+  const filter = JSON.stringify({ organisationId })
+  const pull = JSON.stringify({
+    $pull: { 'samplingPlan.files': { fileId: { $regex: '^e2e-plan-' } } }
+  })
+  const push = JSON.stringify({
+    $push: {
+      'samplingPlan.files': {
+        $each: filenames.map((filename, index) => ({
+          fileId: `e2e-plan-${index + 1}`,
+          filename,
+          contentType: 'application/pdf',
+          uploadedByUserId: 'e2e',
+          s3Key: `sampling-plan/e2e-plan-${index + 1}`
+        }))
+      }
+    }
+  })
+
+  return mongosh(`
+    const collection = db.getSiblingDB('${OPERATOR_DATABASE}').accreditationApplications
+    collection.updateMany(${filter}, ${pull})
+    const applications = ${filenames.length} === 0
+      ? 0
+      : collection.updateMany(${filter}, ${push}).modifiedCount
+    print(JSON.stringify({ applications }))
+  `)
+}
+
+/**
+ * RA-495 (3bb.49): completes a site on the organisation's in-progress change
+ * request directly, with the answers given and Clean BES evidence files of
+ * the names given, as a draft uploaded before the upload-time checks would
+ * be. Skips the CDP uploader, so a spec can set up a draft the upload would
+ * now refuse.
+ *
+ * @param {{ organisationId: string, siteId: number,
+ *   answers: object, besFilenames: string[] }} site
+ * @returns {Promise<{ changeRequests: number }>} how many were changed
+ */
+export async function setChangeRequestSite({
+  organisationId,
+  siteId,
+  answers,
+  besFilenames
+}) {
+  const filter = JSON.stringify({ organisationId, status: 'InProgress' })
+  const update = JSON.stringify({
+    $set: {
+      'sites.$[site].answers': answers,
+      'sites.$[site].besEvidence': {
+        besEvidenceUploads: besFilenames.map((filename, index) => ({
+          fileId: `e2e-request-${siteId}-${index + 1}`,
+          filename,
+          contentType: 'application/pdf',
+          scanStatus: 'Clean',
+          besEvidenceValidFromDate: '2026-01-01T00:00:00.000Z',
+          besEvidenceExpiryDate: '2027-12-31T00:00:00.000Z',
+          s3Key: `accreditation-changes/bes-evidence/e2e-request-${siteId}-${index + 1}`,
+          s3Bucket: 'bes-evidence'
+        })),
+        doYouWantToUploadMoreEvidence: false
+      }
+    }
+  })
+  const arrayFilters = JSON.stringify([{ 'site.siteId': siteId }])
+
+  return mongosh(`
+    const changeRequests = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationChangeRequests
+      .updateMany(${filter}, ${update}, { arrayFilters: ${arrayFilters} })
+      .modifiedCount
+    print(JSON.stringify({ changeRequests }))
+  `)
+}

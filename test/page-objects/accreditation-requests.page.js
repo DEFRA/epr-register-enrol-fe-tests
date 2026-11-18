@@ -48,6 +48,12 @@ class AccreditationRequestsPage extends Page {
     return $('[data-testid="cancel-link"]')
   }
 
+  // The error summary's entry for a site (incomplete, or 3bb.49 refused at
+  // submit for its BES files), linking to its summary.
+  errorRequest(orsId) {
+    return $(`[data-testid="error-request-${orsId}"]`)
+  }
+
   requestRow(orsId) {
     return $(`[data-testid="request-row-${orsId}"]`)
   }

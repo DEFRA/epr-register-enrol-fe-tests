@@ -1,13 +1,17 @@
 import { browser, expect } from '@wdio/globals'
+import AccreditationRequestsPage from 'page-objects/accreditation-requests.page'
 import AddToAccreditationPage from 'page-objects/add-to-accreditation.page'
 import BesEvidencePage from 'page-objects/bes-evidence.page'
 import ManageOverseasSitesPage from 'page-objects/manage-overseas-sites.page'
+import SubmitApplicationPage from 'page-objects/submit-application.page'
 
 import { getAccreditationChanges } from '../../helpers/case-management.js'
 import {
   MONOREPO_RUN_FLAG,
   clearChangeRequests,
+  setChangeRequestSite,
   setOverseasSiteBesEvidence,
+  setSamplingPlanFiles,
   skipUnlessMonorepoRun
 } from '../../helpers/monorepo.js'
 import { signInAsOperator } from '../../helpers/monorepo-journey.js'
@@ -38,6 +42,12 @@ import {
 // its site on the seeded accreditation application files of its own, as if
 // uploaded on the application, and takes them away again afterwards. Both
 // refusals happen before the file is sent to the CDP uploader.
+//
+// 3bb.48: a name the frontend cannot see (a sampling plan file's) is refused
+// by the backend after the CDP upload, and the upload page then shows the
+// same duplicate message. 3bb.49: Submit applies both rules again, so a draft
+// whose files predate the checks (set up here directly) is refused, and the
+// requests page names the site.
 
 const DELHI = ORS.delhi
 
@@ -58,9 +68,13 @@ describe('RA-495: an add-ORS BES upload is checked against the files the site al
       organisationId: ORGANISATION_ID,
       siteId: DELHI.siteId
     })
+    const samplingPlan = await setSamplingPlanFiles({
+      organisationId: ORGANISATION_ID
+    })
     reportDetails(`Reset organisation ${ORGANISATION_ID}`, {
       ...cleared,
-      ...evidence
+      ...evidence,
+      samplingPlan
     })
   }
 
@@ -163,5 +177,101 @@ describe('RA-495: an add-ORS BES upload is checked against the files the site al
       expect.stringContaining(DUPLICATE_FILENAME_MESSAGE)
     )
     expect(await delhiRequestUploads()).toEqual([])
+  })
+
+  it("shows the duplicate message when the backend refuses a name only it can see (a sampling plan file's)", async () => {
+    await setOverseasSiteBesEvidence({
+      organisationId: ORGANISATION_ID,
+      siteId: DELHI.siteId
+    })
+    const { applications } = await setSamplingPlanFiles({
+      organisationId: ORGANISATION_ID,
+      filenames: ['e2e-sampling-plan.pdf']
+    })
+    expect(applications).toBeGreaterThan(0)
+
+    await reportStep(
+      'Operator: upload e2e-sampling-plan.pdf for Delhi',
+      async () => {
+        await openDelhiBesUpload()
+        await BesEvidencePage.attemptUpload('business-plan.pdf', {
+          exactName: 'e2e-sampling-plan.pdf'
+        })
+        // Through the CDP uploader and its status page to the backend.
+        await waitForUrl(
+          (url) =>
+            new URL(url).searchParams.get('reason') === 'duplicateFilename',
+          'Was not sent back to the upload page with the duplicate reason',
+          { timeout: 60000 }
+        )
+      }
+    )
+
+    await expect(BesEvidencePage.fileError).toHaveText(
+      expect.stringContaining(DUPLICATE_FILENAME_MESSAGE)
+    )
+    expect(await delhiRequestUploads()).toEqual([])
+    await setSamplingPlanFiles({ organisationId: ORGANISATION_ID })
+  })
+
+  it('refuses at Submit a draft whose files and the site’s are over the cap, naming the site', async () => {
+    const { changeRequests } = await setChangeRequestSite({
+      organisationId: ORGANISATION_ID,
+      siteId: DELHI.siteId,
+      answers: {
+        coordinates: '28.6139, 77.2090',
+        operationCodes: ['R3'],
+        conditionsOfExport: false
+      },
+      besFilenames: ['request-evidence.pdf']
+    })
+    expect(changeRequests).toBe(1)
+    await giveDelhiFiles(
+      Array.from({ length: 10 }, (_, i) => `held-evidence-${i + 1}.pdf`)
+    )
+
+    await reportStep('Operator: submit the request', async () => {
+      await browser.url(`${changePath}/requests`)
+      await AccreditationRequestsPage.continue()
+      await waitForUrl(
+        (url) => new URL(url).pathname.endsWith('/declaration'),
+        'Did not reach the declaration'
+      )
+      await SubmitApplicationPage.submitApplication()
+      await waitForUrl(
+        (url) =>
+          new URL(url).pathname.endsWith('/requests') &&
+          new URL(url).searchParams.get('maxFiles') === String(DELHI.siteId),
+        'Was not sent back to the requests page naming Delhi'
+      )
+    })
+
+    await expect(
+      AccreditationRequestsPage.errorRequest(DELHI.orsId)
+    ).toHaveText(
+      expect.stringContaining(
+        'has more than 10 files as evidence of broadly equivalent standards'
+      )
+    )
+
+    await reportStep(
+      "Operator: open Delhi's summary from the error",
+      async () => {
+        await AccreditationRequestsPage.errorRequest(DELHI.orsId).click()
+        await waitForUrl(
+          (url) => new URL(url).pathname.endsWith(`/add/${DELHI.siteId}`),
+          "Did not reach Delhi's summary"
+        )
+      }
+    )
+    await expect(AddToAccreditationPage.rowError('bes-evidence')).toHaveText(
+      expect.stringContaining(MAX_FILES_MESSAGE)
+    )
+
+    const { activeRequest } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      applicationId
+    )
+    expect(activeRequest?.status).toBe('InProgress')
   })
 })
