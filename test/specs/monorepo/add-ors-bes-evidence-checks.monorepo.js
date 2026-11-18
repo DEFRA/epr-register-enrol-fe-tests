@@ -247,7 +247,7 @@ describe('RA-495: an add-ORS BES upload is checked against the files the site al
     })
 
     await expect(
-      AccreditationRequestsPage.errorRequest(DELHI.orsId)
+      AccreditationRequestsPage.errorRequest(DELHI.orsId, 'maxFiles')
     ).toHaveText(
       expect.stringContaining(
         'has more than 10 files as evidence of broadly equivalent standards'
@@ -257,7 +257,10 @@ describe('RA-495: an add-ORS BES upload is checked against the files the site al
     await reportStep(
       "Operator: open Delhi's summary from the error",
       async () => {
-        await AccreditationRequestsPage.errorRequest(DELHI.orsId).click()
+        await AccreditationRequestsPage.errorRequest(
+          DELHI.orsId,
+          'maxFiles'
+        ).click()
         await waitForUrl(
           (url) => new URL(url).pathname.endsWith(`/add/${DELHI.siteId}`),
           "Did not reach Delhi's summary"
