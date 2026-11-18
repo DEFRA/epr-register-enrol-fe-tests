@@ -108,7 +108,7 @@ class CmWorkItemPage extends Page {
   // Shown while an approved determination waits for the applicant to be
   // contacted (the work item reads Approved), with the accreditation id.
   get pendingContactBanner() {
-    return $('[data-testid="re-accreditation-pending-contact-banner"]')
+    return $('[data-testid="standard-lifecycle-pending-contact-banner"]')
   }
 
   get confirmApplicantContactLink() {
@@ -118,7 +118,7 @@ class CmWorkItemPage extends Page {
   // RA-495: a closed case's read-only Outcome panel, shown instead of any
   // action.
   get outcomePanel() {
-    return $('[data-testid="re-accreditation-readonly-actions"]')
+    return $('[data-testid="standard-lifecycle-readonly-actions"]')
   }
 
   async startConfirmApplicantContact() {
