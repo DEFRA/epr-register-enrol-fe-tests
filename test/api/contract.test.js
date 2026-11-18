@@ -29,11 +29,6 @@ const GLASS = ['glass_re_melt', 'glass_other']
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
-// Today in the UK, as effectiveFromDate is written.
-const todayUk = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Europe/London'
-}).format(new Date())
-
 function assertAbsent(object, fields, what) {
   for (const field of fields) {
     assert.ok(!(field in object), `${what} should not have ${field}`)
@@ -111,18 +106,46 @@ function assertStatusHistory(history, what) {
   })
 }
 
-// The latest entry that starts on or before today; approved when none has yet,
-// as the backend projects it. Where two start on the same date, the one
-// recorded later takes precedence.
-function projectedStatus(history) {
-  const effective = history
-    .filter((entry) => entry.effectiveFromDate <= todayUk)
-    .sort(
-      (a, b) =>
-        a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
-        a.recordedAt.localeCompare(b.recordedAt)
-    )
-  return effective.at(-1)?.status ?? 'approved'
+// latestStatus replaces the status string. It has the shape of a status history
+// entry, and it is the latest one whether or not its effectiveFromDate has
+// arrived, so it can be in the future.
+function assertLatestStatus(record, what) {
+  assertAbsent(record, ['status'], what)
+  const latest = record.latestStatus
+  assert.equal(typeof latest, 'object', `${what} has no latestStatus`)
+  assert.notEqual(latest, null, `${what} has no latestStatus`)
+  assertOneOf(latest.status, STATUSES, `${what} latestStatus status`)
+  assert.match(
+    latest.effectiveFromDate,
+    DATE_ONLY,
+    `${what} latestStatus effectiveFromDate`
+  )
+  assert.ok(
+    'effectiveToDate' in latest,
+    `${what} latestStatus has no effectiveToDate`
+  )
+  assert.match(latest.recordedAt, DATE_TIME, `${what} latestStatus recordedAt`)
+  assertAbsent(latest, ['effectiveDate'], `${what} latestStatus`)
+}
+
+// latestStatus is the same entry as the latest one in the history: the latest
+// effectiveFromDate, and the later recordedAt where two share one.
+function assertLatestStatusMatchesHistory(record, what) {
+  const latest = [...record.statusHistory].sort(
+    (a, b) =>
+      a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
+      a.recordedAt.localeCompare(b.recordedAt)
+  )[record.statusHistory.length - 1]
+  assert.deepStrictEqual(
+    record.latestStatus,
+    latest,
+    `${what} latestStatus is the latest entry of its statusHistory`
+  )
+  assert.deepStrictEqual(
+    record.latestStatus,
+    record.statusHistory.at(-1),
+    `${what} latestStatus is the last entry of its statusHistory`
+  )
 }
 
 function assertSummary(item) {
@@ -132,7 +155,7 @@ function assertSummary(item) {
   assert.equal(typeof item.accreditationYear, 'number')
   assertOneOf(item.material, MATERIALS, 'material')
   assertOneOf(item.wasteProcessingType, ['reprocessor', 'exporter'], 'type')
-  assertOneOf(item.status, STATUSES, 'status')
+  assertLatestStatus(item, 'accreditation')
   if ('tonnageBand' in item) {
     assertOneOf(item.tonnageBand, BANDS, 'tonnageBand')
   }
@@ -210,13 +233,9 @@ function assertOverseasSite(site, includeWithdrawn = false) {
   }
   // validFrom is no longer served: the status history carries the dates.
   assertAbsent(site, ['validFrom'], what)
-  assertOneOf(site.status, STATUSES, `${what} status`)
+  assertLatestStatus(site, what)
   assertStatusHistory(site.statusHistory, what)
-  assert.equal(
-    site.status,
-    projectedStatus(site.statusHistory),
-    `${what} status`
-  )
+  assertLatestStatusMatchesHistory(site, what)
   assert.ok(Array.isArray(site.interimSites))
   for (const interim of site.interimSites) {
     assertInterimSite(interim, includeWithdrawn)
@@ -257,7 +276,7 @@ describe(
 
         assertSummary(body)
         assertStatusHistory(body.statusHistory, 'accreditation')
-        assert.equal(body.status, projectedStatus(body.statusHistory))
+        assertLatestStatusMatchesHistory(body, 'accreditation')
 
         assert.ok(Array.isArray(body.tonnageBandHistory))
         for (const entry of body.tonnageBandHistory) {
