@@ -248,11 +248,7 @@ describe('RA-495: an add-ORS BES upload is checked against the files the site al
 
     await expect(
       AccreditationRequestsPage.errorRequest(DELHI.orsId, 'maxFiles')
-    ).toHaveText(
-      expect.stringContaining(
-        'has more than 10 files as evidence of broadly equivalent standards'
-      )
-    )
+    ).toHaveText(MAX_FILES_MESSAGE)
 
     await reportStep(
       "Operator: open Delhi's summary from the error",
