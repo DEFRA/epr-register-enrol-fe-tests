@@ -21,8 +21,9 @@ class CmWorkItemPage extends Page {
     return $('[data-testid="case-header-accreditation-ref"]')
   }
 
-  // RA-739. An add-ORS (in-year change) header: the application reference as
-  // its caption, "Site name (ORS id)" as its title, and the site's charge.
+  // RA-739. An add-ORS (in-year change) header: "Site name (ORS id)" as its
+  // title and the site's charge. RA-495 dropped its reference caption, as the
+  // breadcrumb already shows the reference.
   get headerCaption() {
     return $('[data-testid="case-header-caption"]')
   }

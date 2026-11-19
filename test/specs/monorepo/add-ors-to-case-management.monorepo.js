@@ -272,7 +272,8 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
     })
 
     await reportStep('Regulator: the header names the site', async () => {
-      await expect(CmWorkItemPage.headerCaption).toHaveText(item.reference)
+      await expect(CmWorkItemPage.reference).toHaveText(item.reference)
+      await expect(CmWorkItemPage.headerCaption).not.toExist()
       await expect(CmWorkItemPage.headerTitle).toHaveText(
         `${site.siteName} (${site.orsId})`
       )
