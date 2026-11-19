@@ -8,7 +8,8 @@ import {
   assertOneOf,
   assertStatusHistory,
   assertLatestStatus,
-  assertLatestStatusMatchesHistory
+  assertLatestStatusMatchesHistory,
+  LATEST_STATUS_PENDING
 } from './status-history.js'
 import {
   loadApiContext,
@@ -41,7 +42,6 @@ function assertSummary(item) {
   assert.equal(typeof item.accreditationYear, 'number')
   assertOneOf(item.material, MATERIALS, 'material')
   assertOneOf(item.wasteProcessingType, ['reprocessor', 'exporter'], 'type')
-  assertLatestStatus(item, 'accreditation')
   if ('tonnageBand' in item) {
     assertOneOf(item.tonnageBand, BANDS, 'tonnageBand')
   }
@@ -124,9 +124,7 @@ function assertOverseasSite(
   }
   // validFrom is no longer served: the status history carries the dates.
   assertAbsent(site, ['validFrom'], what)
-  assertLatestStatus(site, what)
   assertStatusHistory(site.statusHistory, what, accreditationYear)
-  assertLatestStatusMatchesHistory(site, what)
   assert.ok(Array.isArray(site.interimSites))
   for (const interim of site.interimSites) {
     assertInterimSite(interim, includeWithdrawn)
@@ -171,7 +169,6 @@ describe(
           'accreditation',
           body.accreditationYear
         )
-        assertLatestStatusMatchesHistory(body, 'accreditation')
 
         assert.ok(Array.isArray(body.tonnageBandHistory))
         for (const entry of body.tonnageBandHistory) {
@@ -409,6 +406,60 @@ describe(
         it(`answers 404 for the ${what} endpoint`, async () => {
           assert.equal((await getAccreditationApi(path())).status, 404)
         })
+      }
+    })
+  }
+)
+
+// latestStatus (RA-773): in place of the status string, the latest entry of
+// the status history, on every accreditation and overseas site. Skipped until
+// RA-773 is deployed to test (LATEST_STATUS_PENDING in status-history.js).
+describe(
+  'Accreditation API: latestStatus (RA-773)',
+  { skip: notConfigured || LATEST_STATUS_PENDING },
+  () => {
+    let context
+
+    before(async () => {
+      context = await loadApiContext()
+    })
+
+    it('gives each search item a latestStatus in place of status', async () => {
+      const { status, body } = await getAccreditationApi(
+        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
+      )
+      assert.equal(status, 200)
+      for (const item of body.items) {
+        assertLatestStatus(item, `accreditation ${item.accreditationNumber}`)
+      }
+    })
+
+    for (const type of ['reprocessor', 'exporter']) {
+      it(`gives the ${type} accreditation the latest entry of its statusHistory as latestStatus`, async (t) => {
+        if (!requireGranted(t, context[type], type)) {
+          return
+        }
+        const { status, body } = await getAccreditationApi(context[type].path)
+        assert.equal(status, 200)
+        assertLatestStatus(body, 'accreditation')
+        assertLatestStatusMatchesHistory(body, 'accreditation')
+      })
+    }
+
+    it('gives each overseas site the latest entry of its statusHistory as latestStatus', async (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      const detail = await getAccreditationApi(context.exporter.path)
+      const listed = await getAccreditationApi(
+        `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=true`
+      )
+      assert.equal(detail.status, 200)
+      assert.equal(listed.status, 200)
+      for (const site of [...detail.body.overseasSites, ...listed.body.items]) {
+        const what = `site ${site.orsId ?? site.siteName}`
+        assertLatestStatus(site, what)
+        assertLatestStatusMatchesHistory(site, what)
       }
     })
   }

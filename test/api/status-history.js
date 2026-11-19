@@ -109,6 +109,12 @@ export function assertStatusHistory(history, what, accreditationYear = year) {
   })
 }
 
+// RA-773 (latestStatus in place of the status string) is merged in the
+// backend but not yet deployed to test, so the tests that check it skip with
+// this reason. Set it to false once test serves latestStatus.
+export const LATEST_STATUS_PENDING =
+  'RA-773 (latestStatus) is not deployed to test yet'
+
 // latestStatus replaces the status string (RA-773). It has the shape of a
 // status history entry, and it is the latest one whether or not its
 // effectiveFromDate has arrived, so it can be in the future.

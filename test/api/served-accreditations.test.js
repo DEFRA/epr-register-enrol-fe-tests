@@ -13,6 +13,7 @@ import {
   notConfigured,
   year
 } from './support.js'
+import { statusOf } from './status-history.js'
 
 // What the API serves for the seeded organisation: the reprocessor and
 // exporter accreditations the frontend integration run granted, each as its
@@ -105,7 +106,7 @@ describe(
             )
           }
           assert.equal(typeof body.accreditationNumber, 'string')
-          assert.equal(body.latestStatus.status, 'approved')
+          assert.equal(statusOf(body), 'approved')
 
           if (registration.wasteProcessingType === 'exporter') {
             assert.ok(
