@@ -14,7 +14,7 @@ import {
   year
 } from './support.js'
 import { readRequestLog } from './request-log.js'
-import { assertStatusHistory } from './status-history.js'
+import { assertStatusHistory, statusOf } from './status-history.js'
 
 // What contract.test.js and validation.test.js leave out: the search's status
 // filter and order, the scheme years, business keys only, and the errors for
@@ -72,7 +72,7 @@ describe(
       assert.deepEqual(
         body.items.map(({ registrationNumber }) => registrationNumber),
         context.served
-          .filter(({ status: s }) => s === 'approved')
+          .filter((item) => statusOf(item) === 'approved')
           .map(({ registrationNumber }) => registrationNumber)
       )
     })
@@ -91,7 +91,7 @@ describe(
           )
         }
         for (const item of body.items) {
-          assert.equal(item.status, filter, item.accreditationNumber)
+          assert.equal(statusOf(item), filter, item.accreditationNumber)
         }
       })
     }

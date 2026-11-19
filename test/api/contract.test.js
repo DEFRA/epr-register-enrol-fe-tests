@@ -4,11 +4,11 @@ import { before, describe, it } from 'node:test'
 import { getAccreditationApi } from '../helpers/accreditation-api.js'
 import {
   DATE_TIME,
-  STATUSES,
   assertAbsent,
   assertOneOf,
   assertStatusHistory,
-  projectedStatus
+  assertLatestStatus,
+  assertLatestStatusMatchesHistory
 } from './status-history.js'
 import {
   loadApiContext,
@@ -41,7 +41,7 @@ function assertSummary(item) {
   assert.equal(typeof item.accreditationYear, 'number')
   assertOneOf(item.material, MATERIALS, 'material')
   assertOneOf(item.wasteProcessingType, ['reprocessor', 'exporter'], 'type')
-  assertOneOf(item.status, STATUSES, 'status')
+  assertLatestStatus(item, 'accreditation')
   if ('tonnageBand' in item) {
     assertOneOf(item.tonnageBand, BANDS, 'tonnageBand')
   }
@@ -124,13 +124,9 @@ function assertOverseasSite(
   }
   // validFrom is no longer served: the status history carries the dates.
   assertAbsent(site, ['validFrom'], what)
-  assertOneOf(site.status, STATUSES, `${what} status`)
+  assertLatestStatus(site, what)
   assertStatusHistory(site.statusHistory, what, accreditationYear)
-  assert.equal(
-    site.status,
-    projectedStatus(site.statusHistory),
-    `${what} status`
-  )
+  assertLatestStatusMatchesHistory(site, what)
   assert.ok(Array.isArray(site.interimSites))
   for (const interim of site.interimSites) {
     assertInterimSite(interim, includeWithdrawn)
@@ -175,7 +171,7 @@ describe(
           'accreditation',
           body.accreditationYear
         )
-        assert.equal(body.status, projectedStatus(body.statusHistory))
+        assertLatestStatusMatchesHistory(body, 'accreditation')
 
         assert.ok(Array.isArray(body.tonnageBandHistory))
         for (const entry of body.tonnageBandHistory) {

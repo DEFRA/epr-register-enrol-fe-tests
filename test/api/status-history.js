@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 
 import { year } from './support.js'
 
-// The status rules the accreditation API's responses follow (RA-772), shared
-// by the test files: how each status's period is dated, and which status is
-// current. As docs/openapi/registration-accreditation-api.v2.yaml in
+// The status rules the accreditation API's responses follow, shared by the
+// test files: how each status's period is dated (RA-772), and the latest
+// status (latestStatus, RA-773). As
+// docs/openapi/registration-accreditation-api.v2.yaml in
 // epr-register-enrol-backend describes them.
 
 export const STATUSES = ['approved', 'suspended', 'cancelled', 'withdrawn']
@@ -17,7 +18,6 @@ export const ukDate = (moment) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(
     new Date(moment)
   )
-export const todayUk = ukDate(Date.now())
 
 // The first day a status applies: the later of 1 January of the accreditation
 // year and the UK date it was recorded (RA-772).
@@ -47,6 +47,15 @@ export function dayBefore(date) {
   return day.toISOString().slice(0, 10)
 }
 
+// The shape of one status entry, in a statusHistory or as latestStatus.
+export function assertStatusEntry(entry, what) {
+  assertOneOf(entry.status, STATUSES, `${what} status`)
+  assert.match(entry.effectiveFromDate, DATE_ONLY, `${what} effectiveFromDate`)
+  assert.ok('effectiveToDate' in entry, `${what} entry has no effectiveToDate`)
+  assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
+  assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
+}
+
 // Each entry shows the period the status applies: from effectiveFromDate to
 // effectiveToDate, which is the day before the next entry starts and null on
 // the latest. effectiveToDate is always present, so a missing one is a failure.
@@ -56,18 +65,7 @@ export function assertStatusHistory(history, what, accreditationYear = year) {
     `${what} has no statusHistory`
   )
   history.forEach((entry, index) => {
-    assertOneOf(entry.status, STATUSES, `${what} status`)
-    assert.match(
-      entry.effectiveFromDate,
-      DATE_ONLY,
-      `${what} effectiveFromDate`
-    )
-    assert.ok(
-      'effectiveToDate' in entry,
-      `${what} entry has no effectiveToDate`
-    )
-    assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
-    assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
+    assertStatusEntry(entry, what)
 
     // Recorded before the year: 1 January. Recorded during it: the UK date.
     assert.equal(
@@ -111,16 +109,48 @@ export function assertStatusHistory(history, what, accreditationYear = year) {
   })
 }
 
-// The latest entry that starts on or before today; approved when none has yet,
-// as the backend projects it. Where two start on the same date, the one
-// recorded later takes precedence.
-export function projectedStatus(history) {
-  const effective = history
-    .filter((entry) => entry.effectiveFromDate <= todayUk)
+// latestStatus replaces the status string (RA-773). It has the shape of a
+// status history entry, and it is the latest one whether or not its
+// effectiveFromDate has arrived, so it can be in the future.
+export function assertLatestStatus(record, what) {
+  assertAbsent(record, ['status'], what)
+  const latest = record.latestStatus
+  assert.equal(typeof latest, 'object', `${what} has no latestStatus`)
+  assert.notEqual(latest, null, `${what} has no latestStatus`)
+  assertStatusEntry(latest, `${what} latestStatus`)
+  // No later entry closes the latest one.
+  assert.equal(
+    latest.effectiveToDate,
+    null,
+    `${what} latestStatus has an effectiveToDate`
+  )
+}
+
+// latestStatus is the same entry as the latest one in the history: the latest
+// effectiveFromDate, and the later recordedAt where two share one. The sorted
+// check is the only one that applies the recordedAt tie-break; assertStatusHistory
+// already checks that the entries are in order, so the last-entry check below it
+// guards the order the API returns them in.
+export function assertLatestStatusMatchesHistory(record, what) {
+  const latest = [...record.statusHistory]
     .sort(
       (a, b) =>
         a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
         a.recordedAt.localeCompare(b.recordedAt)
     )
-  return effective.at(-1)?.status ?? 'approved'
+    .at(-1)
+  assert.deepStrictEqual(
+    record.latestStatus,
+    latest,
+    `${what} latestStatus is the latest entry of its statusHistory`
+  )
+  assert.deepStrictEqual(
+    record.latestStatus,
+    record.statusHistory.at(-1),
+    `${what} latestStatus is the last entry of its statusHistory`
+  )
 }
+
+// An accreditation's or site's current status: latestStatus's since RA-773,
+// the status string before it.
+export const statusOf = (record) => record.latestStatus?.status ?? record.status
