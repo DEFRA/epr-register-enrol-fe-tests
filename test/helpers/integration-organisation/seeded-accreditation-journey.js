@@ -4,6 +4,7 @@ import ReexRegistrationPage from 'page-objects/reex-registration.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import OverseasReprocessingSitesPage from 'page-objects/overseas-reprocessing-sites.page'
 import AddOrsSiteContactPage from 'page-objects/add-ors-site-contact.page'
+import AddOrsSiteLocationPage from 'page-objects/add-ors-site-location.page'
 import AddOrsRecyclingOperationPage from 'page-objects/add-ors-recycling-operation.page'
 import AddOrsBaselCodesPage from 'page-objects/add-ors-basel-codes.page'
 import AddOrsRepatriatedLoadsPage from 'page-objects/add-ors-repatriated-loads.page'
@@ -284,6 +285,19 @@ async function completeSiteDetails(
       'Overseas site conditions of export',
       AddOrsConditionsOfExportPage,
       () => AddOrsConditionsOfExportPage.selectYes()
+    )
+    await browser.url(`${wizard}/check-your-answers`)
+    await AddOrsCyaPage.summaryList.waitForDisplayed()
+  }
+  // Some sites (e.g. those set up by hand on dev) have no coordinates.
+  if (
+    /Coordinates\s*Not provided/.test(await AddOrsCyaPage.summaryList.getText())
+  ) {
+    await fill(
+      'site-location',
+      'Overseas site location',
+      AddOrsSiteLocationPage,
+      () => AddOrsSiteLocationPage.coordinatesInput.setValue('51.4344, 6.7623')
     )
     await browser.url(`${wizard}/check-your-answers`)
     await AddOrsCyaPage.summaryList.waitForDisplayed()

@@ -29,10 +29,20 @@ const GLASS = ['glass_re_melt', 'glass_other']
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
-// Today in the UK, as effectiveFromDate is written.
-const todayUk = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Europe/London'
-}).format(new Date())
+// The UK date (yyyy-MM-dd) of a moment, as effectiveFromDate is written.
+const ukDate = (moment) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(
+    new Date(moment)
+  )
+const todayUk = ukDate(Date.now())
+
+// The first day a status applies: the later of 1 January of the accreditation
+// year and the UK date it was recorded (RA-772).
+function appliesFrom(recordedAt, accreditationYear) {
+  const startOfYear = `${accreditationYear}-01-01`
+  const recordedOn = ukDate(recordedAt)
+  return recordedOn > startOfYear ? recordedOn : startOfYear
+}
 
 function assertAbsent(object, fields, what) {
   for (const field of fields) {
@@ -57,7 +67,7 @@ function dayBefore(date) {
 // Each entry shows the period the status applies: from effectiveFromDate to
 // effectiveToDate, which is the day before the next entry starts and null on
 // the latest. effectiveToDate is always present, so a missing one is a failure.
-function assertStatusHistory(history, what) {
+function assertStatusHistory(history, what, accreditationYear = year) {
   assert.ok(
     Array.isArray(history) && history.length > 0,
     `${what} has no statusHistory`
@@ -75,6 +85,13 @@ function assertStatusHistory(history, what) {
     )
     assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
     assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
+
+    // Recorded before the year: 1 January. Recorded during it: the UK date.
+    assert.equal(
+      entry.effectiveFromDate,
+      appliesFrom(entry.recordedAt, accreditationYear),
+      `${what} effectiveFromDate for a status recorded at ${entry.recordedAt} in ${accreditationYear}`
+    )
 
     // A period never ends before it starts, and the entries run in order.
     if (entry.effectiveToDate !== null) {
@@ -256,7 +273,11 @@ describe(
         assert.equal(status, 200)
 
         assertSummary(body)
-        assertStatusHistory(body.statusHistory, 'accreditation')
+        assertStatusHistory(
+          body.statusHistory,
+          'accreditation',
+          body.accreditationYear
+        )
         assert.equal(body.status, projectedStatus(body.statusHistory))
 
         assert.ok(Array.isArray(body.tonnageBandHistory))
