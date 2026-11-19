@@ -78,22 +78,33 @@ describe(
     })
 
     for (const filter of OTHER_STATUSES) {
-      // Case management cannot send these yet, so test has none to return:
-      // until it does, this proves only that the filter is accepted.
-      it(`accepts status=${filter}, returning only ${filter} accreditations`, async (t) => {
+      it(`accepts status=${filter} as a search filter`, async () => {
         const { status, body } = await getAccreditationApi(
-          `/v1/accreditations?status=${filter}&limit=100`
+          `/v1/accreditations?status=${filter}&limit=1`
         )
         assert.equal(status, 200, JSON.stringify(body))
-        if (body.items.length === 0) {
-          t.diagnostic(
-            `no ${filter} accreditation on test, so what the filter returns is not checked`
-          )
-        }
-        for (const item of body.items) {
-          assert.equal(statusOf(item), filter, item.accreditationNumber)
-        }
       })
+
+      // RA-702: case management cannot send this status yet, so test has no
+      // accreditation to return. Todo until it has one: a known gap in the
+      // report until then, then it checks what the filter returns.
+      it(
+        `returns only ${filter} accreditations for status=${filter}`,
+        { todo: `case management cannot send ${filter} yet (RA-702)` },
+        async () => {
+          const { status, body } = await getAccreditationApi(
+            `/v1/accreditations?status=${filter}&limit=100`
+          )
+          assert.equal(status, 200, JSON.stringify(body))
+          assert.ok(
+            body.items.length > 0,
+            `no ${filter} accreditation on test to check the filter with`
+          )
+          for (const item of body.items) {
+            assert.equal(statusOf(item), filter, item.accreditationNumber)
+          }
+        }
+      )
     }
 
     it('orders the search by accreditationNumber, the same on every call', async () => {

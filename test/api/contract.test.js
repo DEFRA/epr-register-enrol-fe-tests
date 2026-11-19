@@ -9,7 +9,7 @@ import {
   assertStatusHistory,
   assertLatestStatus,
   assertLatestStatusMatchesHistory,
-  LATEST_STATUS_PENDING
+  LATEST_STATUS_TODO
 } from './status-history.js'
 import {
   loadApiContext,
@@ -412,11 +412,11 @@ describe(
 )
 
 // latestStatus (RA-773): in place of the status string, the latest entry of
-// the status history, on every accreditation and overseas site. Skipped until
-// RA-773 is deployed to test (LATEST_STATUS_PENDING in status-history.js).
+// the status history, on every accreditation and overseas site. Todo until
+// RA-773 is deployed to test (LATEST_STATUS_TODO in status-history.js).
 describe(
   'Accreditation API: latestStatus (RA-773)',
-  { skip: notConfigured || LATEST_STATUS_PENDING },
+  { skip: notConfigured },
   () => {
     let context
 
@@ -424,43 +424,58 @@ describe(
       context = await loadApiContext()
     })
 
-    it('gives each search item a latestStatus in place of status', async () => {
-      const { status, body } = await getAccreditationApi(
-        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
-      )
-      assert.equal(status, 200)
-      for (const item of body.items) {
-        assertLatestStatus(item, `accreditation ${item.accreditationNumber}`)
+    it(
+      'gives each search item a latestStatus in place of status',
+      { todo: LATEST_STATUS_TODO },
+      async () => {
+        const { status, body } = await getAccreditationApi(
+          `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
+        )
+        assert.equal(status, 200)
+        for (const item of body.items) {
+          assertLatestStatus(item, `accreditation ${item.accreditationNumber}`)
+        }
       }
-    })
+    )
 
     for (const type of ['reprocessor', 'exporter']) {
-      it(`gives the ${type} accreditation the latest entry of its statusHistory as latestStatus`, async (t) => {
-        if (!requireGranted(t, context[type], type)) {
-          return
+      it(
+        `gives the ${type} accreditation the latest entry of its statusHistory as latestStatus`,
+        { todo: LATEST_STATUS_TODO },
+        async (t) => {
+          if (!requireGranted(t, context[type], type)) {
+            return
+          }
+          const { status, body } = await getAccreditationApi(context[type].path)
+          assert.equal(status, 200)
+          assertLatestStatus(body, 'accreditation')
+          assertLatestStatusMatchesHistory(body, 'accreditation')
         }
-        const { status, body } = await getAccreditationApi(context[type].path)
-        assert.equal(status, 200)
-        assertLatestStatus(body, 'accreditation')
-        assertLatestStatusMatchesHistory(body, 'accreditation')
-      })
+      )
     }
 
-    it('gives each overseas site the latest entry of its statusHistory as latestStatus', async (t) => {
-      if (!requireGranted(t, context.exporter, 'exporter')) {
-        return
+    it(
+      'gives each overseas site the latest entry of its statusHistory as latestStatus',
+      { todo: LATEST_STATUS_TODO },
+      async (t) => {
+        if (!requireGranted(t, context.exporter, 'exporter')) {
+          return
+        }
+        const detail = await getAccreditationApi(context.exporter.path)
+        const listed = await getAccreditationApi(
+          `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=true`
+        )
+        assert.equal(detail.status, 200)
+        assert.equal(listed.status, 200)
+        for (const site of [
+          ...detail.body.overseasSites,
+          ...listed.body.items
+        ]) {
+          const what = `site ${site.orsId ?? site.siteName}`
+          assertLatestStatus(site, what)
+          assertLatestStatusMatchesHistory(site, what)
+        }
       }
-      const detail = await getAccreditationApi(context.exporter.path)
-      const listed = await getAccreditationApi(
-        `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=true`
-      )
-      assert.equal(detail.status, 200)
-      assert.equal(listed.status, 200)
-      for (const site of [...detail.body.overseasSites, ...listed.body.items]) {
-        const what = `site ${site.orsId ?? site.siteName}`
-        assertLatestStatus(site, what)
-        assertLatestStatusMatchesHistory(site, what)
-      }
-    })
+    )
   }
 )
