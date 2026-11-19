@@ -17,9 +17,12 @@ import { readRequestLog } from './request-log.js'
 
 // What contract.test.js and validation.test.js leave out: the search's status
 // filter and order, the scheme years, business keys only, and the errors for
-// routes and methods the API does not have. Then the reprocessor's site, the
-// overseas sites' status dates (RA-772) and personal data, and, as a todo
-// test, the scope question still open with the backend.
+// routes and methods the API does not have. Then the seeded reprocessor's
+// site, the overseas sites' status dates (RA-772), siteId as a business key,
+// and personal data.
+//
+// A reprocessor's site is in Re-Ex but not in the API: the v2 spec and the
+// guide define no site on an accreditation, so only the seeding is checked.
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
@@ -405,34 +408,5 @@ describe(
         }
       }
     })
-  }
-)
-
-// What the ticket asks for and the API does not do yet: reported, saying
-// what is missing, without failing the run. Drop the todo once the backend
-// team settles it (the report says when it starts passing).
-describe(
-  'Accreditation API: open scope questions',
-  { skip: notConfigured },
-  () => {
-    let context
-
-    before(async () => {
-      context = await loadApiContext()
-    })
-
-    it(
-      "serves the reprocessor's site on its accreditation",
-      {
-        todo: 'the ticket says reprocessors have a site; the v2 spec defines no site'
-      },
-      async (t) => {
-        if (!requireGranted(t, context.reprocessor, 'reprocessor')) {
-          return
-        }
-        const { body } = await getAccreditationApi(context.reprocessor.path)
-        assert.ok('site' in body, 'the accreditation has no site')
-      }
-    )
   }
 )
