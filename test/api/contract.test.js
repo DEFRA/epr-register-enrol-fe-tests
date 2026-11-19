@@ -29,11 +29,6 @@ const GLASS = ['glass_re_melt', 'glass_other']
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
-// Today in the UK, as effectiveFromDate is written.
-const todayUk = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Europe/London'
-}).format(new Date())
-
 function assertAbsent(object, fields, what) {
   for (const field of fields) {
     assert.ok(!(field in object), `${what} should not have ${field}`)
@@ -57,24 +52,22 @@ function dayBefore(date) {
 // Each entry shows the period the status applies: from effectiveFromDate to
 // effectiveToDate, which is the day before the next entry starts and null on
 // the latest. effectiveToDate is always present, so a missing one is a failure.
+// The shape of one status entry, in a statusHistory or as latestStatus.
+function assertStatusEntry(entry, what) {
+  assertOneOf(entry.status, STATUSES, `${what} status`)
+  assert.match(entry.effectiveFromDate, DATE_ONLY, `${what} effectiveFromDate`)
+  assert.ok('effectiveToDate' in entry, `${what} entry has no effectiveToDate`)
+  assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
+  assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
+}
+
 function assertStatusHistory(history, what) {
   assert.ok(
     Array.isArray(history) && history.length > 0,
     `${what} has no statusHistory`
   )
   history.forEach((entry, index) => {
-    assertOneOf(entry.status, STATUSES, `${what} status`)
-    assert.match(
-      entry.effectiveFromDate,
-      DATE_ONLY,
-      `${what} effectiveFromDate`
-    )
-    assert.ok(
-      'effectiveToDate' in entry,
-      `${what} entry has no effectiveToDate`
-    )
-    assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
-    assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
+    assertStatusEntry(entry, what)
 
     // A period never ends before it starts, and the entries run in order.
     if (entry.effectiveToDate !== null) {
@@ -111,18 +104,46 @@ function assertStatusHistory(history, what) {
   })
 }
 
-// The latest entry that starts on or before today; approved when none has yet,
-// as the backend projects it. Where two start on the same date, the one
-// recorded later takes precedence.
-function projectedStatus(history) {
-  const effective = history
-    .filter((entry) => entry.effectiveFromDate <= todayUk)
+// latestStatus replaces the status string. It has the shape of a status history
+// entry, and it is the latest one whether or not its effectiveFromDate has
+// arrived, so it can be in the future.
+function assertLatestStatus(record, what) {
+  assertAbsent(record, ['status'], what)
+  const latest = record.latestStatus
+  assert.equal(typeof latest, 'object', `${what} has no latestStatus`)
+  assert.notEqual(latest, null, `${what} has no latestStatus`)
+  assertStatusEntry(latest, `${what} latestStatus`)
+  // No later entry closes the latest one.
+  assert.equal(
+    latest.effectiveToDate,
+    null,
+    `${what} latestStatus has an effectiveToDate`
+  )
+}
+
+// latestStatus is the same entry as the latest one in the history: the latest
+// effectiveFromDate, and the later recordedAt where two share one. The sorted
+// check is the only one that applies the recordedAt tie-break; assertStatusHistory
+// already checks that the entries are in order, so the last-entry check below it
+// guards the order the API returns them in.
+function assertLatestStatusMatchesHistory(record, what) {
+  const latest = [...record.statusHistory]
     .sort(
       (a, b) =>
         a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
         a.recordedAt.localeCompare(b.recordedAt)
     )
-  return effective.at(-1)?.status ?? 'approved'
+    .at(-1)
+  assert.deepStrictEqual(
+    record.latestStatus,
+    latest,
+    `${what} latestStatus is the latest entry of its statusHistory`
+  )
+  assert.deepStrictEqual(
+    record.latestStatus,
+    record.statusHistory.at(-1),
+    `${what} latestStatus is the last entry of its statusHistory`
+  )
 }
 
 function assertSummary(item) {
@@ -132,7 +153,7 @@ function assertSummary(item) {
   assert.equal(typeof item.accreditationYear, 'number')
   assertOneOf(item.material, MATERIALS, 'material')
   assertOneOf(item.wasteProcessingType, ['reprocessor', 'exporter'], 'type')
-  assertOneOf(item.status, STATUSES, 'status')
+  assertLatestStatus(item, 'accreditation')
   if ('tonnageBand' in item) {
     assertOneOf(item.tonnageBand, BANDS, 'tonnageBand')
   }
@@ -210,13 +231,9 @@ function assertOverseasSite(site, includeWithdrawn = false) {
   }
   // validFrom is no longer served: the status history carries the dates.
   assertAbsent(site, ['validFrom'], what)
-  assertOneOf(site.status, STATUSES, `${what} status`)
+  assertLatestStatus(site, what)
   assertStatusHistory(site.statusHistory, what)
-  assert.equal(
-    site.status,
-    projectedStatus(site.statusHistory),
-    `${what} status`
-  )
+  assertLatestStatusMatchesHistory(site, what)
   assert.ok(Array.isArray(site.interimSites))
   for (const interim of site.interimSites) {
     assertInterimSite(interim, includeWithdrawn)
@@ -257,7 +274,7 @@ describe(
 
         assertSummary(body)
         assertStatusHistory(body.statusHistory, 'accreditation')
-        assert.equal(body.status, projectedStatus(body.statusHistory))
+        assertLatestStatusMatchesHistory(body, 'accreditation')
 
         assert.ok(Array.isArray(body.tonnageBandHistory))
         for (const entry of body.tonnageBandHistory) {

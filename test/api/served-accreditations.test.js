@@ -95,7 +95,7 @@ describe(
             )
           }
           assert.equal(typeof body.accreditationNumber, 'string')
-          assert.equal(body.status, 'approved')
+          assert.equal(body.latestStatus.status, 'approved')
 
           if (registration.wasteProcessingType === 'exporter') {
             assert.ok(
