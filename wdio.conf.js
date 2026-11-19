@@ -21,6 +21,38 @@ const oneMinute = 60 * 1000
 // Their workers get their own timeouts (beforeSession). Elsewhere none run.
 const runsIntegration = process.env.ENVIRONMENT === 'test'
 
+// On dev and ext-test, which seed the accreditation API's fixed test data
+// (RA-646), onComplete runs the fixed test data suite (test/api/test-data)
+// instead. It needs ACCREDITATION_API_CLIENT_SECRET, that environment's
+// epr-ReEx-Client secret, as a secret on the test suite.
+const FIXED_TEST_DATA_ENVIRONMENTS = ['dev', 'ext-test']
+const runsFixedTestData = FIXED_TEST_DATA_ENVIRONMENTS.includes(
+  process.env.ENVIRONMENT
+)
+
+/**
+ * Runs one accreditation API suite (test/api/run.js) and says in FAILED why
+ * it failed or could not run. Its results go to allure-results with the
+ * frontend tests'. Never throws, so nothing after it is skipped.
+ */
+async function runApiSuite(suite, what) {
+  let api
+  try {
+    const { runAccreditationApiTests } = await import('./test/api/run.js')
+    api = await runAccreditationApiTests(suite)
+  } catch (err) {
+    api = { exitCode: 1, reason: `${err?.stack ?? err}` }
+  }
+  if (api.reason) {
+    fs.appendFileSync('FAILED', `\n${what} could not run: ${api.reason}\n`)
+  } else if (api.exitCode !== 0) {
+    fs.appendFileSync(
+      'FAILED',
+      `\n${what} failed (exit code ${api.exitCode})\n`
+    )
+  }
+}
+
 // Imported only then: seeding refuses to load at all against prod.
 const integrationHooks = runsIntegration
   ? await import('./test/helpers/integration-organisation/hooks.js')
@@ -329,28 +361,9 @@ export const config = {
         )
       } else {
         // The accreditation API tests (test/api), on the organisation the
-        // frontend specs just worked, before it is deleted. Their results go
-        // to allure-results with the frontend tests'.
-        // A run that cannot start says why in FAILED, not only on stdout, and
-        // never stops the clean-up below.
-        let api
-        try {
-          const { runAccreditationApiTests } = await import('./test/api/run.js')
-          api = await runAccreditationApiTests()
-        } catch (err) {
-          api = { exitCode: 1, reason: `${err?.stack ?? err}` }
-        }
-        if (api.reason) {
-          fs.appendFileSync(
-            'FAILED',
-            `\nThe accreditation API tests could not run: ${api.reason}\n`
-          )
-        } else if (api.exitCode !== 0) {
-          fs.appendFileSync(
-            'FAILED',
-            `\nThe accreditation API tests failed (exit code ${api.exitCode})\n`
-          )
-        }
+        // frontend specs just worked, before it is deleted. A run that cannot
+        // start says why in FAILED, and never stops the clean-up below.
+        await runApiSuite('integration', 'The accreditation API tests')
       }
 
       // Whether or not the tests passed. A clean-up that throws still leaves
@@ -366,6 +379,26 @@ export const config = {
       // Every organisation the run touched, and whether it is still there to
       // delete, in the report's Environment section.
       integrationHooks.reportRunOrganisations('allure-results')
+    }
+
+    if (runsFixedTestData) {
+      // Without the secret every test would skip, which a report shows as
+      // nothing run: fail instead, saying what is missing.
+      const { accreditationApiNotConfigured } = await import(
+        './test/helpers/accreditation-api.js'
+      )
+      const missing = accreditationApiNotConfigured()
+      if (missing) {
+        fs.appendFileSync(
+          'FAILED',
+          `\nThe accreditation API fixed test data tests could not run on ${process.env.ENVIRONMENT}: ${missing}. Add it as a secret on the test suite.\n`
+        )
+      } else {
+        await runApiSuite(
+          'test-data',
+          'The accreditation API fixed test data tests'
+        )
+      }
     }
   }
   /**

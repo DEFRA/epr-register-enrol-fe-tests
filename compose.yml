@@ -198,6 +198,13 @@ services:
       - CdpUploader__Url=http://cdp-uploader:7337
       - App__BaseUrl=http://epr-register-enrol-backend:8080
       - CaseWorking__UseStub=true
+      # The accreditation API's ReEx client and its fixed test data (RA-646),
+      # for npm run test:api:test-data:local. The secret is not a real
+      # credential: test/helpers/accreditation-api.js signs with it locally.
+      - ServiceClients__Clients__0__Name=reex
+      - ServiceClients__Clients__0__ClientId=epr-ReEx-Client
+      - AUTH_SHARED_SECRET__REEX=local-reex-secret-not-a-real-credential
+      - TestData__SeedOnStartup=true
     depends_on:
       redis:
         condition: service_healthy

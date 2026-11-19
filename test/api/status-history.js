@@ -109,14 +109,6 @@ export function assertStatusHistory(history, what, accreditationYear = year) {
   })
 }
 
-// RA-773 (latestStatus in place of the status string) is first in backend
-// 0.203.0, which is not on test yet. The tests that check it are todo with
-// this reason: they run every time, show in the report as a known gap while
-// test serves the old status string, and pass once it serves latestStatus,
-// when the report says to drop the todo.
-export const LATEST_STATUS_TODO =
-  'RA-773 latestStatus is in epr-register-enrol-backend 0.203.0, not yet deployed to test'
-
 // latestStatus replaces the status string (RA-773). It has the shape of a
 // status history entry, and it is the latest one whether or not its
 // effectiveFromDate has arrived, so it can be in the future.
@@ -159,7 +151,7 @@ export function assertLatestStatusMatchesHistory(record, what) {
   )
 }
 
-// An accreditation's status to filter on: latestStatus's since RA-773, the
-// status string before it. Only for checking what a status filter returns;
-// the shape (latestStatus, and no status string) is the RA-773 tests' to check.
-export const statusOf = (record) => record.latestStatus?.status ?? record.status
+// An accreditation's status to filter on: its latestStatus's (RA-773). Only
+// for checking what a status filter returns; the shape (latestStatus, and no
+// status string) is the RA-773 tests' to check.
+export const statusOf = (record) => record.latestStatus?.status

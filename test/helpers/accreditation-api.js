@@ -17,6 +17,9 @@ import seedingConfig from './integration-organisation/seeding/config.js'
 //                                  client every environment registers)
 // ACCREDITATION_API_URL            overrides the base URL below
 //
+// ENVIRONMENT=local calls the compose stack's backend on localhost:8080, with
+// the local secret compose.yml configures unless the secret is set.
+//
 // From outside CDP the backend answers 403, so with X_API_KEY (a CDP developer
 // API key, as seeding uses) requests go through the ephemeral-protected
 // gateway instead. Without it, requests go to the backend directly, through
@@ -28,6 +31,10 @@ function baseUrl() {
   if (process.env.ACCREDITATION_API_URL) {
     return process.env.ACCREDITATION_API_URL
   }
+  // The compose stack's backend (compose.yml).
+  if (environment === 'local') {
+    return 'http://localhost:8080'
+  }
   if (process.env.X_API_KEY) {
     return `https://ephemeral-protected.api.${environment}.cdp-int.defra.cloud/epr-register-enrol-backend`
   }
@@ -36,7 +43,12 @@ function baseUrl() {
 
 const clientId = () =>
   process.env.ACCREDITATION_API_CLIENT_ID || 'epr-ReEx-Client'
-const clientSecret = () => process.env.ACCREDITATION_API_CLIENT_SECRET
+// Locally, the secret compose.yml gives the backend's reex client, which is
+// not a real credential.
+export const LOCAL_CLIENT_SECRET = 'local-reex-secret-not-a-real-credential'
+const clientSecret = () =>
+  process.env.ACCREDITATION_API_CLIENT_SECRET ||
+  (environment === 'local' ? LOCAL_CLIENT_SECRET : undefined)
 
 /** Why the API cannot be called, or undefined when it can. */
 export function accreditationApiNotConfigured() {
