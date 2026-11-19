@@ -299,6 +299,36 @@ describe(
       }
     })
 
+    // siteId is a business key within its accreditation, across overseas and
+    // interim sites, never reused once a site is removed, and not a database
+    // id (the guide, since epr-register-enrol-backend#273).
+    it('identifies each site by a siteId unique within its accreditation, withdrawn sites included', async (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      const { status, body } = await getAccreditationApi(
+        `${context.exporter.path}?includeWithdrawn=true`
+      )
+      assert.equal(status, 200)
+      const sites = body.overseasSites.flatMap((site) => [
+        [`overseas site ${site.orsId ?? site.siteName}`, site.siteId],
+        ...(site.interimSites ?? []).map((interim) => [
+          `interim site ${interim.siteNumber}`,
+          interim.siteId
+        ])
+      ])
+      assert.ok(sites.length > 0, 'no sites')
+      const seen = new Map()
+      for (const [what, siteId] of sites) {
+        assert.ok(Number.isInteger(siteId), `${what} siteId ${siteId}`)
+        assert.ok(
+          !seen.has(siteId),
+          `${what} has siteId ${siteId}, as ${seen.get(siteId)} does`
+        )
+        seen.set(siteId, what)
+      }
+    })
+
     // The API serves signatories and contacts; what the report shows of them
     // (the request log, test/api/request-log.js) is redacted.
     it('serves signatories and contacts, redacted in the report', async (t) => {
