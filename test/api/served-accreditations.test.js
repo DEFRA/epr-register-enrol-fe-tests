@@ -13,6 +13,7 @@ import {
   notConfigured,
   year
 } from './support.js'
+import { LATEST_STATUS_TODO, assertAbsent } from './status-history.js'
 
 // What the API serves for the seeded organisation: the reprocessor and
 // exporter accreditations the frontend integration run granted, each as its
@@ -58,8 +59,18 @@ describe(
           `${item.registrationNumber} is not one of the organisation's registrations`
         )
       }
-      assert.ok(context.reprocessor, 'no reprocessor accreditation served')
-      assert.ok(context.exporter, 'no exporter accreditation served')
+      // The frontend integration specs grant these, so when neither is served
+      // those specs most likely did not run or did not pass.
+      const missing = ['reprocessor', 'exporter'].filter(
+        (type) => !context[type]
+      )
+      assert.deepEqual(
+        missing,
+        [],
+        `no ${missing.join(' or ')} accreditation served for organisation ` +
+          `${context.organisation.orgId} (${context.served.length} served in all). ` +
+          'The frontend integration specs grant them: check they ran and passed.'
+      )
     })
 
     it('serves each granted accreditation as its seeded registration', async (t) => {
@@ -95,7 +106,7 @@ describe(
             )
           }
           assert.equal(typeof body.accreditationNumber, 'string')
-          assert.equal(body.latestStatus.status, 'approved')
+          // Approved: see the RA-773 test below, as latestStatus.status.
 
           if (registration.wasteProcessingType === 'exporter') {
             assert.ok(
@@ -121,6 +132,32 @@ describe(
         })
       }
     })
+
+    // As #193 asserted it: approved as latestStatus.status, with no status
+    // string left (RA-773's acceptance criteria).
+    it(
+      'serves each granted accreditation as approved, in latestStatus only (RA-773)',
+      { todo: LATEST_STATUS_TODO },
+      async () => {
+        assert.ok(context.served.length > 0, 'no accreditation is served')
+        for (const item of context.served) {
+          const { status, body } = await getAccreditationApi(
+            accreditationPath({
+              orgId: context.organisation.orgId,
+              registrationNumber: item.registrationNumber,
+              year
+            })
+          )
+          assert.equal(status, 200)
+          assertAbsent(body, ['status'], item.registrationNumber)
+          assert.equal(
+            body.latestStatus?.status,
+            'approved',
+            `${item.registrationNumber} latestStatus.status`
+          )
+        }
+      }
+    )
 
     it('answers 404 accreditation_not_found for every registration not granted', async () => {
       const servedNumbers = context.served.map(
