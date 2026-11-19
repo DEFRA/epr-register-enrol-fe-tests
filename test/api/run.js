@@ -15,6 +15,20 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 // against an organisation kept or named by SEEDED_ORGANISATION_ID:
 //
 //   npm run test:api:integration
+//
+// The fixed test data suite (test/api/test-data, RA-646's records) runs the
+// same way on local, dev and ext-test, never test:
+//
+//   npm run test:api:test-data:local   (or :dev, :ext-test)
+
+// What each suite runs, and the name of its JUnit report.
+export const SUITES = {
+  integration: { pattern: 'test/api/*.test.js', report: 'integration-api' },
+  'test-data': {
+    pattern: 'test/api/test-data/*.test.js',
+    report: 'test-data-api'
+  }
+}
 
 const root = resolvePath(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -23,7 +37,8 @@ const root = resolvePath(dirname(fileURLToPath(import.meta.url)), '../..')
  *   code, 0 when every test passed or skipped, and why it could not run or
  *   finish when that is not a failing test
  */
-export function runAccreditationApiTests() {
+export function runAccreditationApiTests(suite = 'integration') {
+  const { pattern, report } = SUITES[suite]
   return new Promise((resolve) => {
     let reportsDir
     let requestLog
@@ -45,10 +60,10 @@ export function runAccreditationApiTests() {
         '--test-reporter=spec',
         '--test-reporter-destination=stdout',
         '--test-reporter=junit',
-        `--test-reporter-destination=${resolvePath(reportsDir, 'integration-api.xml')}`,
+        `--test-reporter-destination=${resolvePath(reportsDir, `${report}.xml`)}`,
         '--test-reporter=./test/api/allure-reporter.js',
         '--test-reporter-destination=stdout',
-        'test/api/*.test.js'
+        pattern
       ],
       {
         cwd: root,
@@ -79,9 +94,16 @@ export function runAccreditationApiTests() {
   })
 }
 
-// npm run test:api:integration
+// npm run test:api:integration, or with a suite name: node test/api/run.js test-data
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { exitCode, reason } = await runAccreditationApiTests()
+  const suite = process.argv[2] ?? 'integration'
+  if (!SUITES[suite]) {
+    process.stdout.write(
+      `No suite ${suite}: choose one of ${Object.keys(SUITES).join(', ')}\n`
+    )
+    process.exit(1)
+  }
+  const { exitCode, reason } = await runAccreditationApiTests(suite)
   if (reason) {
     process.stdout.write(
       `Could not run the accreditation API tests: ${reason}\n`

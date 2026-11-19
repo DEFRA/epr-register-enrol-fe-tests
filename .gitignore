@@ -15,8 +15,11 @@ api-allure-report/
 api-allure-results/
 FAILED
 
-# Local secrets, e.g. for npm run seed:organisation
+# Local secrets, e.g. for npm run seed:organisation, and per environment for
+# npm run test:api:test-data:dev (.env.dev) and :ext-test (.env.ext-test)
 .env
+.env.*
+!.env.example
 
 # JUnit report from the accreditation API tests (test/api/run.js)
 reports/accreditation-api/

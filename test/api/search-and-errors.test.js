@@ -85,12 +85,16 @@ describe(
         assert.equal(status, 200, JSON.stringify(body))
       })
 
-      // RA-702: case management cannot send this status yet, so test has no
-      // accreditation to return. Todo until it has one: a known gap in the
+      // RA-702 added the filter, but the backend still serves every
+      // accreditation as one approved entry (AccreditationApiMapper's
+      // StatusHistory), so no environment has one with this status to
+      // return. Todo until a status change is recorded: a known gap in the
       // report until then, then it checks what the filter returns.
       it(
         `returns only ${filter} accreditations for status=${filter}`,
-        { todo: `case management cannot send ${filter} yet (RA-702)` },
+        {
+          todo: `the API serves every accreditation as approved, so none is ${filter} yet`
+        },
         async () => {
           const { status, body } = await getAccreditationApi(
             `/v1/accreditations?status=${filter}&limit=100`
