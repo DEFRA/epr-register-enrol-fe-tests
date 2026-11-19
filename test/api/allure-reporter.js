@@ -155,8 +155,10 @@ export default async function* allureReporter(source) {
     const isSuite = data.details?.type === 'suite'
     const failed = event.type === 'test:fail'
     // A suite is a result of its own only when it is skipped (to say why) or
-    // fails (a before hook that threw); its tests report themselves.
-    if (isSuite && !failed && !data.skip) {
+    // fails itself (a before hook that threw); its tests report themselves,
+    // so a suite that fails only because one of them did is not reported.
+    const subtestsFailed = data.details?.error?.failureType === 'subtestsFailed'
+    if (isSuite && (subtestsFailed || (!failed && !data.skip))) {
       continue
     }
 

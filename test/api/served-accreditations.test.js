@@ -58,8 +58,18 @@ describe(
           `${item.registrationNumber} is not one of the organisation's registrations`
         )
       }
-      assert.ok(context.reprocessor, 'no reprocessor accreditation served')
-      assert.ok(context.exporter, 'no exporter accreditation served')
+      // The frontend integration specs grant these, so when neither is served
+      // those specs most likely did not run or did not pass.
+      const missing = ['reprocessor', 'exporter'].filter(
+        (type) => !context[type]
+      )
+      assert.deepEqual(
+        missing,
+        [],
+        `no ${missing.join(' or ')} accreditation served for organisation ` +
+          `${context.organisation.orgId} (${context.served.length} served in all). ` +
+          'The frontend integration specs grant them: check they ran and passed.'
+      )
     })
 
     it('serves each granted accreditation as its seeded registration', async (t) => {
