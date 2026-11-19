@@ -14,6 +14,7 @@ import {
   year
 } from './support.js'
 import { readRequestLog } from './request-log.js'
+import { assertStatusHistory } from './status-history.js'
 
 // What contract.test.js and validation.test.js leave out: the search's status
 // filter and order, the scheme years, business keys only, and the errors for
@@ -23,22 +24,6 @@ import { readRequestLog } from './request-log.js'
 //
 // A reprocessor's site is in Re-Ex but not in the API: the v2 spec and the
 // guide define no site on an accreditation, so only the seeding is checked.
-
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
-
-// The UK date (yyyy-MM-dd) of a moment, as effectiveFromDate is written.
-const ukDate = (moment) =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(
-    new Date(moment)
-  )
-
-// The first day a status applies: the later of 1 January of the accreditation
-// year and the UK date it was recorded (RA-772).
-function appliesFrom(recordedAt, accreditationYear) {
-  const startOfYear = `${accreditationYear}-01-01`
-  const recordedOn = ukDate(recordedAt)
-  return recordedOn > startOfYear ? recordedOn : startOfYear
-}
 
 const OTHER_STATUSES = ['suspended', 'cancelled', 'withdrawn']
 // Scheme years start with 2027 (the API serves nothing earlier).
@@ -93,11 +78,18 @@ describe(
     })
 
     for (const filter of OTHER_STATUSES) {
-      it(`accepts status=${filter} as a search filter`, async () => {
+      // Case management cannot send these yet, so test has none to return:
+      // until it does, this proves only that the filter is accepted.
+      it(`accepts status=${filter}, returning only ${filter} accreditations`, async (t) => {
         const { status, body } = await getAccreditationApi(
           `/v1/accreditations?status=${filter}&limit=100`
         )
         assert.equal(status, 200, JSON.stringify(body))
+        if (body.items.length === 0) {
+          t.diagnostic(
+            `no ${filter} accreditation on test, so what the filter returns is not checked`
+          )
+        }
         for (const item of body.items) {
           assert.equal(item.status, filter, item.accreditationNumber)
         }
@@ -115,7 +107,8 @@ describe(
       const first = await numbers()
       assert.deepEqual(
         first,
-        first.toSorted((a, b) => a.localeCompare(b)),
+        // By code unit, as the database sorts, not by locale.
+        first.toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
         'not ordered by accreditationNumber'
       )
       assert.deepEqual(await numbers(), first, 'the order changed')
@@ -165,6 +158,11 @@ describe(
         t.skip('no accreditation is served for the organisation')
         return
       }
+      assert.match(
+        String(served.accreditationNumber),
+        /^A\d{2}/,
+        'the served accreditation has no accreditation number'
+      )
       assertProblem(
         await getAccreditationApi(
           `/v1/accreditations/${encodeURIComponent(served.accreditationNumber)}`
@@ -264,41 +262,19 @@ describe(
       const { status, body } = await getAccreditationApi(context.exporter.path)
       assert.equal(status, 200)
       assert.ok(body.overseasSites.length > 0, 'no overseas sites')
-      const startOfYear = `${body.accreditationYear}-01-01`
       for (const site of body.overseasSites) {
         const what = `site ${site.orsId}`
         for (const field of ['approvedOn', 'validFrom']) {
           assert.ok(!(field in site), `${what} still has ${field}`)
         }
-        const history = site.statusHistory
-        assert.ok(history?.length, `${what} has no status history`)
-        const approved = history.find(({ status: s }) => s === 'approved')
-        assert.ok(approved, `${what} was never approved`)
-        assert.equal(
-          approved.effectiveFromDate,
-          appliesFrom(approved.recordedAt, body.accreditationYear),
-          `${what} approved effectiveFromDate`
+        assert.ok(
+          site.statusHistory?.some(({ status: s }) => s === 'approved'),
+          `${what} was never approved`
         )
-        history.forEach((entry, i) => {
-          assert.match(entry.effectiveFromDate, DATE_ONLY, what)
-          assert.ok(
-            entry.effectiveFromDate >= startOfYear,
-            `${what} status applies from ${entry.effectiveFromDate}, before ${startOfYear}`
-          )
-          if (i === history.length - 1) {
-            assert.equal(
-              entry.effectiveToDate,
-              null,
-              `${what} latest status has an end date`
-            )
-          } else {
-            assert.match(entry.effectiveToDate, DATE_ONLY, what)
-            assert.ok(
-              entry.effectiveToDate >= entry.effectiveFromDate,
-              `${what} status ends before it starts`
-            )
-          }
-        })
+        // Each period runs from effectiveFromDate (the later of 1 January and
+        // the UK date recorded) to effectiveToDate (the day before the next
+        // starts, null on the latest), checked as contract.test.js checks it.
+        assertStatusHistory(site.statusHistory, what, body.accreditationYear)
       }
     })
 

@@ -12,8 +12,9 @@ import { readRequestLog } from './request-log.js'
 // When the run logs its requests (ACCREDITATION_API_REQUEST_LOG, as
 // test/api/run.js sets it), each test gets a step per request it made, with
 // the request and the response attached, and each suite's before hook
-// requests show as its set-up. The results are written once the run ends,
-// when the log is complete.
+// requests show as its set-up. Each result is written as its test finishes,
+// so a run that is killed keeps the results it had; once the run ends, and
+// the log is complete, each is written again with its requests.
 //
 // A todo test ({ todo: 'why' }) is a known gap: it is skipped while it fails,
 // saying why, and passes once it passes, so it never fails the run.
@@ -89,7 +90,9 @@ function attachRequests(results) {
   // A hook's requests (a suite loading the organisation, say) as the set-up
   // of every test in its suite.
   for (const [test, exchanges] of byTest) {
-    const hook = / \((before|beforeEach|after|afterEach) hook\)$/.exec(test)
+    // label-tests.js names only a suite's before and after hooks; a
+    // beforeEach or afterEach hook's requests are the test's own.
+    const hook = / \((before|after) hook\)$/.exec(test)
     if (!hook) {
       continue
     }
@@ -97,12 +100,15 @@ function attachRequests(results) {
     const children = results.filter(({ fullName }) =>
       fullName.startsWith(`${suite} › `)
     )
-    // A suite whose before hook threw reports as a result of its own.
+    // A suite whose before hook threw reports as a result of its own, which
+    // shows the hook's requests; its tests never ran, so they do not repeat
+    // them as their set-up.
     const failedSuite = results.find(
       ({ fullName, name }) => fullName === suite && name.endsWith('(suite)')
     )
     if (failedSuite) {
       failedSuite.steps.push(...exchanges.map(requestStep))
+      continue
     }
     if (!children.length) {
       continue
@@ -140,6 +146,7 @@ export default async function* allureReporter(source) {
   // its own result, so this is the path to whatever reports next.
   const path = []
   const results = []
+  mkdirSync(resultsDir, { recursive: true })
 
   for await (const event of source) {
     if (event.type === 'test:start') {
@@ -182,7 +189,7 @@ export default async function* allureReporter(source) {
       status = 'broken'
     }
 
-    results.push({
+    const result = {
       uuid: randomUUID(),
       historyId: fullName,
       name: isSuite ? `${data.name} (suite)` : data.name,
@@ -205,13 +212,18 @@ export default async function* allureReporter(source) {
       steps: [],
       attachments: [],
       parameters: []
-    })
+    }
+    results.push(result)
+    // Now, so it survives a run that is killed before it ends.
+    writeJson(`${result.uuid}-result.json`, result)
   }
 
-  mkdirSync(resultsDir, { recursive: true })
-  attachRequests(results)
-  for (const result of results) {
-    writeJson(`${result.uuid}-result.json`, result)
+  // The log is complete: each result again, with its requests.
+  if (results.length) {
+    attachRequests(results)
+    for (const result of results) {
+      writeJson(`${result.uuid}-result.json`, result)
+    }
   }
   // A reporter yields its output; this one has none, its results are files.
   yield ''

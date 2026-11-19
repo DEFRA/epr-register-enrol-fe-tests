@@ -20,21 +20,39 @@ const label = (t) => t.fullName.split(' > ').join(' › ')
 nodeTest.beforeEach((t) => testStarted(label(t)))
 nodeTest.afterEach(() => testFinished())
 
-// A suite's own hooks, named after the suite.
-for (const key of ['before', 'beforeEach', 'after', 'afterEach']) {
+// A suite's before and after hooks run outside any test, so they are named
+// after the suite. Its beforeEach and afterEach hooks are not wrapped: they
+// run inside the root ones above, so their requests are the test's own.
+for (const key of ['before', 'after']) {
   const original = nodeTest[key]
-  nodeTest[key] = (fn, ...rest) =>
-    original(
-      async function (t, ...args) {
-        testStarted(`${label(t)} (${key} hook)`)
-        try {
-          return await fn.call(this, t, ...args)
-        } finally {
-          testFinished()
-        }
-      },
-      ...rest
-    )
+  nodeTest[key] = (fn, ...rest) => {
+    const name = (t) => `${label(t)} (${key} hook)`
+    // node:test passes a done callback only to a hook that declares two
+    // parameters, so the wrapper declares as many as the hook does.
+    const wrapped =
+      fn.length >= 2
+        ? function (t, done) {
+            testStarted(name(t))
+            try {
+              return fn.call(this, t, (err) => {
+                testFinished()
+                done(err)
+              })
+            } catch (err) {
+              testFinished()
+              throw err
+            }
+          }
+        : async function (t) {
+            testStarted(name(t))
+            try {
+              return await fn.call(this, t)
+            } finally {
+              testFinished()
+            }
+          }
+    return original(wrapped, ...rest)
+  }
 }
 
 // So `import { before } from 'node:test'` in the test files gets these.

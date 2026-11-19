@@ -3,6 +3,14 @@ import { before, describe, it } from 'node:test'
 
 import { getAccreditationApi } from '../helpers/accreditation-api.js'
 import {
+  DATE_TIME,
+  STATUSES,
+  assertAbsent,
+  assertOneOf,
+  assertStatusHistory,
+  projectedStatus
+} from './status-history.js'
+import {
   loadApiContext,
   notConfigured,
   requireGranted,
@@ -23,124 +31,8 @@ const MATERIALS = [
   'Paper',
   'Plastic'
 ]
-const STATUSES = ['approved', 'suspended', 'cancelled', 'withdrawn']
 const BANDS = ['up_to_500', 'up_to_5000', 'up_to_10000', 'over_10000']
 const GLASS = ['glass_re_melt', 'glass_other']
-const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
-
-// The UK date (yyyy-MM-dd) of a moment, as effectiveFromDate is written.
-const ukDate = (moment) =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(
-    new Date(moment)
-  )
-const todayUk = ukDate(Date.now())
-
-// The first day a status applies: the later of 1 January of the accreditation
-// year and the UK date it was recorded (RA-772).
-function appliesFrom(recordedAt, accreditationYear) {
-  const startOfYear = `${accreditationYear}-01-01`
-  const recordedOn = ukDate(recordedAt)
-  return recordedOn > startOfYear ? recordedOn : startOfYear
-}
-
-function assertAbsent(object, fields, what) {
-  for (const field of fields) {
-    assert.ok(!(field in object), `${what} should not have ${field}`)
-  }
-}
-
-function assertOneOf(value, allowed, what) {
-  assert.ok(
-    allowed.includes(value),
-    `${what} ${value} is not one of ${allowed}`
-  )
-}
-
-// The day before an ISO date (yyyy-MM-dd), as effectiveToDate is written.
-function dayBefore(date) {
-  const day = new Date(`${date}T00:00:00Z`)
-  day.setUTCDate(day.getUTCDate() - 1)
-  return day.toISOString().slice(0, 10)
-}
-
-// Each entry shows the period the status applies: from effectiveFromDate to
-// effectiveToDate, which is the day before the next entry starts and null on
-// the latest. effectiveToDate is always present, so a missing one is a failure.
-function assertStatusHistory(history, what, accreditationYear = year) {
-  assert.ok(
-    Array.isArray(history) && history.length > 0,
-    `${what} has no statusHistory`
-  )
-  history.forEach((entry, index) => {
-    assertOneOf(entry.status, STATUSES, `${what} status`)
-    assert.match(
-      entry.effectiveFromDate,
-      DATE_ONLY,
-      `${what} effectiveFromDate`
-    )
-    assert.ok(
-      'effectiveToDate' in entry,
-      `${what} entry has no effectiveToDate`
-    )
-    assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
-    assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
-
-    // Recorded before the year: 1 January. Recorded during it: the UK date.
-    assert.equal(
-      entry.effectiveFromDate,
-      appliesFrom(entry.recordedAt, accreditationYear),
-      `${what} effectiveFromDate for a status recorded at ${entry.recordedAt} in ${accreditationYear}`
-    )
-
-    // A period never ends before it starts, and the entries run in order.
-    if (entry.effectiveToDate !== null) {
-      assert.ok(
-        entry.effectiveToDate >= entry.effectiveFromDate,
-        `${what} effectiveToDate ${entry.effectiveToDate} is before effectiveFromDate ${entry.effectiveFromDate}`
-      )
-    }
-    const next = history[index + 1]
-    if (next) {
-      assert.ok(
-        next.effectiveFromDate >= entry.effectiveFromDate,
-        `${what} effectiveFromDate goes backwards`
-      )
-      // The day before the next entry starts. Where the next starts the same
-      // day (a tie, won by the later recordedAt), this one is kept and ends on
-      // that same day.
-      const expectedTo =
-        next.effectiveFromDate === entry.effectiveFromDate
-          ? entry.effectiveFromDate
-          : dayBefore(next.effectiveFromDate)
-      assert.equal(
-        entry.effectiveToDate,
-        expectedTo,
-        `${what} effectiveToDate is the day before the next entry starts`
-      )
-    } else {
-      assert.equal(
-        entry.effectiveToDate,
-        null,
-        `${what} latest entry has no effectiveToDate`
-      )
-    }
-  })
-}
-
-// The latest entry that starts on or before today; approved when none has yet,
-// as the backend projects it. Where two start on the same date, the one
-// recorded later takes precedence.
-function projectedStatus(history) {
-  const effective = history
-    .filter((entry) => entry.effectiveFromDate <= todayUk)
-    .sort(
-      (a, b) =>
-        a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
-        a.recordedAt.localeCompare(b.recordedAt)
-    )
-  return effective.at(-1)?.status ?? 'approved'
-}
 
 function assertSummary(item) {
   assert.equal(typeof item.organisationNumber, 'number')
@@ -209,7 +101,12 @@ function assertInterimSite(site, includeWithdrawn) {
   }
 }
 
-function assertOverseasSite(site, includeWithdrawn = false) {
+// accreditationYear is the year of the accreditation the site is on: the
+// response's own, or the year the path was built with (support.js's year).
+function assertOverseasSite(
+  site,
+  { includeWithdrawn = false, accreditationYear = year } = {}
+) {
   const what = `site ${site.orsId ?? site.siteName}`
   assert.equal(typeof site.siteId, 'number')
   if (site.orsId) {
@@ -228,7 +125,7 @@ function assertOverseasSite(site, includeWithdrawn = false) {
   // validFrom is no longer served: the status history carries the dates.
   assertAbsent(site, ['validFrom'], what)
   assertOneOf(site.status, STATUSES, `${what} status`)
-  assertStatusHistory(site.statusHistory, what)
+  assertStatusHistory(site.statusHistory, what, accreditationYear)
   assert.equal(
     site.status,
     projectedStatus(site.statusHistory),
@@ -309,7 +206,9 @@ describe(
         if (type === 'exporter') {
           assert.ok(body.overseasSites.length > 0, 'no overseas sites')
           for (const site of body.overseasSites) {
-            assertOverseasSite(site)
+            assertOverseasSite(site, {
+              accreditationYear: body.accreditationYear
+            })
           }
         } else {
           assert.ok(!('overseasSites' in body))
@@ -479,7 +378,7 @@ describe(
         )
         assert.equal(without.status, 200)
         for (const site of without.body.items) {
-          assertOverseasSite(site, false)
+          assertOverseasSite(site, { includeWithdrawn: false })
         }
 
         const withWithdrawn = await getAccreditationApi(
@@ -487,7 +386,7 @@ describe(
         )
         assert.equal(withWithdrawn.status, 200)
         for (const site of withWithdrawn.body.items) {
-          assertOverseasSite(site, true)
+          assertOverseasSite(site, { includeWithdrawn: true })
         }
         const count = (body) =>
           body.items.reduce(
