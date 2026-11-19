@@ -8,6 +8,7 @@ import ChangeRequestsPage from 'page-objects/change-requests.page'
 import CmWorkItemPage from 'page-objects/cm-work-item.page'
 import ManageOverseasSitesPage from 'page-objects/manage-overseas-sites.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
+import { ukToday } from 'page-objects/cm-decision.page'
 
 import {
   WORK_ITEM_STATES,
@@ -54,11 +55,12 @@ import {
 //                 the case closes as Refused, the request shows REFUSED, Lyon
 //                 stays registered and can be requested again
 //   4 operator    requests Lyon again and submits
-//   5 regulator   duly makes and approves it: Lyon stays locked until the
+//   5 regulator   duly makes and approves it, entering an effective date
+//                 after the submission date: Lyon stays locked until the
 //                 regulator confirms the applicant has been contacted, which
 //                 grants it
-//   6 operator    the request shows GRANTED, valid from its submission date,
-//                 and Lyon is on the Accredited tab
+//   6 operator    the request shows GRANTED, valid from the effective date
+//                 (AC6), and Lyon is on the Accredited tab
 //
 // The tests share the requests and run in order; each skips when the one
 // before it did not get as far as it needs. Granting Lyon selects it on the
@@ -68,6 +70,19 @@ import {
 // application only.
 
 const SITE = ORS.lyon
+
+// AC6: the site is accredited from the date the regulator enters on approval,
+// here 10 days after today (the submission date), so the two cannot be mixed up.
+const EFFECTIVE_DATE = new Date(Date.parse(ukToday()) + 10 * 86400000)
+  .toISOString()
+  .slice(0, 10)
+
+// As the operator's request page shows it (date-fns 'd MMM yyyy').
+function shownAsOperatorDate(isoDate) {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
+  return `${day} ${months[month - 1]} ${year}`
+}
 
 // Case management pushes a status change in the background once it has
 // recorded it, so the operator side catches up shortly afterwards.
@@ -181,7 +196,6 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
     // Newest first: the request just submitted.
     const request = requests.find((r) => r.status === 'Submitted')
     progress.itemId = request.sites[0].itemId
-    progress.submittedAt = request.submittedAt
     // Only items still being decided, so a refused one is never picked.
     progress.workItemId = (
       await changeRequestWorkItemIdsFor({ organisationId: ORGANISATION_ID })
@@ -320,7 +334,10 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
       await waitForItemStatus('DulyMade')
 
       await openWorkItem()
-      await approveWorkItem({ note: 'RA-495 e2e: the site is suitable.' })
+      await approveWorkItem({
+        note: 'RA-495 e2e: the site is suitable.',
+        effectiveDate: EFFECTIVE_DATE
+      })
       await expect(CmWorkItemPage.stateTag).toHaveText(
         WORK_ITEM_STATES.approved
       )
@@ -354,14 +371,14 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
     const { item, site } = await currentItem()
     expect(item.status).toBe('Approved')
     expect(new Date(item.validFrom).toISOString()).toBe(
-      new Date(progress.submittedAt).toISOString()
+      `${EFFECTIVE_DATE}T00:00:00.000Z`
     )
     expect(site.accreditationStatus).toBe('Accredited')
     expect(site.pendingRequestId).toBeNull()
 
     await expectOperatorStatus('GRANTED')
-    await expect(ChangeRequestDetailPage.requestValidFrom).not.toHaveText(
-      'Not applicable'
+    await expect(ChangeRequestDetailPage.requestValidFrom).toHaveText(
+      shownAsOperatorDate(EFFECTIVE_DATE)
     )
 
     await browser.url(OVERSEAS_SITES_PATH)

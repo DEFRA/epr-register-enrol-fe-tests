@@ -103,13 +103,15 @@ export async function queryWorkItem({ sections, reason }) {
 /**
  * Logs the determination on the work item, the first of its two steps.
  * Approving mints the accreditation and moves the work item to Approved, where
- * it waits for confirmApplicantContact; it cannot be undone.
+ * it waits for confirmApplicantContact; it cannot be undone. An add-ORS
+ * approval also enters effectiveDate (yyyy-MM-dd, today's UK date when not
+ * given).
  */
-export async function approveWorkItem({ note } = {}) {
+export async function approveWorkItem({ note, effectiveDate } = {}) {
   await CmWorkItemPage.startDetermination()
   await expect(browser).toHaveUrl(expect.stringContaining('/decision'))
 
-  await CmDecisionPage.approve({ note })
+  await CmDecisionPage.approve({ note, effectiveDate })
 
   await CmWorkItemPage.waitUntilLoaded()
 }
