@@ -52,24 +52,22 @@ function dayBefore(date) {
 // Each entry shows the period the status applies: from effectiveFromDate to
 // effectiveToDate, which is the day before the next entry starts and null on
 // the latest. effectiveToDate is always present, so a missing one is a failure.
+// The shape of one status entry, in a statusHistory or as latestStatus.
+function assertStatusEntry(entry, what) {
+  assertOneOf(entry.status, STATUSES, `${what} status`)
+  assert.match(entry.effectiveFromDate, DATE_ONLY, `${what} effectiveFromDate`)
+  assert.ok('effectiveToDate' in entry, `${what} entry has no effectiveToDate`)
+  assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
+  assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
+}
+
 function assertStatusHistory(history, what) {
   assert.ok(
     Array.isArray(history) && history.length > 0,
     `${what} has no statusHistory`
   )
   history.forEach((entry, index) => {
-    assertOneOf(entry.status, STATUSES, `${what} status`)
-    assert.match(
-      entry.effectiveFromDate,
-      DATE_ONLY,
-      `${what} effectiveFromDate`
-    )
-    assert.ok(
-      'effectiveToDate' in entry,
-      `${what} entry has no effectiveToDate`
-    )
-    assert.match(entry.recordedAt, DATE_TIME, `${what} recordedAt`)
-    assertAbsent(entry, ['effectiveDate'], `${what} status entry`)
+    assertStatusEntry(entry, what)
 
     // A period never ends before it starts, and the entries run in order.
     if (entry.effectiveToDate !== null) {
@@ -114,28 +112,28 @@ function assertLatestStatus(record, what) {
   const latest = record.latestStatus
   assert.equal(typeof latest, 'object', `${what} has no latestStatus`)
   assert.notEqual(latest, null, `${what} has no latestStatus`)
-  assertOneOf(latest.status, STATUSES, `${what} latestStatus status`)
-  assert.match(
-    latest.effectiveFromDate,
-    DATE_ONLY,
-    `${what} latestStatus effectiveFromDate`
+  assertStatusEntry(latest, `${what} latestStatus`)
+  // No later entry closes the latest one.
+  assert.equal(
+    latest.effectiveToDate,
+    null,
+    `${what} latestStatus has an effectiveToDate`
   )
-  assert.ok(
-    'effectiveToDate' in latest,
-    `${what} latestStatus has no effectiveToDate`
-  )
-  assert.match(latest.recordedAt, DATE_TIME, `${what} latestStatus recordedAt`)
-  assertAbsent(latest, ['effectiveDate'], `${what} latestStatus`)
 }
 
 // latestStatus is the same entry as the latest one in the history: the latest
-// effectiveFromDate, and the later recordedAt where two share one.
+// effectiveFromDate, and the later recordedAt where two share one. The sorted
+// check is the only one that applies the recordedAt tie-break; assertStatusHistory
+// already checks that the entries are in order, so the last-entry check below it
+// guards the order the API returns them in.
 function assertLatestStatusMatchesHistory(record, what) {
-  const latest = [...record.statusHistory].sort(
-    (a, b) =>
-      a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
-      a.recordedAt.localeCompare(b.recordedAt)
-  )[record.statusHistory.length - 1]
+  const latest = [...record.statusHistory]
+    .sort(
+      (a, b) =>
+        a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
+        a.recordedAt.localeCompare(b.recordedAt)
+    )
+    .at(-1)
   assert.deepStrictEqual(
     record.latestStatus,
     latest,
