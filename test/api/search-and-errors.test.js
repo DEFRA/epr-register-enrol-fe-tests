@@ -13,12 +13,29 @@ import {
   requireGranted,
   year
 } from './support.js'
+import { readRequestLog } from './request-log.js'
 
 // What contract.test.js and validation.test.js leave out: the search's status
 // filter and order, the scheme years, business keys only, and the errors for
-// routes and methods the API does not have. Then, as todo tests, the scope
-// questions still open with the backend: they show in the report, saying
-// what is missing, without failing the run.
+// routes and methods the API does not have. Then the reprocessor's site, the
+// overseas sites' status dates (RA-772) and personal data, and, as a todo
+// test, the scope question still open with the backend.
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
+// The UK date (yyyy-MM-dd) of a moment, as effectiveFromDate is written.
+const ukDate = (moment) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(
+    new Date(moment)
+  )
+
+// The first day a status applies: the later of 1 January of the accreditation
+// year and the UK date it was recorded (RA-772).
+function appliesFrom(recordedAt, accreditationYear) {
+  const startOfYear = `${accreditationYear}-01-01`
+  const recordedOn = ukDate(recordedAt)
+  return recordedOn > startOfYear ? recordedOn : startOfYear
+}
 
 const OTHER_STATUSES = ['suspended', 'cancelled', 'withdrawn']
 // Scheme years start with 2027 (the API serves nothing earlier).
@@ -198,8 +215,172 @@ describe(
   }
 )
 
-// Each is what the ticket asks for and the API does not do yet. Drop the todo
-// once the backend team settles it (the report says when one starts passing).
+// The ticket's remaining points, as the seeded organisation shows them.
+describe(
+  'Accreditation API: sites, status dates and personal data',
+  { skip: notConfigured },
+  () => {
+    let context
+
+    before(async () => {
+      context = await loadApiContext()
+    })
+
+    it("seeds the reprocessor's accreditation with a site", async (t) => {
+      if (!requireGranted(t, context.reprocessor, 'reprocessor')) {
+        return
+      }
+      const registration = context.organisation.registrations.find(
+        ({ registrationNumber }) =>
+          registrationNumber === context.reprocessor.registrationNumber
+      )
+      assert.ok(registration, 'the reprocessor is not a seeded registration')
+      if (registration.siteAddress === undefined) {
+        t.skip(
+          'the snapshot predates site addresses: rerun the integration tests or set SEEDED_ORGANISATION_ID'
+        )
+        return
+      }
+      assert.ok(registration.siteAddress, 'the reprocessor has no site')
+      for (const field of ['line1', 'town', 'postcode']) {
+        assert.ok(
+          typeof registration.siteAddress[field] === 'string' &&
+            registration.siteAddress[field],
+          `the reprocessor's site has no ${field}`
+        )
+      }
+    })
+
+    // RA-772: an overseas site's approval date is no longer approvedOn (or
+    // validFrom) but the status history, each status dated by
+    // effectiveFromDate and effectiveToDate.
+    it('dates each overseas site by effectiveFromDate and effectiveToDate, not approvedOn', async (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      const { status, body } = await getAccreditationApi(context.exporter.path)
+      assert.equal(status, 200)
+      assert.ok(body.overseasSites.length > 0, 'no overseas sites')
+      const startOfYear = `${body.accreditationYear}-01-01`
+      for (const site of body.overseasSites) {
+        const what = `site ${site.orsId}`
+        for (const field of ['approvedOn', 'validFrom']) {
+          assert.ok(!(field in site), `${what} still has ${field}`)
+        }
+        const history = site.statusHistory
+        assert.ok(history?.length, `${what} has no status history`)
+        const approved = history.find(({ status: s }) => s === 'approved')
+        assert.ok(approved, `${what} was never approved`)
+        assert.equal(
+          approved.effectiveFromDate,
+          appliesFrom(approved.recordedAt, body.accreditationYear),
+          `${what} approved effectiveFromDate`
+        )
+        history.forEach((entry, i) => {
+          assert.match(entry.effectiveFromDate, DATE_ONLY, what)
+          assert.ok(
+            entry.effectiveFromDate >= startOfYear,
+            `${what} status applies from ${entry.effectiveFromDate}, before ${startOfYear}`
+          )
+          if (i === history.length - 1) {
+            assert.equal(
+              entry.effectiveToDate,
+              null,
+              `${what} latest status has an end date`
+            )
+          } else {
+            assert.match(entry.effectiveToDate, DATE_ONLY, what)
+            assert.ok(
+              entry.effectiveToDate >= entry.effectiveFromDate,
+              `${what} status ends before it starts`
+            )
+          }
+        })
+      }
+    })
+
+    // The API serves signatories and contacts; what the report shows of them
+    // (the request log, test/api/request-log.js) is redacted.
+    it('serves signatories and contacts, redacted in the report', async (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      const path = context.exporter.path
+      const { status, body } = await getAccreditationApi(path)
+      assert.equal(status, 200)
+
+      // [where, the person] for every signatory and contact served.
+      const people = (accreditation) => [
+        ...(accreditation.signatories ?? []).map((s, i) => [
+          `signatories[${i}]`,
+          s,
+          ['fullName', 'email']
+        ]),
+        ...(accreditation.overseasSites ?? []).flatMap((site, i) => [
+          ...(site.contact
+            ? [
+                [
+                  `overseasSites[${i}].contact`,
+                  site.contact,
+                  ['fullName', 'email', 'phone']
+                ]
+              ]
+            : []),
+          ...(site.interimSites ?? []).flatMap((interim, j) =>
+            interim.contact
+              ? [
+                  [
+                    `overseasSites[${i}].interimSites[${j}].contact`,
+                    interim.contact,
+                    ['fullName', 'email', 'phone']
+                  ]
+                ]
+              : []
+          )
+        ])
+      ]
+      const served = people(body)
+      assert.ok(body.signatories?.length, 'no signatories served')
+      for (const [where, person, fields] of served) {
+        for (const field of fields) {
+          assert.equal(
+            typeof person[field],
+            'string',
+            `${where}.${field} is not served`
+          )
+        }
+      }
+
+      if (!process.env.ACCREDITATION_API_REQUEST_LOG) {
+        t.diagnostic(
+          'no request log in this run (run through test/api/run.js), so the redaction is not checked'
+        )
+        return
+      }
+      const logged = readRequestLog()
+        .filter(({ request }) => request.url.endsWith(path))
+        .at(-1)
+      assert.ok(logged, `${path} is not in the request log`)
+      const redacted = people(logged.response.body)
+      assert.equal(redacted.length, served.length)
+      for (const [where, person, fields] of redacted) {
+        for (const field of fields) {
+          if (person[field]) {
+            assert.equal(
+              person[field],
+              '[redacted]',
+              `${where}.${field} is not redacted in the report`
+            )
+          }
+        }
+      }
+    })
+  }
+)
+
+// What the ticket asks for and the API does not do yet: reported, saying
+// what is missing, without failing the run. Drop the todo once the backend
+// team settles it (the report says when it starts passing).
 describe(
   'Accreditation API: open scope questions',
   { skip: notConfigured },
@@ -211,7 +392,7 @@ describe(
     })
 
     it(
-      "gives a reprocessor's accreditation its site",
+      "serves the reprocessor's site on its accreditation",
       {
         todo: 'the ticket says reprocessors have a site; the v2 spec defines no site'
       },
@@ -221,56 +402,6 @@ describe(
         }
         const { body } = await getAccreditationApi(context.reprocessor.path)
         assert.ok('site' in body, 'the accreditation has no site')
-      }
-    )
-
-    it(
-      'gives each overseas site the date it was approved (approvedOn)',
-      {
-        todo: 'the ticket asks for approvedOn; the API serves only the status history'
-      },
-      async (t) => {
-        if (!requireGranted(t, context.exporter, 'exporter')) {
-          return
-        }
-        const { body } = await getAccreditationApi(context.exporter.path)
-        const missing = body.overseasSites.filter(
-          (site) => !('approvedOn' in site)
-        )
-        assert.equal(
-          missing.length,
-          0,
-          `${missing.length} of ${body.overseasSites.length} sites have no approvedOn`
-        )
-      }
-    )
-
-    it(
-      'serves no signatories or contacts (personal data)',
-      {
-        todo: 'the ticket keeps contacts and signatories out of ReEx responses; the API and spec still serve them'
-      },
-      async (t) => {
-        const granted = context.exporter ?? context.reprocessor
-        if (!requireGranted(t, granted, 'reprocessor or exporter')) {
-          return
-        }
-        const { body } = await getAccreditationApi(granted.path)
-        const found = []
-        if (body.signatories?.length) {
-          found.push(`${body.signatories.length} signatories`)
-        }
-        for (const site of body.overseasSites ?? []) {
-          if (site.contact) {
-            found.push(`overseas site ${site.orsId} contact`)
-          }
-          for (const interim of site.interimSites ?? []) {
-            if (interim.contact) {
-              found.push(`interim site ${interim.siteNumber} contact`)
-            }
-          }
-        }
-        assert.deepEqual(found, [], `personal data served: ${found.join(', ')}`)
       }
     )
   }
