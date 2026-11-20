@@ -137,13 +137,12 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
   it('AC01/AC03/AC04: adds a complete registered ORS, with its recorded fields locked, and shows a £328 charge', async () => {
     await openManageOverseasSites()
 
-    // RA-425's partition: only ORS 001 is on the accreditation, and the
-    // Registered tab lists every registered ORS, ORS 001 included.
+    // RA-425's partition: only ORS 001 is on the accreditation.
     await expect(ManageOverseasSitesPage.tab('accredited')).toHaveText(
       'Accredited (1)'
     )
     await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-      'Registered (5)'
+      'Registered (4)'
     )
     await ManageOverseasSitesPage.openTab('registered')
     for (const { siteId } of [completeSite, incompleteSite, untouchedSite]) {
@@ -151,14 +150,10 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
         ManageOverseasSitesPage.addToAccreditationButton(siteId)
       ).toBeDisplayed()
     }
-    // ORS 001 is already accredited, so it is tagged Accredited and not
-    // offered again.
+    // ORS 001 is already accredited, so it is not offered again.
     await expect(
       ManageOverseasSitesPage.addToAccreditationButton(ORS.hamburg.siteId)
     ).not.toExist()
-    await expect(
-      ManageOverseasSitesPage.siteStatusTag(ORS.hamburg.siteId)
-    ).toHaveText('Accredited')
     // A never-registered site is on neither tab.
     for (const tab of ['accredited', 'registered']) {
       await expect(
@@ -486,7 +481,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
       'Accredited (1)'
     )
     await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-      'Registered (5)'
+      'Registered (4)'
     )
     await ManageOverseasSitesPage.openTab('registered')
     for (const { siteId } of [completeSite, incompleteSite]) {

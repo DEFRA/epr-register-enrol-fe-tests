@@ -211,9 +211,9 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     })
 
     it('switches to the registered sites', async () => {
-      // Every registered ORS, the three accredited ones included.
+      // Registered-only ORSs: the three accredited ones are not repeated.
       await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-        'Registered (4)'
+        'Registered (1)'
       )
 
       await ManageOverseasSitesPage.openTab('registered')
@@ -230,17 +230,9 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       await expect(
         ManageOverseasSitesPage.interimSiteDisclosure(ORS.dragon)
       ).toBeExisting()
-      // The accredited ORSs are listed here as well, tagged Accredited and
-      // with no Add to accreditation.
       for (const siteId of [ORS.rotterdam, ORS.bharat, ORS.berlin]) {
         await expect(
           ManageOverseasSitesPage.siteRow('registered', siteId)
-        ).toBeDisplayed()
-        await expect(ManageOverseasSitesPage.siteStatusTag(siteId)).toHaveText(
-          'Accredited'
-        )
-        await expect(
-          ManageOverseasSitesPage.addToAccreditationButton(siteId)
         ).not.toBeExisting()
       }
     })
