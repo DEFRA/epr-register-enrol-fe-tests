@@ -525,10 +525,12 @@ describe(
           context.exporter.path
         )
         assert.equal(status, 200)
-        for (const site of body.overseasSites) {
-          for (const interim of site.interimSites) {
-            assertInterimStatus(interim, body.accreditationYear)
-          }
+        const interimSites = body.overseasSites.flatMap(
+          (site) => site.interimSites
+        )
+        assert.ok(interimSites.length > 0, 'no interim site was checked')
+        for (const interim of interimSites) {
+          assertInterimStatus(interim, body.accreditationYear)
         }
       }
     )
@@ -544,10 +546,12 @@ describe(
           `${context.exporter.path}/overseas-sites?limit=100`
         )
         assert.equal(plain.status, 200)
-        for (const site of plain.body.items) {
-          for (const interim of site.interimSites) {
-            assertInterimStatus(interim, year)
-          }
+        const interimSites = plain.body.items.flatMap(
+          (site) => site.interimSites
+        )
+        assert.ok(interimSites.length > 0, 'no interim site was checked')
+        for (const interim of interimSites) {
+          assertInterimStatus(interim, year)
         }
         // No longer a parameter: whatever it says, the same interim sites.
         for (const value of ['true', 'false', 'maybe']) {
