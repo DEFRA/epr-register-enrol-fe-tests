@@ -1,4 +1,3 @@
-import assert from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
 
 import { getAccreditationApi } from '../helpers/accreditation-api.js'
@@ -72,6 +71,11 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
       'invalid_registration_number'
     ],
     [
+      'a search status that is not a status',
+      () => '/v1/accreditations?status=bogus',
+      'invalid_status'
+    ],
+    [
       'a search limit over 100',
       () => '/v1/accreditations?limit=101',
       'invalid_paging'
@@ -142,14 +146,17 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
       )
     })
 
-    it('ignores includeWithdrawn, which is no longer a parameter', async (t) => {
+    it('answers 400 invalid_include_withdrawn for includeWithdrawn not true or false', async (t) => {
       if (!requireGranted(t, context.exporter, 'exporter')) {
         return
       }
-      const { status } = await getAccreditationApi(
-        `${context.exporter.path}/overseas-sites?includeWithdrawn=maybe`
+      assertProblem(
+        await getAccreditationApi(
+          `${context.exporter.path}/overseas-sites?includeWithdrawn=maybe`
+        ),
+        400,
+        'invalid_include_withdrawn'
       )
-      assert.equal(status, 200)
     })
 
     it('answers 400 invalid_paging for an overseas sites limit over 100', async (t) => {

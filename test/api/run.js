@@ -1,12 +1,14 @@
 import { spawn } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
 import { dirname, resolve as resolvePath } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 // Runs the accreditation API tests (test/api/*.test.js) in a node:test child
 // process, with three reporters: spec to the console, JUnit XML to
 // reports/accreditation-api/, and Allure results to allure-results/ beside the
-// frontend tests'.
+// frontend tests'. Every request a test makes, and the response, is logged to
+// reports/accreditation-api/requests.jsonl (request-log.js) and attached to
+// that test in the Allure report.
 //
 // On test, npm test runs it from wdio.conf.js's onComplete, after the
 // frontend specs and before the seeded organisation is deleted. On its own,
@@ -24,9 +26,13 @@ const root = resolvePath(dirname(fileURLToPath(import.meta.url)), '../..')
 export function runAccreditationApiTests() {
   return new Promise((resolve) => {
     let reportsDir
+    let requestLog
     try {
       reportsDir = resolvePath(root, 'reports/accreditation-api')
       mkdirSync(reportsDir, { recursive: true })
+      // This run's requests only.
+      requestLog = resolvePath(reportsDir, 'requests.jsonl')
+      rmSync(requestLog, { force: true })
     } catch (err) {
       resolve({ exitCode: 1, reason: `could not create ${reportsDir}: ${err}` })
       return
@@ -44,7 +50,21 @@ export function runAccreditationApiTests() {
         '--test-reporter-destination=stdout',
         'test/api/*.test.js'
       ],
-      { cwd: root, stdio: 'inherit', env: process.env }
+      {
+        cwd: root,
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          ACCREDITATION_API_REQUEST_LOG: requestLog,
+          // Names each test's requests, in every test file's process.
+          NODE_OPTIONS: [
+            process.env.NODE_OPTIONS,
+            `--import=${pathToFileURL(resolvePath(root, 'test/api/label-tests.js'))}`
+          ]
+            .filter(Boolean)
+            .join(' ')
+        }
+      }
     )
     child.on('error', (err) => {
       resolve({ exitCode: 1, reason: `could not start node --test: ${err}` })

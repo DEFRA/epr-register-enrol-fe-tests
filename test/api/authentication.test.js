@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { before, describe, it } from 'node:test'
 
 import {
+  accreditationPath,
   callAccreditationApi,
   getAccreditationApi,
   signedHeaders,
@@ -23,10 +24,11 @@ import {
 
 describe('Accreditation API: authentication', { skip: notConfigured }, () => {
   let path
+  let organisation
 
   before(async () => {
-    const { orgId } = await organisationUnderTest()
-    path = `/v1/accreditations?year=${year}&organisationNumber=${orgId}`
+    organisation = await organisationUnderTest()
+    path = `/v1/accreditations?year=${year}&organisationNumber=${organisation.orgId}`
   })
 
   it('signs the worked example from the guide', () => {
@@ -125,5 +127,48 @@ describe('Accreditation API: authentication', { skip: notConfigured }, () => {
       const response = await callAccreditationApi(path, { method })
       assert.equal(response.status, 405, method)
     }
+  })
+  // An unknown route, or a method other than GET, is answered before the
+  // signature is checked: it reveals nothing beyond the published API (the
+  // guide, since epr-register-enrol-backend#273). Every route that returns
+  // data checks the signature first.
+  describe('what is answered before authentication', () => {
+    it('answers 404 not_found to an unsigned request for a route it does not have', async () => {
+      assertProblem(
+        await getAccreditationApi('/v1/no-such-route', { signed: false }),
+        404,
+        'not_found'
+      )
+    })
+
+    it('answers 405 method_not_allowed to an unsigned request with a method other than GET', async () => {
+      assertProblem(
+        await callAccreditationApi(path, { method: 'DELETE', signed: false }),
+        405,
+        'method_not_allowed'
+      )
+    })
+
+    it('answers 401 missing_header to an unsigned request on every route that returns data', async () => {
+      const accreditation = accreditationPath({
+        orgId: organisation.orgId,
+        registrationNumber: organisation.registrations[0].registrationNumber,
+        year
+      })
+      for (const route of [
+        path,
+        accreditation,
+        `${accreditation}/overseas-sites`,
+        `${accreditation}/overseas-sites/001`
+      ]) {
+        const response = await getAccreditationApi(route, { signed: false })
+        assert.equal(
+          response.status,
+          401,
+          `GET ${route} unsigned: ${response.status} ${JSON.stringify(response.body)}`
+        )
+        assert.equal(response.body.code, 'missing_header', route)
+      }
+    })
   })
 })
