@@ -159,6 +159,15 @@ export function assertLatestStatusMatchesHistory(record, what) {
   )
 }
 
+// RA-781 (an interim site's statusHistory and latestStatus, and no removedAt or
+// includeWithdrawn) is merged in the backend but not yet deployed to test. The tests
+// that check it are todo with this reason, as LATEST_STATUS_TODO's are: they pass once
+// test serves it, when the report says to drop the todo. On that day, also drop the
+// includeWithdrawn tests in contract.test.js and validation.test.js, which expect the
+// parameter the RA-781 tests expect gone.
+export const INTERIM_STATUS_TODO =
+  'RA-781 interim site status is in epr-register-enrol-backend, not yet deployed to test'
+
 // An accreditation's status to filter on: latestStatus's since RA-773, the
 // status string before it. Only for checking what a status filter returns;
 // the shape (latestStatus, and no status string) is the RA-773 tests' to check.

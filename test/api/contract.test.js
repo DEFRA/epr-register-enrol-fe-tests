@@ -9,7 +9,8 @@ import {
   assertStatusHistory,
   assertLatestStatus,
   assertLatestStatusMatchesHistory,
-  LATEST_STATUS_TODO
+  LATEST_STATUS_TODO,
+  INTERIM_STATUS_TODO
 } from './status-history.js'
 import {
   loadApiContext,
@@ -474,6 +475,91 @@ describe(
           const what = `site ${site.orsId ?? site.siteName}`
           assertLatestStatus(site, what)
           assertLatestStatusMatchesHistory(site, what)
+        }
+      }
+    )
+  }
+)
+
+// An interim site's status (RA-781): approved from when its overseas site was,
+// then withdrawn and approved again each time it is withdrawn and restored. Its
+// statusHistory and latestStatus have an accreditation's shape and date rules.
+// Withdrawn interim sites are always returned, so removedAt and the
+// includeWithdrawn parameter are gone. Todo until RA-781 is deployed to test
+// (INTERIM_STATUS_TODO in status-history.js).
+function assertInterimStatus(interim, accreditationYear) {
+  const what = `interim site ${interim.siteName}`
+  assertAbsent(interim, ['removedAt'], what)
+  assertLatestStatus(interim, what)
+  assertStatusHistory(interim.statusHistory, what, accreditationYear)
+  assertLatestStatusMatchesHistory(interim, what)
+
+  const statuses = interim.statusHistory.map((entry) => entry.status)
+  statuses.forEach((status, index) => {
+    assert.equal(
+      status,
+      index % 2 === 0 ? 'approved' : 'withdrawn',
+      `${what} history is approved, then alternates withdrawn and approved`
+    )
+  })
+}
+
+describe(
+  'Accreditation API: interim site status (RA-781)',
+  { skip: notConfigured },
+  () => {
+    let context
+
+    before(async () => {
+      context = await loadApiContext()
+    })
+
+    it(
+      'gives each interim site a statusHistory and latestStatus, and no removedAt',
+      { todo: INTERIM_STATUS_TODO },
+      async (t) => {
+        if (!requireGranted(t, context.exporter, 'exporter')) {
+          return
+        }
+        const { status, body } = await getAccreditationApi(
+          context.exporter.path
+        )
+        assert.equal(status, 200)
+        const interimSites = body.overseasSites.flatMap(
+          (site) => site.interimSites
+        )
+        assert.ok(interimSites.length > 0, 'no interim site was checked')
+        for (const interim of interimSites) {
+          assertInterimStatus(interim, body.accreditationYear)
+        }
+      }
+    )
+
+    it(
+      'returns withdrawn interim sites without being asked, and ignores includeWithdrawn',
+      { todo: INTERIM_STATUS_TODO },
+      async (t) => {
+        if (!requireGranted(t, context.exporter, 'exporter')) {
+          return
+        }
+        const plain = await getAccreditationApi(
+          `${context.exporter.path}/overseas-sites?limit=100`
+        )
+        assert.equal(plain.status, 200)
+        const interimSites = plain.body.items.flatMap(
+          (site) => site.interimSites
+        )
+        assert.ok(interimSites.length > 0, 'no interim site was checked')
+        for (const interim of interimSites) {
+          assertInterimStatus(interim, year)
+        }
+        // No longer a parameter: whatever it says, the same interim sites.
+        for (const value of ['true', 'false', 'maybe']) {
+          const sent = await getAccreditationApi(
+            `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=${value}`
+          )
+          assert.equal(sent.status, 200, `includeWithdrawn=${value}`)
+          assert.deepStrictEqual(sent.body, plain.body, value)
         }
       }
     )
