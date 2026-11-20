@@ -21,8 +21,10 @@ import { accreditationYear, reexPassword, reexUsername } from '../config.js'
 import {
   handOffToRegisterEnrol,
   hasSeededOrganisation,
+  seededOrganisation,
   signInAsSeededOperator
 } from './integration-organisation/index.js'
+import { assertPaymentReferenceFormat } from './payment-reference.js'
 import {
   APPLICABLE_STATUSES,
   completeIncompleteOverseasSites
@@ -396,7 +398,18 @@ export async function submitAndAssertConfirmation(
   await expect(ApplicationSubmittedPage.amountDue).toBeDisplayed()
   await expect(ApplicationSubmittedPage.bankSortCode).toBeDisplayed()
   await expect(ApplicationSubmittedPage.bankAccountNumber).toBeDisplayed()
-  await expect(ApplicationSubmittedPage.bankPaymentReference).not.toHaveText('')
+  // RA-000: the reference is the backend's, built from the organisation's
+  // numeric ReEx orgId (never its ObjectId, never "null"). The nation is
+  // ReEx's, so the format is one of the backend's; the org number is checked
+  // exactly when this run seeded the organisation.
+  assertPaymentReferenceFormat(
+    await ApplicationSubmittedPage.bankPaymentReference.getText(),
+    {
+      orgNumber: hasSeededOrganisation()
+        ? seededOrganisation().orgId
+        : undefined
+    }
+  )
   await expect(ApplicationSubmittedPage.contactRegulatorHeading).toHaveText(
     'Contact your regulator'
   )

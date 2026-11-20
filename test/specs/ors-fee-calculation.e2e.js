@@ -317,7 +317,7 @@ describe('RA-477: ORS fee counting with an interim site attached @docker-only', 
     expect(orsSitesWithInterim.length).toBe(1)
 
     // The fee page itself: must read "for 2 Overseas Sites", never 3.
-    await browser.url(`/accreditation/view-payment-details/${applicationId}`)
+    await ViewPaymentDetailsPage.open(applicationId)
     await expect(ViewPaymentDetailsPage.descriptionBody).toHaveText(
       expect.stringContaining('£656.00 for 2 Overseas Sites')
     )

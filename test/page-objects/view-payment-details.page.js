@@ -5,6 +5,10 @@ class ViewPaymentDetailsPage extends withPaymentDetails(Page) {
   get pageHeading() {
     return $('[data-testid="page-heading"]')
   }
+
+  open(applicationId) {
+    return super.open(`/accreditation/view-payment-details/${applicationId}`)
+  }
 }
 
 export default new ViewPaymentDetailsPage()
