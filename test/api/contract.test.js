@@ -180,7 +180,8 @@ function assertSummary(item) {
   )
 }
 
-function assertInterimSite(site, includeWithdrawn) {
+function assertInterimSite(site) {
+  const what = `interim site ${site.siteName}`
   assert.equal(typeof site.siteId, 'number')
   assert.equal(typeof site.siteNumber, 'string')
   assert.equal(typeof site.siteName, 'string')
@@ -204,16 +205,27 @@ function assertInterimSite(site, includeWithdrawn) {
     ['isNewSite', 'addressLine1', 'contactName'],
     'interim site'
   )
-  if ('removedAt' in site) {
-    assert.ok(
-      includeWithdrawn,
-      `withdrawn interim site ${site.siteName} returned`
+  // removedAt is gone: withdrawn interim sites are always returned, and their
+  // status history explains them.
+  assertAbsent(site, ['removedAt'], what)
+  assertLatestStatus(site, what)
+  assertStatusHistory(site.statusHistory, what)
+  assertLatestStatusMatchesHistory(site, what)
+
+  // An interim site is approved when its overseas site is, then withdrawn and
+  // approved again each time it is withdrawn and restored: it alternates.
+  const statuses = site.statusHistory.map((entry) => entry.status)
+  assert.equal(statuses[0], 'approved', `${what} history starts approved`)
+  statuses.forEach((status, index) => {
+    assert.equal(
+      status,
+      index % 2 === 0 ? 'approved' : 'withdrawn',
+      `${what} history alternates approved and withdrawn`
     )
-    assert.match(site.removedAt, DATE_TIME)
-  }
+  })
 }
 
-function assertOverseasSite(site, includeWithdrawn = false) {
+function assertOverseasSite(site) {
   const what = `site ${site.orsId ?? site.siteName}`
   assert.equal(typeof site.siteId, 'number')
   if (site.orsId) {
@@ -236,7 +248,7 @@ function assertOverseasSite(site, includeWithdrawn = false) {
   assertLatestStatusMatchesHistory(site, what)
   assert.ok(Array.isArray(site.interimSites))
   for (const interim of site.interimSites) {
-    assertInterimSite(interim, includeWithdrawn)
+    assertInterimSite(interim)
   }
   assertAbsent(
     site,
@@ -466,31 +478,25 @@ describe(
         assertOverseasSite(body)
       })
 
-      it('returns withdrawn interim sites only with includeWithdrawn=true', async (t) => {
+      it('always returns withdrawn interim sites, with their status', async (t) => {
         if (!requireGranted(t, context.exporter, 'exporter')) {
           return
         }
-        const without = await getAccreditationApi(
-          `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=false`
+        const { status, body } = await getAccreditationApi(
+          `${context.exporter.path}/overseas-sites?limit=100`
         )
-        assert.equal(without.status, 200)
-        for (const site of without.body.items) {
-          assertOverseasSite(site, false)
+        assert.equal(status, 200)
+        for (const site of body.items) {
+          assertOverseasSite(site)
         }
 
-        const withWithdrawn = await getAccreditationApi(
-          `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=true`
+        // includeWithdrawn is no longer a parameter: a client that still sends
+        // it gets the same interim sites.
+        const sent = await getAccreditationApi(
+          `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=false`
         )
-        assert.equal(withWithdrawn.status, 200)
-        for (const site of withWithdrawn.body.items) {
-          assertOverseasSite(site, true)
-        }
-        const count = (body) =>
-          body.items.reduce(
-            (total, site) => total + site.interimSites.length,
-            0
-          )
-        assert.ok(count(withWithdrawn.body) >= count(without.body))
+        assert.equal(sent.status, 200)
+        assert.deepStrictEqual(sent.body, body)
       })
     })
 
