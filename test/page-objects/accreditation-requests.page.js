@@ -48,6 +48,14 @@ class AccreditationRequestsPage extends Page {
     return $('[data-testid="cancel-link"]')
   }
 
+  // The error summary's entry for a site, linking to its summary: incomplete
+  // with no reason, or 3bb.49 refused at submit for its BES files with the
+  // refusal's reason (maxFiles or duplicateFilename).
+  errorRequest(orsId, reason) {
+    const suffix = reason ? `-${reason}` : ''
+    return $(`[data-testid="error-request-${orsId}${suffix}"]`)
+  }
+
   requestRow(orsId) {
     return $(`[data-testid="request-row-${orsId}"]`)
   }

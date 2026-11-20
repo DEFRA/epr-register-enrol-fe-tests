@@ -100,8 +100,9 @@ class BesEvidencePage extends Page {
 
   // RA-605: fills and submits the upload form without waiting for the
   // "upload more evidence" page, so a refused upload can be asserted on.
-  async attemptUpload(filename) {
-    const filePath = uniqueFixtureCopy(filename)
+  // `exactName` (3bb.38) uploads it under exactly that name.
+  async attemptUpload(filename, { exactName } = {}) {
+    const filePath = uniqueFixtureCopy(filename, { exactName })
     let uploadPath
     try {
       uploadPath = await browser.uploadFile(filePath)

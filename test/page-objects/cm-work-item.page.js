@@ -21,8 +21,9 @@ class CmWorkItemPage extends Page {
     return $('[data-testid="case-header-accreditation-ref"]')
   }
 
-  // RA-739. An add-ORS (in-year change) header: the application reference as
-  // its caption, "Site name (ORS id)" as its title, and the site's charge.
+  // RA-739. An add-ORS (in-year change) header: "Site name (ORS id)" as its
+  // title and the site's charge. RA-495 dropped its reference caption, as the
+  // breadcrumb already shows the reference.
   get headerCaption() {
     return $('[data-testid="case-header-caption"]')
   }
@@ -108,11 +109,17 @@ class CmWorkItemPage extends Page {
   // Shown while an approved determination waits for the applicant to be
   // contacted (the work item reads Approved), with the accreditation id.
   get pendingContactBanner() {
-    return $('[data-testid="re-accreditation-pending-contact-banner"]')
+    return $('[data-testid="standard-lifecycle-pending-contact-banner"]')
   }
 
   get confirmApplicantContactLink() {
     return $('[data-testid="confirm-applicant-contact-cta"]')
+  }
+
+  // RA-495: a closed case's read-only Outcome panel, shown instead of any
+  // action.
+  get outcomePanel() {
+    return $('[data-testid="standard-lifecycle-readonly-actions"]')
   }
 
   async startConfirmApplicantContact() {
