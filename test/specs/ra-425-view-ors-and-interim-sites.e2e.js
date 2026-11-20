@@ -211,8 +211,9 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     })
 
     it('switches to the registered sites', async () => {
+      // Every registered ORS, the three accredited ones included.
       await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-        'Registered (1)'
+        'Registered (4)'
       )
 
       await ManageOverseasSitesPage.openTab('registered')
@@ -225,15 +226,21 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
         name: 'Dragon Recyclers',
         address: '8 Harbour Avenue, Vietnam'
       })
+      // A registered ORS shows its interim sites too.
       await expect(
         ManageOverseasSitesPage.interimSiteDisclosure(ORS.dragon)
-      ).not.toBeExisting()
-      await expect(
-        ManageOverseasSitesPage.interimSiteRow(INTERIM.saigonForDragon)
-      ).not.toBeExisting()
+      ).toBeExisting()
+      // The accredited ORSs are listed here as well, tagged Accredited and
+      // with no Add to accreditation.
       for (const siteId of [ORS.rotterdam, ORS.bharat, ORS.berlin]) {
         await expect(
           ManageOverseasSitesPage.siteRow('registered', siteId)
+        ).toBeDisplayed()
+        await expect(ManageOverseasSitesPage.siteStatusTag(siteId)).toHaveText(
+          'Accredited'
+        )
+        await expect(
+          ManageOverseasSitesPage.addToAccreditationButton(siteId)
         ).not.toBeExisting()
       }
     })
