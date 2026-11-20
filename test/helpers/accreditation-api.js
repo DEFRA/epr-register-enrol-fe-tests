@@ -2,6 +2,7 @@ import { createHmac, randomBytes } from 'node:crypto'
 
 import { request } from 'undici'
 
+import { recordExchange } from '../api/request-log.js'
 import seedingConfig from './integration-organisation/seeding/config.js'
 
 // A client for epr-register-enrol-backend's read-only accreditation API, the
@@ -90,26 +91,43 @@ export async function callAccreditationApi(
   path,
   { method = 'GET', signed = true, headers: authHeaders } = {}
 ) {
-  const { statusCode, headers, body } = await request(`${baseUrl()}${path}`, {
-    method,
-    headers: {
-      ...(process.env.X_API_KEY && { 'x-api-key': process.env.X_API_KEY }),
-      ...(authHeaders ?? (signed && signedHeaders()))
-    },
-    dispatcher: seedingConfig.dispatcher
-  })
-  const text = await body.text()
-  let parsed = text
+  const url = `${baseUrl()}${path}`
+  const requestHeaders = {
+    ...(process.env.X_API_KEY && { 'x-api-key': process.env.X_API_KEY }),
+    ...(authHeaders ?? (signed && signedHeaders()))
+  }
+  const start = Date.now()
+  let response
   try {
-    parsed = text ? JSON.parse(text) : null
-  } catch {
-    // Not JSON: a gateway's error page, say. Kept as text for the report.
+    const { statusCode, headers, body } = await request(url, {
+      method,
+      headers: requestHeaders,
+      dispatcher: seedingConfig.dispatcher
+    })
+    const text = await body.text()
+    let parsed = text
+    try {
+      parsed = text ? JSON.parse(text) : null
+    } catch {
+      // Not JSON: a gateway's error page, say. Kept as text for the report.
+    }
+    response = {
+      status: statusCode,
+      contentType: String(headers['content-type'] ?? ''),
+      body: parsed
+    }
+  } catch (error) {
+    recordExchange({ method, url, headers: requestHeaders, start, error })
+    throw error
   }
-  return {
-    status: statusCode,
-    contentType: String(headers['content-type'] ?? ''),
-    body: parsed
-  }
+  recordExchange({
+    method,
+    url,
+    headers: requestHeaders,
+    start,
+    ...response
+  })
+  return response
 }
 
 /** GETs a path on the API: callAccreditationApi with GET. */

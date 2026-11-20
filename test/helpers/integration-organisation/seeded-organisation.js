@@ -145,6 +145,8 @@ export async function loadOrganisation(id) {
       accreditationNumber:
         accreditations.get(registration.accreditationId)?.accreditationNumber ??
         null,
+      // A reprocessor's reprocessing site; an exporter has none.
+      siteAddress: registration.site?.address ?? null,
       overseasSites: Object.fromEntries(
         Object.entries(registration.overseasSites ?? {}).map(
           ([orsId, { overseasSiteId }]) => [orsId, overseasSiteId]
@@ -275,6 +277,9 @@ export function seededMaterial({
  * @property {string} registrationNumber
  * @property {string | null} accreditationId
  * @property {string | null} accreditationNumber
+ * @property {{line1: string, town: string, postcode: string, country: string} | null} [siteAddress]
+ *   a reprocessor's site address; null for an exporter. Missing from a
+ *   snapshot written before it was added
  * @property {Record<string, string>} overseasSites overseas site id by ORS id
  * @property {string[]} [overseasSiteNames] the overseas sites' names; only
  *   for an organisation seeded by this run, not one reused by id

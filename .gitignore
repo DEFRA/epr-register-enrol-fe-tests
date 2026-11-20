@@ -10,6 +10,9 @@ coverage
 .png
 allure-report/
 allure-results/
+# The API tests run on their own (ALLURE_RESULTS_DIR=api-allure-results)
+api-allure-report/
+api-allure-results/
 FAILED
 
 # Local secrets, e.g. for npm run seed:organisation

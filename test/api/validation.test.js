@@ -71,6 +71,11 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
       'invalid_registration_number'
     ],
     [
+      'a search status that is not a status',
+      () => '/v1/accreditations?status=bogus',
+      'invalid_status'
+    ],
+    [
       'a search limit over 100',
       () => '/v1/accreditations?limit=101',
       'invalid_paging'
