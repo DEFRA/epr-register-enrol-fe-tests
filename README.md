@@ -73,6 +73,20 @@ run in CI, and no other config picks them up.
   application type; the operator's change request shows each site's own
   reference. The monorepo's operator backend has
   `AccreditationChanges__SubmitToCaseManagement` on for this.
+- `add-ors-case-management-decision` (RA-495): the operator requests
+  org 50019's Lyon site; the regulator duly makes it (the request reads
+  DULY MADE and the site stays locked), refuses it and confirms contact, so
+  the case closes, the request reads REFUSED and the site can be requested
+  again; the operator requests it again; the regulator duly makes, approves
+  and confirms contact, so the request reads GRANTED, valid from its
+  submission date, and Lyon is on the Accredited tab.
+- `add-ors-bes-evidence-checks` (RA-495): an add-ORS request's BES upload
+  for org 50019's Delhi site is checked against the files the site already
+  holds on the accreditation. An upload over the 10-file cap is refused, and
+  so is one that shares a name with a file already held (including a
+  sampling plan file, which the backend refuses after the CDP upload).
+  Submit checks both rules again, and the requests page shows the upload
+  message, linking to the refused site.
 
 1. Start the monorepo's stack from its root: `docker compose up --build -d`.
    It binds the same ports as this repo's own stack (3000, 8080), so stop
@@ -89,7 +103,17 @@ so every run starts afresh: `case-management-workflow` deletes the
 applications and case management work items of 50016 (the reprocessor) and
 50015 (the exporter), so both start from NOT STARTED; `add-ors-to-case-management`
 deletes 50019's change requests and the work items and submissions they
-raised. What a run leaves is kept, to look at, until the next run.
+raised, and `add-ors-case-management-decision` does the same and puts Lyon
+back to registered only. `add-ors-bes-evidence-checks` deletes 50019's change
+requests, clears Delhi's BES evidence on the accreditation and removes the
+sampling plan files it adds (`e2e-plan-…`), then gives Delhi and the sampling
+plan the files each check needs. What a run leaves is kept, to look at, until the
+next run, except `add-ors-case-management-decision` and
+`add-ors-bes-evidence-checks`, which reset 50019 afterwards too: a granted Lyon
+would otherwise stop the other 50019 specs adding it, and the files given to
+Delhi would trip their uploads. All the 50019 specs share that organisation,
+as does the mgmt-tests suite's ra-495-add-ors-operator-journey spec, which
+resets 50019 the same way, so never run any two of them at once.
 `MONOREPO_BASE_URL`, `MONOREPO_CASE_MANAGEMENT_URL` and
 `MONOREPO_MONGO_CONTAINER` override the operator frontend
 (`http://localhost:3000`), the case management frontend

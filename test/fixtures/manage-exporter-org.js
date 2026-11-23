@@ -49,7 +49,8 @@ export const accreditationNumber = (year) =>
   `A${yearSuffix(year)}EX0500180001PL`
 
 // RA-697: the org's Glass (remelt) reprocessor registration and accreditation.
-export const REPROCESSOR_MATERIAL = 'Glass'
+// RA-739: as Re/Ex links it, with its organisation read model's material.
+export const REPROCESSOR_MATERIAL = 'glass_re_melt'
 // The manage page's caption names the glass recycling process.
 export const REPROCESSOR_CAPTION_MATERIAL = 'Glass - Remelt'
 

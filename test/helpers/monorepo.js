@@ -219,3 +219,218 @@ export async function addOverseasSiteWorkItemsFor({ organisationId }) {
     ))
   `)
 }
+
+/** An item no longer being decided: granted, refused or withdrawn. */
+const FINAL_ITEM_STATUSES = ['Approved', 'Rejected', 'Withdrawn']
+
+/**
+ * RA-495: each submitted add-ORS item's case management work item id, by
+ * site id, read from the operator backend's own store: the change requests
+ * view does not show it, and case management's status pushes are keyed by it.
+ * Only items still being decided, so a site requested again after a refusal
+ * gives its new item's work item.
+ *
+ * @param {{ organisationId: string }} org
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function changeRequestWorkItemIdsFor({ organisationId }) {
+  const filter = JSON.stringify({ organisationId, status: 'Submitted' })
+  const final = JSON.stringify(FINAL_ITEM_STATUSES)
+
+  return mongosh(`
+    const ids = {}
+    db.getSiblingDB('${OPERATOR_DATABASE}').accreditationChangeRequests
+      .find(${filter})
+      .forEach((r) => r.sites
+        .filter((s) => s.caseManagementWorkItemId && !${final}.includes(s.status))
+        .forEach((s) => { ids[s.siteId] = String(s.caseManagementWorkItemId) }))
+    print(JSON.stringify(ids))
+  `)
+}
+
+/**
+ * RA-495: puts a granted ORS back to registered only on the organisation's
+ * accreditation applications, as the dev seed leaves it, so a spec that
+ * grants it can run again. Only the legacy application: the monorepo stack
+ * runs without dual-write, so the domain model holds no grant.
+ *
+ * @param {{ organisationId: string, siteId: number, unanswered?: string[] }} site
+ *   unanswered: the fields the seed leaves the site without (operationCodes,
+ *   conditionsOfExport, coordinates, country), cleared again
+ * @returns {Promise<{ applications: number }>} how many were changed
+ */
+export async function unaccreditOverseasSite({
+  organisationId,
+  siteId,
+  unanswered = []
+}) {
+  const filter = JSON.stringify({
+    organisationId,
+    'overseasSites.sites.siteId': siteId
+  })
+  // RA-495 (3bb.29): a grant also writes the answers the operator supplied on
+  // the request, so a site seeded without them is put back without them.
+  // Operation codes are an empty list when unanswered; the others are absent.
+  const field = (name) => `overseasSites.sites.$[site].${name}`
+  const update = JSON.stringify({
+    $set: {
+      [field('selected')]: false,
+      ...(unanswered.includes('operationCodes')
+        ? { [field('operationCodes')]: [] }
+        : {})
+    },
+    $unset: Object.fromEntries(
+      [
+        'validFrom',
+        ...unanswered.filter((name) => name !== 'operationCodes')
+      ].map((name) => [field(name), ''])
+    )
+  })
+  const arrayFilters = JSON.stringify([{ 'site.siteId': siteId }])
+
+  return mongosh(`
+    const applications = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationApplications
+      .updateMany(${filter}, ${update}, { arrayFilters: ${arrayFilters} })
+      .modifiedCount
+    print(JSON.stringify({ applications }))
+  `)
+}
+
+/**
+ * RA-495 (3bb.38): gives an ORS on the organisation's accreditation
+ * applications the BES evidence files named, Clean, as if uploaded on the
+ * application, so a spec can check a change request's upload against the
+ * files the site already holds. No names removes them again, as the dev seed
+ * leaves the site. Only the legacy application.
+ *
+ * @param {{ organisationId: string, siteId: number, filenames?: string[] }} site
+ * @returns {Promise<{ applications: number }>} how many were changed
+ */
+export async function setOverseasSiteBesEvidence({
+  organisationId,
+  siteId,
+  filenames = []
+}) {
+  const filter = JSON.stringify({
+    organisationId,
+    'overseasSites.sites.siteId': siteId
+  })
+  const field = 'overseasSites.sites.$[site].besEvidence'
+  const update = JSON.stringify(
+    filenames.length === 0
+      ? { $unset: { [field]: '' } }
+      : {
+          $set: {
+            [field]: {
+              besEvidenceUploads: filenames.map((filename, index) => ({
+                fileId: `e2e-held-${siteId}-${index + 1}`,
+                filename,
+                contentType: 'application/pdf',
+                scanStatus: 'Clean',
+                besEvidenceValidFromDate: '2026-01-01T00:00:00.000Z',
+                besEvidenceExpiryDate: '2027-12-31T00:00:00.000Z',
+                s3Key: `bes-evidence/e2e-held-${siteId}-${index + 1}`,
+                s3Bucket: 'bes-evidence'
+              })),
+              doYouWantToUploadMoreEvidence: false
+            }
+          }
+        }
+  )
+  const arrayFilters = JSON.stringify([{ 'site.siteId': siteId }])
+
+  return mongosh(`
+    const applications = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationApplications
+      .updateMany(${filter}, ${update}, { arrayFilters: ${arrayFilters} })
+      .modifiedCount
+    print(JSON.stringify({ applications }))
+  `)
+}
+
+/**
+ * RA-495 (3bb.48): gives the organisation's accreditation applications the
+ * sampling plan files named, as if uploaded on the application, so a spec can
+ * check a change request's BES upload against a name the operator frontend
+ * cannot see. Only files this helper added are replaced; no names removes
+ * them again. Only the legacy application.
+ *
+ * @param {{ organisationId: string, filenames?: string[] }} org
+ * @returns {Promise<{ applications: number }>} how many were changed
+ */
+export async function setSamplingPlanFiles({ organisationId, filenames = [] }) {
+  const filter = JSON.stringify({ organisationId })
+  const pull = JSON.stringify({
+    $pull: { 'samplingPlan.files': { fileId: { $regex: '^e2e-plan-' } } }
+  })
+  const push = JSON.stringify({
+    $push: {
+      'samplingPlan.files': {
+        $each: filenames.map((filename, index) => ({
+          fileId: `e2e-plan-${index + 1}`,
+          filename,
+          contentType: 'application/pdf',
+          uploadedByUserId: 'e2e',
+          s3Key: `sampling-plan/e2e-plan-${index + 1}`
+        }))
+      }
+    }
+  })
+
+  return mongosh(`
+    const collection = db.getSiblingDB('${OPERATOR_DATABASE}').accreditationApplications
+    collection.updateMany(${filter}, ${pull})
+    const applications = ${filenames.length} === 0
+      ? 0
+      : collection.updateMany(${filter}, ${push}).modifiedCount
+    print(JSON.stringify({ applications }))
+  `)
+}
+
+/**
+ * RA-495 (3bb.49): completes a site on the organisation's in-progress change
+ * request directly, with the answers given and Clean BES evidence files of
+ * the names given, as a draft uploaded before the upload-time checks would
+ * be. Skips the CDP uploader, so a spec can set up a draft the upload would
+ * now refuse.
+ *
+ * @param {{ organisationId: string, siteId: number,
+ *   answers: object, besFilenames: string[] }} site
+ * @returns {Promise<{ changeRequests: number }>} how many were changed
+ */
+export async function setChangeRequestSite({
+  organisationId,
+  siteId,
+  answers,
+  besFilenames
+}) {
+  const filter = JSON.stringify({ organisationId, status: 'InProgress' })
+  const update = JSON.stringify({
+    $set: {
+      'sites.$[site].answers': answers,
+      'sites.$[site].besEvidence': {
+        besEvidenceUploads: besFilenames.map((filename, index) => ({
+          fileId: `e2e-request-${siteId}-${index + 1}`,
+          filename,
+          contentType: 'application/pdf',
+          scanStatus: 'Clean',
+          besEvidenceValidFromDate: '2026-01-01T00:00:00.000Z',
+          besEvidenceExpiryDate: '2027-12-31T00:00:00.000Z',
+          s3Key: `accreditation-changes/bes-evidence/e2e-request-${siteId}-${index + 1}`,
+          s3Bucket: 'bes-evidence'
+        })),
+        doYouWantToUploadMoreEvidence: false
+      }
+    }
+  })
+  const arrayFilters = JSON.stringify([{ 'site.siteId': siteId }])
+
+  return mongosh(`
+    const changeRequests = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationChangeRequests
+      .updateMany(${filter}, ${update}, { arrayFilters: ${arrayFilters} })
+      .modifiedCount
+    print(JSON.stringify({ changeRequests }))
+  `)
+}
