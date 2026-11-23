@@ -14,6 +14,16 @@ class ErrorPage extends Page {
   get message() {
     return $('main .govuk-grid-column-two-thirds p')
   }
+
+  // The manage pages' "Sorry, there is a problem with the service" page
+  // (src/server/errors/service-problem.njk in epr-register-enrol-frontend).
+  get serviceProblemHeading() {
+    return $('[data-testid="service-problem-heading"]')
+  }
+
+  get tryAgainLink() {
+    return $('[data-testid="try-again-link"]')
+  }
 }
 
 export default new ErrorPage()

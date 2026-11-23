@@ -80,6 +80,17 @@ class OperatorAccreditationPage extends Page {
   async clickContinue() {
     await this.clickReliably(this.firstContinueLink)
   }
+
+  // RA-806: opens an application's landing page by URL, for an org the
+  // operator page doesn't list. Its GET seeds the year's application, so it
+  // waits for the seeded application's Continue button: the seed-error page
+  // has none.
+  async openLanding(path) {
+    await this.open(path)
+    await this.firstContinueLink.waitForDisplayed({
+      timeoutMsg: `The application landing page ${path} did not seed an application`
+    })
+  }
 }
 
 export default new OperatorAccreditationPage()

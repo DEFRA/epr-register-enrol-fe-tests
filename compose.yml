@@ -35,16 +35,31 @@ services:
       - cdp-tenant
 
   ################################################################################
+  # RA-806: single-node replica set, as in the backend's own compose and
+  # mgmt-tests. The backend's seed dual-write (DomainModel__DualWriteSeed, see
+  # docker/config/operator-be.env) writes in multi-document transactions,
+  # which only work on a replica set (CDP's Mongo is one). The healthcheck
+  # initiates it on first run and is a no-op afterwards.
+  # The set name comes from a config file, not --replSet: the image's
+  # entrypoint drops a config file's `replication` section (but not
+  # --replSet) for the temporary mongod that runs the init scripts, so they
+  # can still write before the set is initiated.
   mongodb:
     image: mongo:6
+    command: ['--config', '/etc/mongod-replica-set.conf', '--bind_ip_all']
+    configs:
+      - source: mongod-replica-set
+        target: /etc/mongod-replica-set.conf
     volumes:
       - ./docker/scripts/mongodb:/docker-entrypoint-initdb.d
       - mongodb-data:/data
     healthcheck:
-      test: ['CMD', 'mongosh', '--eval', 'db.hello().ok']
+      test: >
+        mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongodb:27017' }] }).ok }"
       interval: 5s
+      timeout: 10s
       start_period: 5s
-      retries: 3
+      retries: 20
     networks:
       - cdp-tenant
 
@@ -203,8 +218,9 @@ services:
         condition: service_healthy
       floci:
         condition: service_healthy
+      # Healthy, so the replica set is initiated before the first transaction.
       mongodb:
-        condition: service_started
+        condition: service_healthy
       cdp-uploader:
         condition: service_started
     links:
@@ -224,6 +240,14 @@ services:
 
 volumes:
   mongodb-data:
+
+################################################################################
+# The mongodb service's replica set name (see its comment).
+configs:
+  mongod-replica-set:
+    content: |
+      replication:
+        replSetName: rs0
 
 networks:
   cdp-tenant:
