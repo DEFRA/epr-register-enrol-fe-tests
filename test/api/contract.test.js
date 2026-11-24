@@ -241,10 +241,19 @@ describe(
         }
       }
 
-      const exporter = body.items.find(
-        ({ wasteProcessingType }) => wasteProcessingType === 'exporter'
-      )
-      if (exporter) {
+      // Matched by registration number, so the item compared is the one
+      // context.exporter's detail path names, however each picks an exporter.
+      const exporter =
+        context.exporter &&
+        body.items.find(
+          ({ registrationNumber }) =>
+            registrationNumber === context.exporter.registrationNumber
+        )
+      if (context.exporter) {
+        assert.ok(
+          exporter,
+          `${context.exporter.registrationNumber} is not in the search`
+        )
         assert.ok(
           Array.isArray(exporter.overseasSites),
           `${exporter.registrationNumber} search item has no overseasSites`
