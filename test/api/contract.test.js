@@ -8,10 +8,9 @@ import {
   assertOneOf,
   assertStatusHistory,
   assertLatestStatus,
-  assertLatestStatusMatchesHistory,
-  LATEST_STATUS_TODO,
-  INTERIM_STATUS_TODO
+  assertLatestStatusMatchesHistory
 } from './status-history.js'
+import { INTERIM_SITE_STATUSES } from '../helpers/integration-organisation/interim-site-statuses.js'
 import {
   loadApiContext,
   notConfigured,
@@ -69,7 +68,12 @@ function assertSummary(item) {
   )
 }
 
-function assertInterimSite(site, includeWithdrawn) {
+// An interim site's shape, and its status (RA-781): approved from when its
+// overseas site was, then withdrawn and approved again each time it is
+// withdrawn and restored. Its statusHistory and latestStatus have an
+// accreditation's shape and date rules. Withdrawn interim sites are always
+// returned, so there is no removedAt.
+function assertInterimSite(site, accreditationYear = year) {
   assert.equal(typeof site.siteId, 'number')
   assert.equal(typeof site.siteNumber, 'string')
   assert.equal(typeof site.siteName, 'string')
@@ -88,26 +92,27 @@ function assertInterimSite(site, includeWithdrawn) {
     )
   }
   assert.ok(Array.isArray(site.operationCodes))
+  const what = `interim site ${site.siteName}`
   assertAbsent(
     site,
-    ['isNewSite', 'addressLine1', 'contactName'],
-    'interim site'
+    ['isNewSite', 'addressLine1', 'contactName', 'removedAt'],
+    what
   )
-  if ('removedAt' in site) {
-    assert.ok(
-      includeWithdrawn,
-      `withdrawn interim site ${site.siteName} returned`
+  assertLatestStatus(site, what)
+  assertStatusHistory(site.statusHistory, what, accreditationYear)
+  assertLatestStatusMatchesHistory(site, what)
+  site.statusHistory.forEach(({ status }, index) => {
+    assert.equal(
+      status,
+      index % 2 === 0 ? 'approved' : 'withdrawn',
+      `${what} history is approved, then alternates withdrawn and approved`
     )
-    assert.match(site.removedAt, DATE_TIME)
-  }
+  })
 }
 
 // accreditationYear is the year of the accreditation the site is on: the
 // response's own, or the year the path was built with (support.js's year).
-function assertOverseasSite(
-  site,
-  { includeWithdrawn = false, accreditationYear = year } = {}
-) {
+function assertOverseasSite(site, { accreditationYear = year } = {}) {
   const what = `site ${site.orsId ?? site.siteName}`
   assert.equal(typeof site.siteId, 'number')
   if (site.orsId) {
@@ -128,7 +133,7 @@ function assertOverseasSite(
   assertStatusHistory(site.statusHistory, what, accreditationYear)
   assert.ok(Array.isArray(site.interimSites))
   for (const interim of site.interimSites) {
-    assertInterimSite(interim, includeWithdrawn)
+    assertInterimSite(interim, accreditationYear)
   }
   assertAbsent(
     site,
@@ -210,7 +215,11 @@ describe(
       })
     }
 
-    it('searches as a page of summaries only', async () => {
+    // RA-802: a search item is a summary (no history) plus, for an exporter,
+    // its overseas sites, in the same shape as getting the accreditation, so
+    // paging through search gives every accreditation with its sites. A
+    // reprocessor item has none.
+    it("searches as a page of summaries, with an exporter's overseas sites (RA-802)", async () => {
       const { status, body } = await getAccreditationApi(
         `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
       )
@@ -219,17 +228,45 @@ describe(
       assert.equal(body.limit, 100)
       assert.equal(body.totalItems, body.items.length)
       for (const item of body.items) {
+        const what = `search item ${item.registrationNumber}`
         assertSummary(item)
         assert.equal(item.accreditationYear, year)
         assertAbsent(
           item,
-          [
-            'statusHistory',
-            'tonnageBandHistory',
-            'signatories',
-            'overseasSites'
-          ],
-          'search item'
+          ['statusHistory', 'tonnageBandHistory', 'signatories'],
+          what
+        )
+        if (item.wasteProcessingType === 'reprocessor') {
+          assertAbsent(item, ['overseasSites'], what)
+        }
+      }
+
+      // Matched by registration number, so the item compared is the one
+      // context.exporter's detail path names, however each picks an exporter.
+      const exporter =
+        context.exporter &&
+        body.items.find(
+          ({ registrationNumber }) =>
+            registrationNumber === context.exporter.registrationNumber
+        )
+      if (context.exporter) {
+        assert.ok(
+          exporter,
+          `${context.exporter.registrationNumber} is not in the search`
+        )
+        assert.ok(
+          Array.isArray(exporter.overseasSites),
+          `${exporter.registrationNumber} search item has no overseasSites`
+        )
+        for (const site of exporter.overseasSites) {
+          assertOverseasSite(site, { accreditationYear: year })
+        }
+        const detail = await getAccreditationApi(context.exporter.path)
+        assert.equal(detail.status, 200)
+        assert.deepStrictEqual(
+          exporter.overseasSites,
+          detail.body.overseasSites,
+          "the search item's overseas sites are the accreditation's"
         )
       }
     })
@@ -362,33 +399,6 @@ describe(
         assert.equal(body.siteName, site.siteName)
         assertOverseasSite(body)
       })
-
-      it('returns withdrawn interim sites only with includeWithdrawn=true', async (t) => {
-        if (!requireGranted(t, context.exporter, 'exporter')) {
-          return
-        }
-        const without = await getAccreditationApi(
-          `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=false`
-        )
-        assert.equal(without.status, 200)
-        for (const site of without.body.items) {
-          assertOverseasSite(site, { includeWithdrawn: false })
-        }
-
-        const withWithdrawn = await getAccreditationApi(
-          `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=true`
-        )
-        assert.equal(withWithdrawn.status, 200)
-        for (const site of withWithdrawn.body.items) {
-          assertOverseasSite(site, { includeWithdrawn: true })
-        }
-        const count = (body) =>
-          body.items.reduce(
-            (total, site) => total + site.interimSites.length,
-            0
-          )
-        assert.ok(count(withWithdrawn.body) >= count(without.body))
-      })
     })
 
     describe('endpoints v2 removed', () => {
@@ -413,8 +423,7 @@ describe(
 )
 
 // latestStatus (RA-773): in place of the status string, the latest entry of
-// the status history, on every accreditation and overseas site. Todo until
-// RA-773 is deployed to test (LATEST_STATUS_TODO in status-history.js).
+// the status history, on every accreditation and overseas site.
 describe(
   'Accreditation API: latestStatus (RA-773)',
   { skip: notConfigured },
@@ -425,143 +434,277 @@ describe(
       context = await loadApiContext()
     })
 
-    it(
-      'gives each search item a latestStatus in place of status',
-      { todo: LATEST_STATUS_TODO },
-      async () => {
-        const { status, body } = await getAccreditationApi(
-          `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
-        )
-        assert.equal(status, 200)
-        for (const item of body.items) {
-          assertLatestStatus(item, `accreditation ${item.accreditationNumber}`)
-        }
+    it('gives each search item a latestStatus in place of status', async () => {
+      const { status, body } = await getAccreditationApi(
+        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
+      )
+      assert.equal(status, 200)
+      for (const item of body.items) {
+        assertLatestStatus(item, `accreditation ${item.accreditationNumber}`)
       }
-    )
+    })
 
     for (const type of ['reprocessor', 'exporter']) {
-      it(
-        `gives the ${type} accreditation the latest entry of its statusHistory as latestStatus`,
-        { todo: LATEST_STATUS_TODO },
-        async (t) => {
-          if (!requireGranted(t, context[type], type)) {
-            return
-          }
-          const { status, body } = await getAccreditationApi(context[type].path)
-          assert.equal(status, 200)
-          assertLatestStatus(body, 'accreditation')
-          assertLatestStatusMatchesHistory(body, 'accreditation')
-        }
-      )
-    }
-
-    it(
-      'gives each overseas site the latest entry of its statusHistory as latestStatus',
-      { todo: LATEST_STATUS_TODO },
-      async (t) => {
-        if (!requireGranted(t, context.exporter, 'exporter')) {
+      it(`gives the ${type} accreditation the latest entry of its statusHistory as latestStatus`, async (t) => {
+        if (!requireGranted(t, context[type], type)) {
           return
         }
-        const detail = await getAccreditationApi(context.exporter.path)
-        const listed = await getAccreditationApi(
-          `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=true`
-        )
-        assert.equal(detail.status, 200)
-        assert.equal(listed.status, 200)
-        for (const site of [
-          ...detail.body.overseasSites,
-          ...listed.body.items
-        ]) {
-          const what = `site ${site.orsId ?? site.siteName}`
-          assertLatestStatus(site, what)
-          assertLatestStatusMatchesHistory(site, what)
-        }
+        const { status, body } = await getAccreditationApi(context[type].path)
+        assert.equal(status, 200)
+        assertLatestStatus(body, 'accreditation')
+        assertLatestStatusMatchesHistory(body, 'accreditation')
+      })
+    }
+
+    it('gives each overseas site the latest entry of its statusHistory as latestStatus', async (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
       }
-    )
+      const detail = await getAccreditationApi(context.exporter.path)
+      const listed = await getAccreditationApi(
+        `${context.exporter.path}/overseas-sites?limit=100`
+      )
+      assert.equal(detail.status, 200)
+      assert.equal(listed.status, 200)
+      for (const site of [...detail.body.overseasSites, ...listed.body.items]) {
+        const what = `site ${site.orsId ?? site.siteName}`
+        assertLatestStatus(site, what)
+        assertLatestStatusMatchesHistory(site, what)
+      }
+    })
   }
 )
 
-// An interim site's status (RA-781): approved from when its overseas site was,
-// then withdrawn and approved again each time it is withdrawn and restored. Its
-// statusHistory and latestStatus have an accreditation's shape and date rules.
-// Withdrawn interim sites are always returned, so removedAt and the
-// includeWithdrawn parameter are gone. Todo until RA-781 is deployed to test
-// (INTERIM_STATUS_TODO in status-history.js).
-function assertInterimStatus(interim, accreditationYear) {
-  const what = `interim site ${interim.siteName}`
-  assertAbsent(interim, ['removedAt'], what)
-  assertLatestStatus(interim, what)
-  assertStatusHistory(interim.statusHistory, what, accreditationYear)
-  assertLatestStatusMatchesHistory(interim, what)
-
-  const statuses = interim.statusHistory.map((entry) => entry.status)
-  statuses.forEach((status, index) => {
-    assert.equal(
-      status,
-      index % 2 === 0 ? 'approved' : 'withdrawn',
-      `${what} history is approved, then alternates withdrawn and approved`
-    )
-  })
-}
-
+// An interim site's status (RA-781), on the exporter accreditation the
+// integration workflow granted. assertInterimSite (above) checks every interim
+// site's statusHistory and latestStatus wherever one is returned; these check
+// the cases the ticket names, on the interim sites the workflow's Test 2 gave
+// each history to (INTERIM_SITE_STATUSES): restored, withdrawn, and added in
+// place of the withdrawn one. Without them there is nothing to check those
+// cases on, so the tests fail rather than skip.
 describe(
   'Accreditation API: interim site status (RA-781)',
   { skip: notConfigured },
   () => {
     let context
+    let detail
+    let listed
 
     before(async () => {
       context = await loadApiContext()
-    })
-
-    it(
-      'gives each interim site a statusHistory and latestStatus, and no removedAt',
-      { todo: INTERIM_STATUS_TODO },
-      async (t) => {
-        if (!requireGranted(t, context.exporter, 'exporter')) {
-          return
-        }
-        const { status, body } = await getAccreditationApi(
-          context.exporter.path
-        )
-        assert.equal(status, 200)
-        const interimSites = body.overseasSites.flatMap(
-          (site) => site.interimSites
-        )
-        assert.ok(interimSites.length > 0, 'no interim site was checked')
-        for (const interim of interimSites) {
-          assertInterimStatus(interim, body.accreditationYear)
-        }
-      }
-    )
-
-    it(
-      'returns withdrawn interim sites without being asked, and ignores includeWithdrawn',
-      { todo: INTERIM_STATUS_TODO },
-      async (t) => {
-        if (!requireGranted(t, context.exporter, 'exporter')) {
-          return
-        }
-        const plain = await getAccreditationApi(
+      if (context.exporter) {
+        detail = await getAccreditationApi(context.exporter.path)
+        listed = await getAccreditationApi(
           `${context.exporter.path}/overseas-sites?limit=100`
         )
-        assert.equal(plain.status, 200)
-        const interimSites = plain.body.items.flatMap(
-          (site) => site.interimSites
+      }
+    })
+
+    // Every interim site, with the ORS it is on, from the accreditation.
+    const interimSites = () =>
+      detail.body.overseasSites.flatMap((site) =>
+        site.interimSites.map((interim) => ({ ...interim, ors: site }))
+      )
+
+    // The one interim site the workflow named so, failing with what there is.
+    function named(name) {
+      const matches = interimSites().filter(({ siteName }) => siteName === name)
+      assert.equal(
+        matches.length,
+        1,
+        `expected one interim site named ${name} on ${context.exporter.registrationNumber}; ` +
+          `it has: ${interimSites()
+            .map(
+              (i) =>
+                `${i.siteName} [${i.statusHistory?.map((e) => e.status).join(' > ')}]`
+            )
+            .join(', ')}. The integration workflow's Test 2 creates them.`
+      )
+      return matches[0]
+    }
+
+    const statuses = (interim) =>
+      interim.statusHistory.map(({ status }) => status)
+
+    it('gives each interim site a statusHistory and latestStatus, and no removedAt', (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      assert.equal(detail.status, 200)
+      const all = interimSites()
+      assert.ok(all.length > 0, 'no interim site was checked')
+      for (const interim of all) {
+        assertInterimSite(interim, detail.body.accreditationYear)
+        // latestStatus follows from the history: approved unless the site's
+        // last change withdrew it.
+        assert.equal(
+          interim.latestStatus.status,
+          statuses(interim).includes('withdrawn') &&
+            statuses(interim).at(-1) === 'withdrawn'
+            ? 'withdrawn'
+            : 'approved',
+          `interim site ${interim.siteName} latestStatus`
         )
-        assert.ok(interimSites.length > 0, 'no interim site was checked')
-        for (const interim of interimSites) {
-          assertInterimStatus(interim, year)
-        }
-        // No longer a parameter: whatever it says, the same interim sites.
-        for (const value of ['true', 'false', 'maybe']) {
-          const sent = await getAccreditationApi(
-            `${context.exporter.path}/overseas-sites?limit=100&includeWithdrawn=${value}`
+      }
+    })
+
+    it('gives a never-withdrawn interim site a latestStatus of approved', (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      const never = interimSites().filter(
+        (interim) => !statuses(interim).includes('withdrawn')
+      )
+      assert.ok(never.length > 0, 'no never-withdrawn interim site was checked')
+      for (const interim of never) {
+        assert.deepStrictEqual(
+          statuses(interim),
+          ['approved'],
+          interim.siteName
+        )
+        assert.equal(interim.latestStatus.status, 'approved', interim.siteName)
+      }
+    })
+
+    it('returns a withdrawn interim site, with a latestStatus of withdrawn', (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      const withdrawn = named(INTERIM_SITE_STATUSES.withdrawn)
+      assert.deepStrictEqual(statuses(withdrawn), ['approved', 'withdrawn'])
+      assert.equal(withdrawn.latestStatus.status, 'withdrawn')
+      assert.deepStrictEqual(
+        withdrawn.latestStatus,
+        withdrawn.statusHistory.at(-1)
+      )
+      // Returned by the overseas sites list too, without being asked for.
+      assert.equal(listed.status, 200)
+      const inList = listed.body.items
+        .flatMap((site) => site.interimSites)
+        .find(({ siteId }) => siteId === withdrawn.siteId)
+      assert.ok(
+        inList,
+        'the withdrawn interim site is not in the overseas sites list'
+      )
+      assert.deepStrictEqual(inList.statusHistory, withdrawn.statusHistory)
+    })
+
+    it('keeps a restored interim site as one site: approved, withdrawn, approved', (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      const restored = named(INTERIM_SITE_STATUSES.restored)
+      assert.deepStrictEqual(statuses(restored), [
+        'approved',
+        'withdrawn',
+        'approved'
+      ])
+      assert.equal(restored.latestStatus.status, 'approved')
+      assert.deepStrictEqual(
+        restored.latestStatus,
+        restored.statusHistory.at(-1)
+      )
+    })
+
+    // recordedAt is when a status change was recorded. The workflow's Test 2
+    // makes each change as its own request, so even without
+    // STATUS_STEP_PAUSE_MS they are hundreds of milliseconds apart, and
+    // recordedAt has millisecond precision. Each must therefore be strictly
+    // later than the one before. Not >=: equal values are the defect this
+    // catches (every recordedAt replaced by the approval time).
+    it('records when each interim site status change happened (recordedAt)', (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      for (const name of [
+        INTERIM_SITE_STATUSES.restored,
+        INTERIM_SITE_STATUSES.withdrawn
+      ]) {
+        const { statusHistory } = named(name)
+        const recorded = statusHistory.map(
+          ({ status, recordedAt }) => `${status} ${recordedAt}`
+        )
+        statusHistory.slice(1).forEach((entry, i) => {
+          assert.ok(
+            Date.parse(entry.recordedAt) >
+              Date.parse(statusHistory[i].recordedAt),
+            `${name}: ${entry.status} is recorded at ${entry.recordedAt}, ` +
+              `not after the ${statusHistory[i].status} before it ` +
+              `(${statusHistory[i].recordedAt}). History: ${recorded.join(', ')}`
           )
-          assert.equal(sent.status, 200, `includeWithdrawn=${value}`)
-          assert.deepStrictEqual(sent.body, plain.body, value)
+        })
+      }
+    })
+
+    it('shows an interim site added after another was withdrawn as a separate site', (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      const withdrawn = named(INTERIM_SITE_STATUSES.withdrawn)
+      const replacement = named(INTERIM_SITE_STATUSES.replacement)
+      assert.notEqual(replacement.siteId, withdrawn.siteId)
+      assert.notEqual(replacement.siteNumber, withdrawn.siteNumber)
+      assert.equal(
+        replacement.ors.siteId,
+        withdrawn.ors.siteId,
+        "the replacement is on the withdrawn interim site's overseas site"
+      )
+      // Its own history, which the withdrawn site's does not carry over to.
+      assert.deepStrictEqual(statuses(replacement), ['approved'])
+      assert.equal(replacement.latestStatus.status, 'approved')
+      assert.deepStrictEqual(statuses(withdrawn), ['approved', 'withdrawn'])
+    })
+
+    it('serves the same interim sites from the accreditation, its overseas sites list, and each site', async (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      for (const site of detail.body.overseasSites.filter(
+        ({ orsId }) => orsId
+      )) {
+        const one = await getAccreditationApi(
+          `${context.exporter.path}/overseas-sites/${site.orsId}`
+        )
+        assert.equal(one.status, 200)
+        assert.deepStrictEqual(
+          one.body.interimSites,
+          site.interimSites,
+          site.orsId
+        )
+        const inList = listed.body.items.find(
+          ({ orsId }) => orsId === site.orsId
+        )
+        assert.deepStrictEqual(
+          inList?.interimSites,
+          site.interimSites,
+          site.orsId
+        )
+      }
+    })
+
+    it('no longer takes includeWithdrawn: the same response whatever it says', async (t) => {
+      if (!requireGranted(t, context.exporter, 'exporter')) {
+        return
+      }
+      for (const [what, path] of [
+        ['accreditation', context.exporter.path],
+        ['overseas sites', `${context.exporter.path}/overseas-sites?limit=100`]
+      ]) {
+        const plain = await getAccreditationApi(path)
+        assert.equal(plain.status, 200, what)
+        for (const value of ['true', 'false', 'maybe']) {
+          const separator = path.includes('?') ? '&' : '?'
+          const sent = await getAccreditationApi(
+            `${path}${separator}includeWithdrawn=${value}`
+          )
+          assert.equal(sent.status, 200, `${what} includeWithdrawn=${value}`)
+          assert.deepStrictEqual(
+            sent.body,
+            plain.body,
+            `${what} includeWithdrawn=${value}`
+          )
         }
       }
-    )
+    })
   }
 )

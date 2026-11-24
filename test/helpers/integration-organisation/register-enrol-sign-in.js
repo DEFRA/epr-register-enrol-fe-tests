@@ -86,3 +86,32 @@ export async function handOffToRegisterEnrol(
     timeout: 30000
   })
 }
+
+/**
+ * Opens a page of epr-register-enrol-frontend directly, e.g. an
+ * /operator-accreditation/ link or a /manage/ page, signing in through its
+ * Defra ID stub as `email` if it asks. Leaves the browser on that page.
+ *
+ * @param {string} target the page's full URL
+ * @param {string} email the operator to sign in as
+ */
+export async function openRegisterEnrolPage(target, email) {
+  const { pathname } = new URL(target)
+  const isTarget = (url) =>
+    url.includes('epr-register-enrol-frontend') &&
+    new URL(url).pathname === pathname
+
+  await browser.url(target)
+  let url = await waitForUrl(
+    (current) =>
+      isStubChooser(current) || isDefraIdStub(current) || isTarget(current),
+    `Opening ${target} reached neither the register-enrol sign-in nor the page`
+  )
+  if (isStubChooser(url) || isDefraIdStub(url)) {
+    await signInThroughStub(email, target)
+    url = await browser.getUrl()
+  }
+  if (!isTarget(url)) {
+    await browser.url(target)
+  }
+}

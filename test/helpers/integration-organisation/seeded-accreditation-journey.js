@@ -323,13 +323,18 @@ async function completeSiteDetails(
  */
 export async function completeIncompleteOverseasSites(
   applicationId,
-  { baselCode = 'B3011', checkPage = noCheck } = {}
+  { baselCode = 'B3011', checkPage = noCheck, section } = {}
 ) {
+  // section: only that section's sites ('accredited-site', say), so a
+  // registered site is never completed, which would add it to the application.
+  const tagSelector = section
+    ? `[data-testid^="${section}-incomplete-"]`
+    : '[data-testid*="-incomplete-"]'
   const completed = []
   for (let pass = 0; pass < 3; pass++) {
     await openSelectOverseasSites(applicationId)
     const incomplete = []
-    for (const tag of await $$('[data-testid*="-incomplete-"]')) {
+    for (const tag of await $$(tagSelector)) {
       const testId = await tag.getAttribute('data-testid')
       const [prefix, id] = testId.split('-incomplete-')
       const edit = $(`[data-testid="${prefix}-row-${id}"] a[href*="/edit/"]`)
@@ -467,4 +472,191 @@ export async function addNewSiteWithInterimSites(
   }
 
   return { orsId, interimSites }
+}
+
+/**
+ * Waits STATUS_STEP_PAUSE_MS (0, so not at all, unless set) between status
+ * changes, so each lands at a clearly different time: e.g. to rule out timing
+ * when an interim site's statusHistory shows two changes at the same moment.
+ *
+ * @param {string} what what the pause comes after, for the log
+ */
+export async function pauseBetweenStatusChanges(what) {
+  const ms = Number(process.env.STATUS_STEP_PAUSE_MS) || 0
+  if (ms <= 0) {
+    return
+  }
+  process.stdout.write(
+    `Pausing ${Math.round(ms / 1000)}s ${what} (${new Date().toISOString()})\n`
+  )
+  // A deliberate gap in time, not a wait for the page: nothing to wait on.
+  // The browser is asked for its URL every 15s meanwhile, so a long pause
+  // never leaves the WebDriver session idle.
+  const until = Date.now() + ms
+  while (Date.now() < until) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(15000, until - Date.now()))
+    )
+    await browser.getUrl()
+  }
+}
+
+/**
+ * Gives an application's interim sites each status history the accreditation
+ * API tests check (RA-781), from what addNewSiteWithInterimSites added:
+ *
+ *   restored     the first: withdrawn, then restored. One interim site whose
+ *                history reads approved, withdrawn, approved.
+ *   withdrawn    the second: withdrawn and left so. Latest status withdrawn.
+ *   replacement  a new interim site added on the withdrawn one's overseas
+ *                site, named `${interimSite.name} ${interimSites.length + 1}`.
+ *                A separate interim site, with a history of its own.
+ *
+ * Leaves the browser on the select-overseas-sites page.
+ *
+ * @param {string} applicationId
+ * @param {object} options
+ * @param {{orsId: string, interimSiteId: string, name: string}[]} options.interimSites
+ *   at least two, as addNewSiteWithInterimSites returns them
+ * @param {{name: string}} options.interimSite the name they are numbered from
+ * @returns {Promise<{restored: object, withdrawn: object, replacement: object}>}
+ */
+export async function withdrawRestoreAndReplaceInterimSites(
+  applicationId,
+  { interimSites, interimSite, checkPage = noCheck }
+) {
+  if (interimSites.length < 2) {
+    throw new Error(
+      'Two interim sites are needed: one to restore, one to withdraw'
+    )
+  }
+  const [restored, withdrawn] = interimSites
+  // When each change was made, by this runner's clock, to compare with the
+  // recordedAt the API serves for it.
+  const changes = []
+  const changed = async (what) => {
+    changes.push({ change: what, at: new Date().toISOString() })
+    await pauseBetweenStatusChanges(`after: ${what}`)
+  }
+
+  const removeAndWait = async ({ orsId, interimSiteId }) => {
+    await openSelectOverseasSites(applicationId)
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsId)
+    await OverseasReprocessingSitesPage.removeInterimSite(interimSiteId)
+    await OverseasReprocessingSitesPage.pageHeading.waitForDisplayed()
+    await OverseasReprocessingSitesPage.openWithdrawnInterimSitesDisclosure(
+      orsId
+    )
+    await expect(
+      OverseasReprocessingSitesPage.withdrawnInterimSiteRow(interimSiteId)
+    ).toBeDisplayed()
+  }
+
+  await pauseBetweenStatusChanges('before the first withdrawal')
+  await removeAndWait(restored)
+  await changed(`withdrew ${restored.name}`)
+  await OverseasReprocessingSitesPage.restoreInterimSite(
+    restored.orsId,
+    restored.interimSiteId
+  )
+  await OverseasReprocessingSitesPage.pageHeading.waitForDisplayed()
+  await OverseasReprocessingSitesPage.openInterimSiteDisclosure(restored.orsId)
+  expect(await interimSiteIds(restored.orsId)).toContain(restored.interimSiteId)
+  await changed(`restored ${restored.name}`)
+  await checkPage('Select overseas sites after restoring an interim site')
+
+  await removeAndWait(withdrawn)
+  await changed(`withdrew ${withdrawn.name}`)
+  await checkPage('Select overseas sites with a withdrawn interim site')
+
+  // The replacement goes on the same overseas site: through its "Add another
+  // interim site" link where the ORS offers one (multipleInterimSitesEnabled),
+  // otherwise through its check-your-answers page's "Save and add interim
+  // site", as addNewSiteWithInterimSites adds to a host.
+  const host = withdrawn.orsId
+  const before = await interimSiteIds(host)
+  await OverseasReprocessingSitesPage.openInterimSiteDisclosure(host)
+  if (
+    await OverseasReprocessingSitesPage.addInterimSiteLink(host).isExisting()
+  ) {
+    await OverseasReprocessingSitesPage.addAnotherInterimSite(host)
+  } else {
+    const href =
+      await OverseasReprocessingSitesPage.editAccreditedButton(
+        host
+      ).getAttribute('href')
+    await browser.url(new URL(href, await frontendOrigin()).toString())
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await AddOrsCyaPage.saveAndAddInterimSite()
+  }
+  const name = `${interimSite.name} ${interimSites.length + 1}`
+  await addInterimSite({ siteName: name, operationCodes: ['R12'] })
+  await OverseasReprocessingSitesPage.openInterimSiteDisclosure(host)
+  const added = (await interimSiteIds(host)).filter(
+    (id) => !before.includes(id) && id !== withdrawn.interimSiteId
+  )
+  expect(added).toHaveLength(1)
+  await changed(`added ${name}`)
+  await checkPage('Select overseas sites with a replacement interim site')
+
+  return {
+    changes,
+    restored,
+    withdrawn,
+    replacement: { orsId: host, interimSiteId: added[0], name }
+  }
+}
+
+/**
+ * From the select-overseas-sites page, gives every accredited site that has no
+ * interim site one, through its check-your-answers page's "Save and add
+ * interim site". Adds no overseas site and touches no registered one. Leaves
+ * the browser on that page.
+ *
+ * @param {string} applicationId
+ * @param {object} options
+ * @param {(n: number, orsId: string) => string} options.name the interim
+ *   site's name, from its number (from 1) and its overseas site
+ * @returns {Promise<{orsId: string, interimSiteId: string, name: string}[]>}
+ */
+export async function addInterimSiteToEachAccreditedSite(
+  applicationId,
+  { name, checkPage = noCheck }
+) {
+  await openSelectOverseasSites(applicationId)
+  const prefix = 'accredited-site-row-'
+  const hosts = []
+  for (const id of await testIdSuffixes(`[data-testid^="${prefix}"]`, prefix)) {
+    if (
+      !(await OverseasReprocessingSitesPage.interimSiteDisclosure(
+        id
+      ).isExisting())
+    ) {
+      hosts.push(id)
+    }
+  }
+
+  const added = []
+  for (const [i, host] of hosts.entries()) {
+    const href =
+      await OverseasReprocessingSitesPage.editAccreditedButton(
+        host
+      ).getAttribute('href')
+    await browser.url(new URL(href, await frontendOrigin()).toString())
+    await expect(browser).toHaveUrl(
+      expect.stringContaining('/check-your-answers')
+    )
+    await AddOrsCyaPage.saveAndAddInterimSite()
+    const siteName = name(i + 1, host)
+    await addInterimSite({ siteName, operationCodes: ['R12'] })
+    await checkPage('Select overseas sites with interim site')
+
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(host)
+    const ids = await interimSiteIds(host)
+    expect(ids).toHaveLength(1)
+    added.push({ orsId: host, interimSiteId: ids[0], name: siteName })
+  }
+  return added
 }
