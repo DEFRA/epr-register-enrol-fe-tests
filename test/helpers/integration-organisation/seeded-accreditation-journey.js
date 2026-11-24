@@ -370,11 +370,8 @@ async function interimSiteIds(orsId) {
  * interim site, and then more interim sites until there are
  * `interimSiteCount` in all. Leaves the browser on that page.
  *
- * Where they go depends on the frontend's multipleInterimSitesEnabled flag
- * (RA-603). With it on, an overseas site offers "Add another interim site"
- * and all of them go on the new site. With it off, as on test today, an
- * overseas site takes one, so each of the rest goes on an accredited site
- * that has none yet, through that site's "Save and add interim site".
+ * An overseas site offers "Add another interim site" (RA-603), so all of them
+ * go on the new site.
  *
  * @returns {Promise<{orsId: string, interimSites: {orsId: string, interimSiteId: string, name: string}[]}>}
  *   the new site's ORS id, and every interim site added with its ORS and name
@@ -412,58 +409,18 @@ export async function addNewSiteWithInterimSites(
   }))
   expect(interimSites).toHaveLength(1)
 
-  const multipleAllowed =
-    await OverseasReprocessingSitesPage.addInterimSiteLink(orsId).isExisting()
-  // Accredited sites with no interim site yet, for when the new one can take
-  // only one.
-  const accreditedPrefix = 'accredited-site-row-'
-  const hosts = []
-  if (!multipleAllowed) {
-    for (const id of await testIdSuffixes(
-      `[data-testid^="${accreditedPrefix}"]`,
-      accreditedPrefix
-    )) {
-      if (
-        !(await OverseasReprocessingSitesPage.interimSiteDisclosure(
-          id
-        ).isExisting())
-      ) {
-        hosts.push(id)
-      }
-    }
-  }
-
   for (let n = 2; n <= interimSiteCount; n++) {
-    let host = orsId
-    if (multipleAllowed) {
-      await OverseasReprocessingSitesPage.addAnotherInterimSite(orsId)
-    } else {
-      host = hosts.shift()
-      if (!host) {
-        throw new Error(
-          `No accredited site without an interim site left for interim site ${n}`
-        )
-      }
-      const href =
-        await OverseasReprocessingSitesPage.editAccreditedButton(
-          host
-        ).getAttribute('href')
-      await browser.url(new URL(href, await frontendOrigin()).toString())
-      await expect(browser).toHaveUrl(
-        expect.stringContaining('/check-your-answers')
-      )
-      await AddOrsCyaPage.saveAndAddInterimSite()
-    }
+    await OverseasReprocessingSitesPage.addAnotherInterimSite(orsId)
     // addInterimSite's own address, a German one, for the second and later.
     const name = interimSiteName(n)
     await addInterimSite({ siteName: name, operationCodes: ['R12'] })
 
-    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(host)
-    const ids = await interimSiteIds(host)
+    await OverseasReprocessingSitesPage.openInterimSiteDisclosure(orsId)
+    const ids = await interimSiteIds(orsId)
     const known = interimSites.map(({ interimSiteId }) => interimSiteId)
     const added = ids.filter((id) => !known.includes(id))
     expect(added).toHaveLength(1)
-    interimSites.push({ orsId: host, interimSiteId: added[0], name })
+    interimSites.push({ orsId, interimSiteId: added[0], name })
   }
 
   return { orsId, interimSites }

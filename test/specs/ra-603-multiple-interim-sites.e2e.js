@@ -25,9 +25,6 @@ import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
  * whose id createOrsWithInterimSite returns. Nothing may select "the first ORS
  * on the page" or count interim rows page-wide: those pick up the other tests'
  * ORSs, and previous runs' too, since mongo is not reset between runs.
- *
- * Needs MULTIPLE_INTERIM_SITES_ENABLED. Without it the page offers no way to
- * add a second interim site, which is the flag working rather than a failure.
  */
 
 describe('RA-603: several interim sites on one overseas reprocessing site @docker-only', () => {
