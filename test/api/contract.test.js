@@ -598,10 +598,11 @@ describe(
     })
 
     // recordedAt is when a status change was recorded. The workflow's Test 2
-    // makes each change STATUS_STEP_PAUSE_MS apart (minutes, on a run meant to
-    // rule out timing), so each must keep its own moment: strictly later than
-    // the one before. Equal recordedAt values mean the changes' own times
-    // were lost.
+    // makes each change as its own request, so even without
+    // STATUS_STEP_PAUSE_MS they are hundreds of milliseconds apart, and
+    // recordedAt has millisecond precision. Each must therefore be strictly
+    // later than the one before. Not >=: equal values are the defect this
+    // catches (every recordedAt replaced by the approval time).
     it('records when each interim site status change happened (recordedAt)', (t) => {
       if (!requireGranted(t, context.exporter, 'exporter')) {
         return
