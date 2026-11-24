@@ -225,7 +225,8 @@ export async function approveMigratedOrganisation(
     registration.accreditationId = accreditation.id
     accreditation.status = accStatus
     accreditation.validFrom = row.validFrom?.trim() || validFrom
-    accreditation.validTo = `${currentYear() + 1}-01-01`
+    // Re/Ex wants an accreditation to end in the year it starts.
+    accreditation.validTo = `${currentYear()}-12-31`
     accreditation.statusHistory = backdateCreated(
       accStatus === 'created'
         ? accreditation.statusHistory || []
