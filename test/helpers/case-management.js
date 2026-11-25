@@ -148,7 +148,11 @@ export async function completeOverseasSites(organisationId, applicationId) {
 // Submit's click returns before the POST lands and the backend creates the CM
 // work item, so a caller that goes straight from submitApplication() to here can
 // read the application before caseManagementWorkItemId is set.
-async function waitForWorkItemId(organisationId, applicationId, purpose) {
+export async function waitForWorkItemId(
+  organisationId,
+  applicationId,
+  purpose
+) {
   const deadline = Date.now() + 30000
   for (;;) {
     const { caseManagementWorkItemId } = await getApplication(

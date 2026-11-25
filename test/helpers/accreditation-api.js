@@ -1,15 +1,13 @@
-import { createHmac, randomBytes } from 'node:crypto'
-
 import { request } from 'undici'
 
 import { recordExchange } from '../api/request-log.js'
 import seedingConfig from './integration-organisation/seeding/config.js'
+import { serviceClientHeaders, timestamp } from './service-client-signing.js'
 
 // A client for epr-register-enrol-backend's read-only accreditation API, the
 // one ReEx and other service clients read granted accreditations from. Every
 // request is signed as docs/reex-api-onboarding.md in that repo describes
-// (HMAC-SHA256 over "v3", the client id, two empty lines, the timestamp and
-// a nonce).
+// (service-client-signing.js).
 //
 // ACCREDITATION_API_CLIENT_SECRET  the client's secret; without it the tests
 //                                  that use this skip (test/api)
@@ -45,9 +43,7 @@ export function accreditationApiNotConfigured() {
     : 'ACCREDITATION_API_CLIENT_SECRET is not set, so the accreditation API cannot be called'
 }
 
-// yyyy-MM-ddTHH:mm:ssZ, the only form the guide documents.
-export const timestamp = (date = new Date()) =>
-  date.toISOString().replace(/\.\d{3}Z$/, 'Z')
+export { timestamp }
 
 /**
  * The four auth headers, signed as the guide describes. Each part can be
@@ -60,19 +56,11 @@ export const timestamp = (date = new Date()) =>
  * @param {string} [overrides.nonce]
  */
 export function signedHeaders(overrides = {}) {
-  const id = overrides.clientId ?? clientId()
-  const secret = overrides.secret ?? clientSecret()
-  const ts = overrides.timestamp ?? timestamp()
-  const nonce = overrides.nonce ?? randomBytes(16).toString('base64')
-  const payload = ['v3', id, '', '', ts, nonce].join('\n')
-  return {
-    'x-cdp-client-id': id,
-    'x-cdp-auth-timestamp': ts,
-    'x-cdp-auth-nonce': nonce,
-    'x-cdp-auth-signature': createHmac('sha256', secret)
-      .update(payload)
-      .digest('base64')
-  }
+  return serviceClientHeaders({
+    ...overrides,
+    clientId: overrides.clientId ?? clientId(),
+    secret: overrides.secret ?? clientSecret()
+  })
 }
 
 /**
