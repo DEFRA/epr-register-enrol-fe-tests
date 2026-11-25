@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
 
 import { getAccreditationApi } from '../helpers/accreditation-api.js'
@@ -146,16 +147,20 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
       )
     })
 
-    it('answers 400 invalid_include_withdrawn for includeWithdrawn not true or false', async (t) => {
+    // RA-781 removed includeWithdrawn, and invalid_include_withdrawn with it:
+    // any value is now ignored (contract.test.js checks the response is the
+    // same whatever it says).
+    it('no longer answers 400 invalid_include_withdrawn for includeWithdrawn=maybe', async (t) => {
       if (!requireGranted(t, context.exporter, 'exporter')) {
         return
       }
-      assertProblem(
-        await getAccreditationApi(
-          `${context.exporter.path}/overseas-sites?includeWithdrawn=maybe`
-        ),
-        400,
-        'invalid_include_withdrawn'
+      const response = await getAccreditationApi(
+        `${context.exporter.path}/overseas-sites?includeWithdrawn=maybe`
+      )
+      assert.equal(
+        response.status,
+        200,
+        `includeWithdrawn=maybe answered ${response.status}: ${JSON.stringify(response.body)}`
       )
     })
 
