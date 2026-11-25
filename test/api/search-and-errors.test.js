@@ -296,9 +296,7 @@ describe(
       if (!requireGranted(t, context.exporter, 'exporter')) {
         return
       }
-      const { status, body } = await getAccreditationApi(
-        `${context.exporter.path}?includeWithdrawn=true`
-      )
+      const { status, body } = await getAccreditationApi(context.exporter.path)
       assert.equal(status, 200)
       const sites = body.overseasSites.flatMap((site) => [
         [`overseas site ${site.orsId ?? site.siteName}`, site.siteId],

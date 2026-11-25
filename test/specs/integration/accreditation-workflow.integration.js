@@ -28,9 +28,15 @@ import {
   addRegisteredSitesToAccreditation,
   completeIncompleteOverseasSites,
   openSeededAccreditation,
+  pauseBetweenStatusChanges,
   seededRegistrations,
-  startFirstApplicableAccreditation
+  startFirstApplicableAccreditation,
+  withdrawRestoreAndReplaceInterimSites
 } from '../../helpers/integration-organisation/seeded-accreditation-journey.js'
+import {
+  INTERIM_SITE_STATUSES,
+  SUBMISSION_INTERIM_SITE_NAME
+} from '../../helpers/integration-organisation/interim-site-statuses.js'
 import {
   addOverseasSiteWithInterimSite,
   confirmOverseasSites,
@@ -57,7 +63,10 @@ import { reportDetails, reportStep } from '../../helpers/report-step.js'
 //   Test 1         apply for reprocessor accreditation, record the application
 //   Test 2         apply for exporter accreditation: keep the accredited
 //                  overseas sites, add the registered one, and add a new site
-//                  with two interim sites; record the application
+//                  with two interim sites; withdraw and restore the first,
+//                  withdraw the second and add a third in its place, for the
+//                  accreditation API's interim site status tests (RA-781);
+//                  record the application
 //   Accessibility  every page Tests 1 and 2 reached, checked as they reached
 //                  it, has no WCAG 2.1 A/AA violations: one test for each
 //                  journey, so a violation does not stop the journey itself
@@ -120,7 +129,7 @@ const SUBMISSION_SITE = {
 }
 const SUBMISSION_INTERIM_SITE = {
   country: 'Malaysia',
-  name: 'Penang Interim Storage Yard',
+  name: SUBMISSION_INTERIM_SITE_NAME,
   location: {
     addressLine1: '21 Lorong Pelabuhan',
     townOrCity: 'George Town',
@@ -305,6 +314,25 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
         `${interimSites.map(({ name, orsId }) => `${name} (ORS ${orsId})`).join(', ')}\n`
     )
 
+    // RA-781: a restored, a withdrawn and a replacement interim site, for the
+    // accreditation API tests to find by name once Test 4 grants it.
+    const statuses = await reportStep(
+      'Operator: withdraw and restore an interim site, withdraw another and add one in its place',
+      () =>
+        withdrawRestoreAndReplaceInterimSites(applicationId, {
+          interimSites,
+          interimSite: SUBMISSION_INTERIM_SITE,
+          checkPage
+        })
+    )
+    expect(statuses.restored.name).toBe(INTERIM_SITE_STATUSES.restored)
+    expect(statuses.withdrawn.name).toBe(INTERIM_SITE_STATUSES.withdrawn)
+    expect(statuses.replacement.name).toBe(INTERIM_SITE_STATUSES.replacement)
+    reportDetails('Interim site statuses', statuses)
+    process.stdout.write(
+      `Interim site changes: ${JSON.stringify(statuses.changes)}\n`
+    )
+
     await confirmOverseasSites({ checkPage })
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/task-list/')
@@ -315,9 +343,12 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
 
     return {
       material,
+      // What case management should show: the withdrawn interim site is not
+      // one of them.
       overseasSiteNames: [
         SUBMISSION_SITE.name,
-        ...interimSites.map(({ name }) => name)
+        statuses.restored.name,
+        statuses.replacement.name
       ]
     }
   }
@@ -447,8 +478,12 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
    * contacted then grants it.
    */
   async function approveAndConfirmContact() {
+    await pauseBetweenStatusChanges('before approving the work item')
     await reportStep('Case management: approve the work item', async () => {
       await approveWorkItem({ note: APPROVAL_NOTE })
+      process.stdout.write(
+        `Approved the work item at ${new Date().toISOString()}\n`
+      )
       await expect(CmWorkItemPage.stateTag).toHaveText(
         WORK_ITEM_STATES.approved
       )
@@ -530,7 +565,7 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
         registration.wasteProcessingType === 'exporter' &&
         registration.material === EXPORTER_MATERIAL
     )
-    seededSiteNames = exporter.overseasSiteNames ?? []
+    seededSiteNames = exporter?.overseasSiteNames ?? []
     reportDetails('Organisation', {
       orgId: organisation.orgId,
       id: organisation.id,
@@ -541,9 +576,13 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
       defraOrganisation: organisation.defraOrganisation,
       paperExporterOverseasSites: seededSiteNames
     })
-    expect(Object.keys(exporter.overseasSites)).toHaveLength(
-      EXPORTER_SITES.accredited + EXPORTER_SITES.registered
-    )
+    // A reused organisation (SEEDED_ORGANISATION_ID) may have no paper
+    // exporter; only Tests 2 and 4 need one.
+    if (exporter) {
+      expect(Object.keys(exporter.overseasSites)).toHaveLength(
+        EXPORTER_SITES.accredited + EXPORTER_SITES.registered
+      )
+    }
   })
 
   /** Skips the test, saying why in the console and the report. */
