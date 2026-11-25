@@ -12,4 +12,4 @@ jobs:
     name: Run Journey Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: DEFRA/cdp-node-journey-test-suite-template/run-journey-tests@9a64cc929475ffd21b34b2caac72f8f627c70657 # main
+      - uses: DEFRA/cdp-node-journey-test-suite-template/run-journey-tests@bcc575376436a7ffd7d7976dd48b0f8988d6ea12 # main
