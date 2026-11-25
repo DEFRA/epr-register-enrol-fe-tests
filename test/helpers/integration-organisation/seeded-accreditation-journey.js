@@ -526,28 +526,12 @@ export async function withdrawRestoreAndReplaceInterimSites(
   await changed(`withdrew ${withdrawn.name}`)
   await checkPage('Select overseas sites with a withdrawn interim site')
 
-  // The replacement goes on the same overseas site: through its "Add another
-  // interim site" link where the ORS offers one (multipleInterimSitesEnabled),
-  // otherwise through its check-your-answers page's "Save and add interim
-  // site", as addNewSiteWithInterimSites adds to a host.
+  // The replacement goes on the same overseas site, through its "Add another
+  // interim site" link, as addNewSiteWithInterimSites adds a second.
   const host = withdrawn.orsId
   const before = await interimSiteIds(host)
   await OverseasReprocessingSitesPage.openInterimSiteDisclosure(host)
-  if (
-    await OverseasReprocessingSitesPage.addInterimSiteLink(host).isExisting()
-  ) {
-    await OverseasReprocessingSitesPage.addAnotherInterimSite(host)
-  } else {
-    const href =
-      await OverseasReprocessingSitesPage.editAccreditedButton(
-        host
-      ).getAttribute('href')
-    await browser.url(new URL(href, await frontendOrigin()).toString())
-    await expect(browser).toHaveUrl(
-      expect.stringContaining('/check-your-answers')
-    )
-    await AddOrsCyaPage.saveAndAddInterimSite()
-  }
+  await OverseasReprocessingSitesPage.addAnotherInterimSite(host)
   const name = `${interimSite.name} ${interimSites.length + 1}`
   await addInterimSite({ siteName: name, operationCodes: ['R12'] })
   await OverseasReprocessingSitesPage.openInterimSiteDisclosure(host)

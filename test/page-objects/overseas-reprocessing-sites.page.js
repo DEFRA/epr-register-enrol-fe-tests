@@ -112,6 +112,14 @@ class OverseasReprocessingSitesPage extends withInterimSiteDisclosure(Page) {
     return $(`[data-testid="new-site-row-${siteId}"]`)
   }
 
+  // RA-470: the "Change" link next to Remove from accreditation on an
+  // already-accredited site row — navigates to
+  // .../select-overseas-sites/{applicationId}/edit/{siteId}, which replays
+  // the add-overseas-site wizard pre-seeded with this site's existing data.
+  editAccreditedButton(siteId) {
+    return $(`[data-testid="edit-button-accredited-${siteId}"]`)
+  }
+
   removeNewSiteButton(siteId) {
     return $(`[data-testid="remove-button-new-${siteId}"]`)
   }
