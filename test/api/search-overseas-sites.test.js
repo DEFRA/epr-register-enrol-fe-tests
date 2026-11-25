@@ -245,27 +245,6 @@ describe(
       }
     })
 
-    it('gives an exporter with no selected overseas sites overseasSites: []', async (t) => {
-      const empty = yearPages
-        .flatMap(({ items }) => items)
-        .filter(
-          (item) =>
-            item.wasteProcessingType === 'exporter' &&
-            item.overseasSites?.length === 0
-        )
-      if (empty.length === 0) {
-        // A granted exporter always has a selected site: the overseas
-        // sites section cannot be completed without one. The backend's
-        // Search_ExporterWithNoSelectedSites_HasAnEmptyOverseasSites covers
-        // it on seeded data.
-        t.todo(`no ${year} exporter on test has no selected overseas sites`)
-        return
-      }
-      for (const item of empty) {
-        await assertMatchesAccreditation(item)
-      }
-    })
-
     it(`serves a page of ${PAGE_LIMIT}, exporters included, within the ${QUERY_TIMEOUT_MS / 1000}s query timeout`, async (t) => {
       const path = `/v1/accreditations?year=${year}&limit=${PAGE_LIMIT}`
       // Warm: the first call of a connection also signs in and connects.
