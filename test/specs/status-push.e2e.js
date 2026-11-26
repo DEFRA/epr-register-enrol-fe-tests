@@ -2,16 +2,6 @@ import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
-import TaskListPage from 'page-objects/tasklist.page'
-import PrnTonnagePage from 'page-objects/prn-tonnage.page'
-import PrnAuthorityPage from 'page-objects/prn-authority.page'
-import PrnCheckAnswersPage from 'page-objects/prn-check-answers.page'
-import BusinessPlanPage from 'page-objects/business-plan.page'
-import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
-import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
-import SamplingPlanPage from 'page-objects/sampling-plan.page'
-import SubmitApplicationPage from 'page-objects/submit-application.page'
-import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import {
   pushStatusChanged,
   withdrawApplication,
@@ -19,6 +9,7 @@ import {
 } from '../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 import { disposableYear } from '../helpers/disposable-year.js'
+import { submitApplicationForYear } from '../helpers/accreditation-journey.js'
 
 describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   before(function () {
@@ -51,77 +42,15 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
     return `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
   }
 
-  // Drives a fresh, run-unique reaccreditation application (org 50003 -
-  // Delta Green Ltd, Plastic) to Submitted. query-resubmit.e2e.js owns the
-  // fixed year on this same org/reg/material combination, so every call here
-  // takes its own year (same seed-on-miss reasoning as
-  // withdraw-application.e2e.js) to land its own disposable draft instead of
-  // colliding with that spec's application.
+  // A fresh, run-unique reaccreditation application (org 50003 - Delta Green
+  // Ltd, Plastic) at Submitted: every call takes its own disposable year (same
+  // seed-on-miss reasoning as withdraw-application.e2e.js) to land its own
+  // draft instead of colliding with query-resubmit.e2e.js's application.
   async function reachSubmittedApplication(year) {
     await OperatorPage.navigateToReaccreditationPlastic()
-
-    const landing = await browser.getUrl()
-    ;[, organisationId, registrationId, materialType] = new URL(
-      landing
-    ).pathname
-      .split('/')
-      .filter(Boolean)
-    await browser.url(landingUrl(year))
-
-    await OperatorAccreditationPage.clickContinue()
-    await browser.waitUntil(
-      async () =>
-        (await browser.getUrl()).includes('/accreditation/task-list/'),
-      { timeout: 10000, timeoutMsg: 'Did not reach task list' }
-    )
-    const applicationId = (await browser.getUrl())
-      .split('/accreditation/task-list/')[1]
-      .split('?')[0]
-
-    if (await TaskListPage.PRNTonnageLink.isExisting()) {
-      await TaskListPage.PRNTonnageLink.click()
-      await PrnTonnagePage.selectRandomOption()
-      await PrnTonnagePage.saveAndContinue()
-      await PrnAuthorityPage.addAuthoriser()
-      await PrnAuthorityPage.saveAndContinue()
-      await PrnCheckAnswersPage.confirmAndContinue()
-    }
-
-    if (await TaskListPage.businessPlanLink.isExisting()) {
-      await TaskListPage.businessPlanLink.click()
-      await browser.waitUntil(
-        async () =>
-          (await browser.getUrl()).includes('/accreditation/business-plan'),
-        { timeout: 10000 }
-      )
-      await BusinessPlanPage.fillPercentages([15, 15, 15, 15, 15, 15, 10])
-      await BusinessPlanPage.saveAndContinue()
-      await BusinessPlanDetailPage.fillDescriptions()
-      await BusinessPlanDetailPage.saveAndContinue()
-      await BusinessPlanCheckAnswersPage.confirmAndContinue()
-    }
-
-    if (await TaskListPage.SIPlanLink.isExisting()) {
-      await TaskListPage.SIPlanLink.click()
-      await SamplingPlanPage.uploadFile('business-plan.pdf')
-      await SamplingPlanPage.saveAndContinue()
-    }
-
-    await TaskListPage.assertAllTasksCompleted()
-    await TaskListPage.continueToSubmit()
-    await SubmitApplicationPage.submitApplication()
-
-    // Confirms the submit POST actually landed server-side (and with it, CM
-    // work-item creation) before returning — without this, pushStatusChanged
-    // below can race ahead of the backend and find caseManagementWorkItemId
-    // still unset. Generous timeout: this is the tail of a long multi-section
-    // journey and the submit → confirmation render is the slowest hop under a
-    // loaded parallel grid.
-    await ApplicationSubmittedPage.panelTitle.waitForDisplayed({
-      timeout: 30000,
-      timeoutMsg: 'Application submitted confirmation panel did not appear'
-    })
-
+    let applicationId
+    ;({ organisationId, registrationId, materialType, applicationId } =
+      await submitApplicationForYear(year))
     return applicationId
   }
 

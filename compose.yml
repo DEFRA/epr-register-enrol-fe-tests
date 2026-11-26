@@ -43,7 +43,8 @@ services:
   # The set name comes from a config file, not --replSet: the image's
   # entrypoint drops a config file's `replication` section (but not
   # --replSet) for the temporary mongod that runs the init scripts, so they
-  # can still write before the set is initiated.
+  # can still write before the set is initiated. The same file enables test
+  # commands (see configs, below).
   mongodb:
     image: mongo:6
     command: ['--config', '/etc/mongod-replica-set.conf', '--bind_ip_all']
@@ -248,6 +249,11 @@ configs:
     content: |
       replication:
         replSetName: rs0
+      # RA-751: test-only commands, for the failCommand fail point
+      # test/serial-specs/ra-751-admin-query-timeout.e2e.js sets to make the
+      # backend's next accreditationApplications find time out. Sandbox only.
+      setParameter:
+        enableTestCommands: true
 
 networks:
   cdp-tenant:
