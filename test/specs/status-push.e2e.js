@@ -9,7 +9,7 @@ import {
 } from '../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 import { disposableYear } from '../helpers/disposable-year.js'
-import { submitReaccreditationPlastic } from '../helpers/accreditation-journey.js'
+import { submitApplicationForYear } from '../helpers/accreditation-journey.js'
 
 describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   before(function () {
@@ -47,9 +47,10 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
   // seed-on-miss reasoning as withdraw-application.e2e.js) to land its own
   // draft instead of colliding with query-resubmit.e2e.js's application.
   async function reachSubmittedApplication(year) {
+    await OperatorPage.navigateToReaccreditationPlastic()
     let applicationId
     ;({ organisationId, registrationId, materialType, applicationId } =
-      await submitReaccreditationPlastic(year))
+      await submitApplicationForYear(year))
     return applicationId
   }
 

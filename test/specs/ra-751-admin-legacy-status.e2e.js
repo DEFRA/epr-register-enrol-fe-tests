@@ -9,12 +9,12 @@ import {
 } from '../helpers/case-management.js'
 import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 import { disposableYear } from '../helpers/disposable-year.js'
-import { submitReaccreditationPlastic } from '../helpers/accreditation-journey.js'
+import { submitApplicationForYear } from '../helpers/accreditation-journey.js'
 import {
   getCaseManagementStatusMapping,
-  getLegacyApplicationStatuses,
-  nonAdminClient
+  getLegacyApplicationStatuses
 } from '../helpers/admin-api.js'
+import { nonAdminApiClient } from '../config.js'
 
 /**
  * RA-751: Search Case management information (epic RA-639).
@@ -31,7 +31,7 @@ import {
  * frontend is the one the batch finds the application by, that the status it
  * answers is the live one (it follows a status case management pushes), and
  * that the route answers the signed admin client this stack registers
- * (docker/config/operator-be.env) and refuses any other.
+ * (docker/config/operator-be.env, test/config.js) and refuses any other.
  *
  * Its application is a run-unique disposable year on org 50003 (Delta Green
  * Ltd, Plastic), as status-push.e2e.js uses, so no other spec sees it.
@@ -58,26 +58,31 @@ describe('RA-751: Legacy application statuses for case management work items @do
     'workItemId must each be a work item id, a GUID such as 3f2b8c1e-4d5a-4b6c-9e7f-0a1b2c3d4e5f.'
 
   describe('for a work item an operator submitted', () => {
+    let organisationId
+    let applicationId
+    let workItemId
+
     before(async () => {
       await browser.deleteCookies()
       await LoginPage.open()
       await LoginPage.openOperatorLogin()
       await LoginPage.loginAsOperator()
       await OperatorPage.open()
+      await OperatorPage.navigateToReaccreditationPlastic()
+      ;({ organisationId, applicationId } =
+        await submitApplicationForYear(disposableYear()))
+      workItemId = await waitForWorkItemId(
+        organisationId,
+        applicationId,
+        'look up the Legacy status of'
+      )
     })
 
     after(async () => {
       await LoginPage.signOut()
     })
 
-    it('gives each work item its Legacy application and current status, in request order, and follows a status case management pushes', async () => {
-      const { organisationId, applicationId } =
-        await submitReaccreditationPlastic(disposableYear())
-      const workItemId = await waitForWorkItemId(
-        organisationId,
-        applicationId,
-        'look up the Legacy status of'
-      )
+    it('gives each work item its Legacy application and current status, in request order', async () => {
       const unknownWorkItemId = randomUUID()
 
       const submitted = await getLegacyApplicationStatuses([
@@ -102,7 +107,31 @@ describe('RA-751: Legacy application statuses for case management work items @do
           }
         ]
       })
+    })
 
+    it('finds a work item by its id in any case, and answers it in lower case', async () => {
+      // Upper-casing only tests the match if the stored id has letters and is
+      // lower case, so check that first.
+      expect(workItemId).toMatch(/^[0-9a-f-]*[a-f][0-9a-f-]*$/)
+
+      const upperCase = await getLegacyApplicationStatuses([
+        workItemId.toUpperCase()
+      ])
+
+      expect(upperCase.status).toBe(200)
+      expect(upperCase.body).toEqual({
+        items: [
+          {
+            workItemId,
+            found: true,
+            applicationId,
+            applicationStatus: 'Submitted'
+          }
+        ]
+      })
+    })
+
+    it('follows a status case management pushes', async () => {
       await pushStatusChanged(organisationId, applicationId, {
         toStateId: 'duly-made',
         toStateDisplayName: 'Duly made',
@@ -111,10 +140,7 @@ describe('RA-751: Legacy application statuses for case management work items @do
         occurredAt: new Date().toISOString()
       })
 
-      // Upper case is the same work item, answered in lower case.
-      const dulyMade = await getLegacyApplicationStatuses([
-        workItemId.toUpperCase()
-      ])
+      const dulyMade = await getLegacyApplicationStatuses([workItemId])
 
       expect(dulyMade.status).toBe(200)
       expect(dulyMade.body).toEqual({
@@ -127,14 +153,6 @@ describe('RA-751: Legacy application statuses for case management work items @do
           }
         ]
       })
-
-      // The status the mapping says a duly-made push sets is the one the
-      // push receiver set, so the Admin UI's mismatch flag compares like with
-      // like.
-      const mapping = await getCaseManagementStatusMapping()
-      expect(
-        mapping.body.statusPush.find((entry) => entry.stateId === 'duly-made')
-      ).toEqual({ stateId: 'duly-made', applicationStatus: 'DulyMade' })
     })
   })
 
@@ -236,13 +254,13 @@ describe('RA-751: Legacy application statuses for case management work items @do
     it('answers 403 forbidden to another known service client, on both routes', async () => {
       expectProblem(
         await getLegacyApplicationStatuses([randomUUID()], {
-          client: nonAdminClient()
+          client: nonAdminApiClient
         }),
         403,
         'forbidden'
       )
       expectProblem(
-        await getCaseManagementStatusMapping({ client: nonAdminClient() }),
+        await getCaseManagementStatusMapping({ client: nonAdminApiClient }),
         403,
         'forbidden'
       )

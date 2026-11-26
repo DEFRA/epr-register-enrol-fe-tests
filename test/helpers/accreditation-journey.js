@@ -59,16 +59,19 @@ export async function startDisposableGlassExporterApplication() {
 }
 
 /**
- * From the operator landing page, drives org 50003's (Delta Green Ltd) Plastic
- * reaccreditation application for `year` to Submitted, and with it the case
- * management work item. Pass a disposableYear(): query-resubmit.e2e.js owns
- * the fixed year on this org, registration and material.
+ * From a material's landing page (the operator just followed its link), drives
+ * that material's application for `year` through the PRN tonnage, business
+ * plan and sampling plan tasks and submits it, which creates its case
+ * management work item. Only for an application whose task list is those three
+ * tasks: any other task left open fails assertAllTasksCompleted.
+ *
+ * Pass a year no other spec uses on the same organisation, registration and
+ * material (a disposableYear()), or the specs share one application.
  *
  * @param {string} year
  * @returns {Promise<{organisationId: string, registrationId: string, materialType: string, applicationId: string}>}
  */
-export async function submitReaccreditationPlastic(year) {
-  await OperatorPage.navigateToReaccreditationPlastic()
+export async function submitApplicationForYear(year) {
   const application = await openApplicationForYear(year)
 
   await completePrnBusinessPlanSamplingPlan({

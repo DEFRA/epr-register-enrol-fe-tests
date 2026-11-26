@@ -2,7 +2,7 @@ import { request } from 'undici'
 
 import { recordExchange } from '../api/request-log.js'
 import seedingConfig from './integration-organisation/seeding/config.js'
-import { serviceClientHeaders, timestamp } from './service-client-signing.js'
+import { serviceClientHeaders } from './service-client-signing.js'
 
 // A client for epr-register-enrol-backend's read-only accreditation API, the
 // one ReEx and other service clients read granted accreditations from. Every
@@ -42,8 +42,6 @@ export function accreditationApiNotConfigured() {
     ? undefined
     : 'ACCREDITATION_API_CLIENT_SECRET is not set, so the accreditation API cannot be called'
 }
-
-export { timestamp }
 
 /**
  * The four auth headers, signed as the guide describes. Each part can be

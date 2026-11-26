@@ -6,9 +6,9 @@ import {
   accreditationPath,
   callAccreditationApi,
   getAccreditationApi,
-  signedHeaders,
-  timestamp
+  signedHeaders
 } from '../helpers/accreditation-api.js'
+import { timestamp } from '../helpers/service-client-signing.js'
 import {
   assertProblem,
   notConfigured,
