@@ -32,6 +32,11 @@ const SEEDING_FAILURE_FILE = resolve(
 // it adds a new site of its own.
 export const OVERSEAS_SITES_MATERIAL = 'plastic'
 
+// The exporter material in-year-changes.integration.js applies for and then
+// adds a registered site to in-year: plenty of both kinds, so a run (or a
+// rerun on a reused organisation) always has a registered site left to add.
+export const IN_YEAR_CHANGES_MATERIAL = 'steel'
+
 // Exporter materials given overseas reprocessing sites, so the accreditation
 // journey's select-overseas-sites page has accredited sites to show and
 // registered ones to add.
@@ -44,7 +49,9 @@ const OVERSEAS_SITES = [
     glassRecyclingProcess: 'glass_re_melt',
     accredited: 1,
     registered: 1
-  }
+  },
+  // Last, so the sites before it keep the locations they are seeded with.
+  { material: IN_YEAR_CHANGES_MATERIAL, accredited: 8, registered: 8 }
 ]
 
 const timestamp = () => new Date().toISOString().replace(/\D/g, '').slice(0, 14)

@@ -7,7 +7,9 @@
 // onPrepare. wdio.integration.conf.js runs the same ones on their own (npm run
 // test:integration). On the run's one organisation, accreditation-workflow
 // submits one reprocessor and one exporter application and works both through
-// case management.
+// case management; then in-year-changes has a steel reprocessor and exporter
+// accreditation granted, and adds a registered overseas site to the
+// exporter's in-year.
 //
 // Elsewhere (dev) only wdio.integration.conf.js runs any, signing in through
 // GOV.UK One Login. In order rather than globbed: the case management journey
@@ -20,7 +22,8 @@
 
 export const TEST_ENVIRONMENT_INTEGRATION_SPECS = [
   './test/specs/integration/seeded-organisation.integration.js',
-  './test/specs/integration/accreditation-workflow.integration.js'
+  './test/specs/integration/accreditation-workflow.integration.js',
+  './test/specs/integration/in-year-changes.integration.js'
 ]
 
 export const ONE_LOGIN_INTEGRATION_SPECS = [
