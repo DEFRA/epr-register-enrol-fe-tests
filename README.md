@@ -77,9 +77,10 @@ run in CI, and no other config picks them up.
   org 50019's Lyon site; the regulator duly makes it (the request reads
   DULY MADE and the site stays locked), refuses it and confirms contact, so
   the case closes, the request reads REFUSED and the site can be requested
-  again; the operator requests it again; the regulator duly makes, approves
-  and confirms contact, so the request reads GRANTED, valid from its
-  submission date, and Lyon is on the Accredited tab.
+  again; the operator requests it again; the regulator duly makes and
+  approves it with a valid from date, corrects that date with a reason
+  (RA-800) and confirms contact, so the request reads GRANTED, valid from the
+  corrected date, and Lyon is on the Accredited tab.
 - `add-ors-bes-evidence-checks` (RA-495): an add-ORS request's BES upload
   for org 50019's Delhi site is checked against the files the site already
   holds on the accreditation. An upload over the 10-file cap is refused, and

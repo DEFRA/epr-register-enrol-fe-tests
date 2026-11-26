@@ -3,6 +3,7 @@ import CmWorkItemPage from 'page-objects/cm-work-item.page'
 import CmWorkItemReviewPage from 'page-objects/cm-work-item-review.page'
 import CmChangePaymentDatePage from 'page-objects/cm-change-payment-date.page'
 import CmChangeDeadlinePage from 'page-objects/cm-change-deadline.page'
+import CmChangeValidFromPage from 'page-objects/cm-change-valid-from.page'
 
 // Case management steps only the monorepo specs take (test/specs/monorepo).
 // The steps shared with the deployed-environment journeys stay in
@@ -60,4 +61,22 @@ export async function continueReview() {
     timeout: 30000,
     timeoutMsg: 'Continue review did not open the determination'
   })
+}
+
+/**
+ * RA-800: replaces the valid from date an add-ORS approval recorded, with a
+ * reason, before applicant contact is confirmed. Leaves the browser on the
+ * work item.
+ *
+ * @param {object} options
+ * @param {Date} options.validFrom
+ * @param {string} options.reason
+ */
+export async function changeValidFromDate({ validFrom, reason }) {
+  await CmChangeValidFromPage.startChangeValidFromDate()
+  await expect(browser).toHaveUrl(expect.stringContaining('/change-valid-from'))
+
+  await CmChangeValidFromPage.changeValidFromDate(validFrom, reason)
+
+  await CmWorkItemPage.waitUntilLoaded()
 }
