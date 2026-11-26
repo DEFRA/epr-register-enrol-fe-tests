@@ -115,11 +115,6 @@ class ChangeRequestDetailPage extends Page {
     return $('[data-testid="success-banner"]')
   }
 
-  // The problem a refused declaration returns to the page with.
-  get errorSummary() {
-    return $('[data-testid="error-summary"]')
-  }
-
   get saveAndContinueButton() {
     return $('[data-testid="save-and-continue-button"]')
   }

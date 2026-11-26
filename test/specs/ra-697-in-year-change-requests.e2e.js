@@ -186,9 +186,23 @@ async function expectRequestDetails(
     item.validTo?.(year) ?? 'Not applicable'
   )
   // Read-only: nothing on the page changes the request. A queried item (RA-698)
-  // is the exception: it offers Change links, an upload and Save and continue so
-  // the operator can answer, which ra-698-in-year-query-response.e2e.js covers.
-  if (!queried) {
+  // is the exception: it offers Change links (Upload for BES evidence) on the
+  // fields the query leaves open, a Change link on each interim site and Save
+  // and continue, so the operator can answer. Answering is covered by
+  // test/serial-specs/ra-698-in-year-query-response.e2e.js.
+  if (queried) {
+    expect(await detail.rowIdsWithActions()).toEqual([
+      'site-name',
+      'location',
+      'contact-name',
+      'contact-email',
+      'contact-phone',
+      'repatriated-loads',
+      'bes-evidence'
+    ])
+    await expect(detail.interimChangeLinks).toBeElementsArrayOfSize(2)
+    await expect(detail.saveAndContinueButton).toBeDisplayed()
+  } else {
     await expect(detail.actions).toBeElementsArrayOfSize(0)
   }
 }

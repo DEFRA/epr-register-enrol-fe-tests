@@ -52,9 +52,9 @@ import { seededRegistrationYear } from '../fixtures/year-suffix.js'
  *     held when it was queried read-only and lets only a file added in response
  *     be removed;
  *   - while the query is open no ORS can be added or managed: the manage page
- *     has no link to the overseas sites page, that page has no Add to
- *     accreditation buttons, and the add-to-accreditation routes go back to the
- *     manage page. All of it returns once the item is answered;
+ *     has no link to the overseas sites page, and the add-to-accreditation
+ *     routes go back to the manage page. The link returns once the item is
+ *     answered;
  *   - the backend refuses a locked field with a 422 (the UI offers no way to
  *     send one, so the API is called directly);
  *   - the declaration (full name and job title) sends the response; the manage
@@ -62,10 +62,12 @@ import { seededRegistrationYear } from '../fixtures/year-suffix.js'
  *     links and no way back into the response pages.
  *
  * Answering is one-way, and RA-697's and RA-425's read-only specs expect the
- * seeded item to be Queried, so the item is put back (helpers/sandbox-mongo.js'
- * resetQueriedChangeItem) before the first test and after the last. The tests
- * share the one item and run in file order, after RA-697's (specs run one file
- * at a time, in name order).
+ * seeded item to be Queried, and so do RA-425's and RA-583's, which run in
+ * parallel. The spec is therefore in test/serial-specs:
+ * wdio.github.serial.conf.js runs it on its own, after the parallel run, so
+ * nothing else reads the item while it changes. The item is put back
+ * (helpers/sandbox-mongo.js' resetQueriedChangeItem) before the first test and
+ * after the last. The tests share the one item and run in file order.
  *
  * Not covered here: removing a file the item held before the query, as the seed
  * gives it none (the backend's tests cover it), and the declaration's
@@ -82,7 +84,6 @@ const NAME = 'Rotterdam Recycling BV'
 const SEEDED_NAME = `${NAME} (${ITEM.orsId})`
 
 const LIST_PATH = `${MANAGE_PATH}/change-requests`
-const OVERSEAS_SITES_PATH = `${MANAGE_PATH}/overseas-sites`
 
 const CHANGED = {
   siteName: 'Rotterdam Recycling Europe BV',
@@ -130,6 +131,11 @@ describe(`RA-698: answer a regulator's query on an in-year change request ${DOCK
   })
 
   after(async () => {
+    // Mocha runs after() even when before() skipped the suite, and the reset
+    // needs the sandbox's MongoDB, which deployed environments do not have.
+    if (process.env.ENVIRONMENT) {
+      return
+    }
     await putItemBackToQueried()
   })
 
@@ -253,15 +259,9 @@ describe(`RA-698: answer a regulator's query on an in-year change request ${DOCK
       ManageRegistrationAccreditationPage.manageOverseasSitesLink
     ).not.toBeExisting()
 
-    // The page itself still opens, but nothing on it adds an ORS.
-    await ManageOverseasSitesPage.open(OVERSEAS_SITES_PATH)
-    await ManageOverseasSitesPage.pageHeading.waitForDisplayed()
-    await expect(
-      ManageOverseasSitesPage.anyAddToAccreditationButton
-    ).not.toBeExisting()
-
-    // And the add-to-accreditation pages send the operator back to the manage
-    // page.
+    // The add-to-accreditation pages send the operator back to the manage
+    // page (the seeded ORSs on this page have no addable one, so its buttons
+    // say nothing about the query).
     await ManageOverseasSitesPage.open(
       `/accreditation/manage-overseas-sites/${applicationId}/requests`
     )

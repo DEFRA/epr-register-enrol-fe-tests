@@ -78,10 +78,6 @@ class ChangeRequestResponsePage extends Page {
     return $('[data-testid="existing-files"]')
   }
 
-  get newFiles() {
-    return $('[data-testid="new-files"]')
-  }
-
   get noNewFiles() {
     return $('[data-testid="no-new-files"]')
   }
@@ -151,10 +147,6 @@ class ChangeRequestResponsePage extends Page {
 
   async continue() {
     await this.clickAndWaitForNextPage(this.continueButton)
-  }
-
-  async cancel() {
-    await this.clickAndWaitForNextPage(this.cancelLink)
   }
 }
 
