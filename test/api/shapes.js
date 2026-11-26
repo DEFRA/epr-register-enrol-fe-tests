@@ -13,7 +13,7 @@ import { year } from './support.js'
 // in epr-register-enrol-backend describes them. Shared by the contract and
 // search tests.
 
-export const MATERIALS = [
+const MATERIALS = [
   'Steel',
   'Wood',
   'Aluminium',
@@ -23,7 +23,25 @@ export const MATERIALS = [
   'Plastic'
 ]
 export const BANDS = ['up_to_500', 'up_to_5000', 'up_to_10000', 'over_10000']
-export const GLASS = ['glass_re_melt', 'glass_other']
+const GLASS = ['glass_re_melt', 'glass_other']
+
+// An AccreditationSummary's fields: what search returned before RA-802, and
+// the base of getting an accreditation. tonnageBand and glassRecyclingProcess
+// are left out when they have no value.
+export const SUMMARY_FIELDS = [
+  'organisationNumber',
+  'registrationNumber',
+  'accreditationNumber',
+  'accreditationYear',
+  'material',
+  'glassRecyclingProcess',
+  'wasteProcessingType',
+  'latestStatus',
+  'tonnageBand'
+]
+export const REQUIRED_SUMMARY_FIELDS = SUMMARY_FIELDS.filter(
+  (field) => !['glassRecyclingProcess', 'tonnageBand'].includes(field)
+)
 
 export function assertSummary(item) {
   assert.equal(typeof item.organisationNumber, 'number')

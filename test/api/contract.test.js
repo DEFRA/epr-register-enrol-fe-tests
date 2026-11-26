@@ -93,61 +93,7 @@ describe(
       })
     }
 
-    // RA-802: a search item is a summary (no history) plus, for an exporter,
-    // its overseas sites, in the same shape as getting the accreditation, so
-    // paging through search gives every accreditation with its sites. A
-    // reprocessor item has none.
-    it("searches as a page of summaries, with an exporter's overseas sites (RA-802)", async () => {
-      const { status, body } = await getAccreditationApi(
-        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
-      )
-      assert.equal(status, 200)
-      assert.equal(body.pageNumber, 1)
-      assert.equal(body.limit, 100)
-      assert.equal(body.totalItems, body.items.length)
-      for (const item of body.items) {
-        const what = `search item ${item.registrationNumber}`
-        assertSummary(item)
-        assert.equal(item.accreditationYear, year)
-        assertAbsent(
-          item,
-          ['statusHistory', 'tonnageBandHistory', 'signatories'],
-          what
-        )
-        if (item.wasteProcessingType === 'reprocessor') {
-          assertAbsent(item, ['overseasSites'], what)
-        }
-      }
-
-      // Matched by registration number, so the item compared is the one
-      // context.exporter's detail path names, however each picks an exporter.
-      const exporter =
-        context.exporter &&
-        body.items.find(
-          ({ registrationNumber }) =>
-            registrationNumber === context.exporter.registrationNumber
-        )
-      if (context.exporter) {
-        assert.ok(
-          exporter,
-          `${context.exporter.registrationNumber} is not in the search`
-        )
-        assert.ok(
-          Array.isArray(exporter.overseasSites),
-          `${exporter.registrationNumber} search item has no overseasSites`
-        )
-        for (const site of exporter.overseasSites) {
-          assertOverseasSite(site, { accreditationYear: year })
-        }
-        const detail = await getAccreditationApi(context.exporter.path)
-        assert.equal(detail.status, 200)
-        assert.deepStrictEqual(
-          exporter.overseasSites,
-          detail.body.overseasSites,
-          "the search item's overseas sites are the accreditation's"
-        )
-      }
-    })
+    // RA-802's overseasSites on search: search-overseas-sites.test.js.
 
     it('searches by registration number for exactly that accreditation', async (t) => {
       if (!requireGranted(t, context.exporter, 'exporter')) {
@@ -351,7 +297,7 @@ describe(
 )
 
 // An interim site's status (RA-781), on the exporter accreditation the
-// integration workflow granted. assertInterimSite (above) checks every interim
+// integration workflow granted. assertInterimSite (shapes.js) checks every interim
 // site's statusHistory and latestStatus wherever one is returned; these check
 // the cases the ticket names, on the interim sites the workflow's Test 2 gave
 // each history to (INTERIM_SITE_STATUSES): restored, withdrawn, and added in

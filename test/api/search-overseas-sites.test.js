@@ -5,7 +5,12 @@ import {
   accreditationPath,
   getAccreditationApi
 } from '../helpers/accreditation-api.js'
-import { assertOverseasSite, assertSummary } from './shapes.js'
+import {
+  REQUIRED_SUMMARY_FIELDS,
+  SUMMARY_FIELDS,
+  assertOverseasSite,
+  assertSummary
+} from './shapes.js'
 import { assertAbsent } from './status-history.js'
 import {
   loadApiContext,
@@ -21,40 +26,24 @@ import {
 // once gives every accreditation with its sites. A reprocessor item has no
 // overseasSites. Every field search returned before is unchanged.
 //
-// Checked on the seeded organisation (searched with organisationNumber) and
-// on every accreditation the year has on test (searched without it).
+// Checked on the seeded organisation (searched with organisationNumber, whose
+// data the run owns) and on every accreditation the year has on test
+// (searched without it, other teams' data included).
 
-// What a search item returned before RA-802 (AccreditationSummary), and the
-// one field RA-802 adds.
-const SUMMARY_FIELDS = [
-  'organisationNumber',
-  'registrationNumber',
-  'accreditationNumber',
-  'accreditationYear',
-  'material',
-  'glassRecyclingProcess',
-  'wasteProcessingType',
-  'latestStatus',
-  'tonnageBand'
-]
-const REQUIRED_SUMMARY_FIELDS = [
-  'organisationNumber',
-  'registrationNumber',
-  'accreditationNumber',
-  'accreditationYear',
-  'material',
-  'wasteProcessingType',
-  'latestStatus'
-]
 const SEARCH_ITEM_FIELDS = [...SUMMARY_FIELDS, 'overseasSites']
 
-// The service's query timeout (the backend's service-client default). A
-// search that overran it would answer 503 query_timeout.
-const QUERY_TIMEOUT_MS = 5000
 const PAGE_LIMIT = 100
+// Requests at a time when getting every accreditation in the year.
+const CONCURRENCY = 5
 
 const describeItem = (item) =>
-  `${item.wasteProcessingType} ${item.registrationNumber} (organisation ${item.organisationNumber})`
+  `${item.wasteProcessingType} ${item.accreditationNumber} (organisation ${item.organisationNumber})`
+
+const isExporter = ({ wasteProcessingType }) =>
+  wasteProcessingType === 'exporter'
+
+const ofType = (items, type) =>
+  items.filter(({ wasteProcessingType }) => wasteProcessingType === type)
 
 const pathOf = (item) =>
   accreditationPath({
@@ -63,25 +52,32 @@ const pathOf = (item) =>
     year: item.accreditationYear
   })
 
+async function getSearchPage(query, limit, pageNumber) {
+  const path = `/v1/accreditations?${query}&limit=${limit}&pageNumber=${pageNumber}`
+  const { status, body } = await getAccreditationApi(path)
+  assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
+  assert.equal(body.pageNumber, pageNumber, `${path}: pageNumber`)
+  assert.equal(body.limit, limit, `${path}: limit`)
+  return body
+}
+
 /**
- * Every page of a search, from page 1 until the items run out. Test is
- * shared, so accreditations can come and go between pages: a short page or
- * a changed totalItems is logged, not failed, and an item that moved onto
- * the next page is kept once (by accreditationNumber).
+ * Every page of a search, from page 1 until the items run out, with the
+ * totalItems page 1 gave. Test is shared, so another team's accreditations
+ * can come and go between pages: a changed totalItems is logged, and an item
+ * that moved onto the next page is kept once, by accreditationNumber. Each
+ * page keeps its own items as served (`served`) as well.
  */
 async function searchAllPages(query, limit) {
   const pages = []
   const seen = new Set()
-  let firstTotal
+  let totalItems
   for (let pageNumber = 1; ; pageNumber++) {
-    const path = `/v1/accreditations?${query}&limit=${limit}&pageNumber=${pageNumber}`
-    const { status, body } = await getAccreditationApi(path)
-    assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
-    assert.equal(body.pageNumber, pageNumber)
-    firstTotal ??= body.totalItems
-    if (body.totalItems !== firstTotal) {
+    const body = await getSearchPage(query, limit, pageNumber)
+    totalItems ??= body.totalItems
+    if (body.totalItems !== totalItems) {
       log(
-        `${query}: totalItems went from ${firstTotal} to ${body.totalItems} while paging`
+        `${query}: totalItems went from ${totalItems} to ${body.totalItems} while paging`
       )
     }
     const items = body.items.filter(({ accreditationNumber }) => {
@@ -89,39 +85,40 @@ async function searchAllPages(query, limit) {
       seen.add(accreditationNumber)
       return isNew
     })
-    pages.push({ ...body, items })
+    pages.push({ served: body.items, items })
     if (body.items.length < limit || pageNumber * limit >= body.totalItems) {
-      return pages
+      return { pages, totalItems, items: pages.flatMap((page) => page.items) }
     }
   }
 }
 
-/** Runs fn over items, a few at a time. */
-async function inBatches(items, fn, size = 5) {
-  for (let i = 0; i < items.length; i += size) {
-    await Promise.all(items.slice(i, i + size).map(fn))
+/** Runs fn over items, CONCURRENCY at a time. */
+async function inBatches(items, fn) {
+  for (let i = 0; i < items.length; i += CONCURRENCY) {
+    await Promise.all(items.slice(i, i + CONCURRENCY).map(fn))
   }
 }
 
-// Orders as the backend does (ordinal by orsId, a missing orsId first, then
-// by siteId).
-const bySiteOrder = ([a, x], [b, y]) => {
-  const left = a ?? ''
-  const right = b ?? ''
-  if (left !== right) {
-    return left < right ? -1 : 1
+// Orders sites as the backend does: ordinal by orsId (a missing one first),
+// then by siteId.
+const bySiteOrder = (left, right) => {
+  const leftOrsId = left.orsId ?? ''
+  const rightOrsId = right.orsId ?? ''
+  if (leftOrsId !== rightOrsId) {
+    return leftOrsId < rightOrsId ? -1 : 1
   }
-  return x - y
+  return left.siteId - right.siteId
 }
 
-// The overseasSites contract for one search item, on whatever page it came.
-// strict also checks each site's full shape: done for the seeded
-// organisation, whose data the run owns. Other organisations on test get the
-// RA-802 contract only, so a legacy record of theirs that predates a shape
-// rule does not fail this suite.
-function assertOverseasSitesProperty(item, { strict = true } = {}) {
+/**
+ * RA-802's overseasSites on one search item: an exporter has them, in the
+ * backend's order; a reprocessor has none. fullShape also checks each site's
+ * whole shape, for the seeded organisation's items: other teams' legacy
+ * records may predate a shape rule, and are not this suite's to fail.
+ */
+function assertSearchItemSites(item, { fullShape = true } = {}) {
   const what = describeItem(item)
-  if (item.wasteProcessingType === 'reprocessor') {
+  if (!isExporter(item)) {
     assertAbsent(item, ['overseasSites'], what)
     return
   }
@@ -129,33 +126,46 @@ function assertOverseasSitesProperty(item, { strict = true } = {}) {
     Array.isArray(item.overseasSites),
     `${what} has no overseasSites array: ${JSON.stringify(item.overseasSites)}`
   )
-  if (strict) {
+  if (fullShape) {
     for (const site of item.overseasSites) {
       assertOverseasSite(site, { accreditationYear: item.accreditationYear })
     }
   }
-  const order = item.overseasSites.map(({ orsId, siteId }) => [orsId, siteId])
-  const sorted = [...order].sort(bySiteOrder)
-  assert.deepStrictEqual(order, sorted, `${what}: sites not ordered by orsId`)
+  const order = item.overseasSites.map(({ orsId, siteId }) => ({
+    orsId,
+    siteId
+  }))
+  assert.deepStrictEqual(
+    order,
+    [...order].sort(bySiteOrder),
+    `${what}: sites not ordered by orsId, then siteId`
+  )
 }
 
-// The search item's overseasSites against getting the same accreditation:
-// the same sites, in the same order, with the same fields, interim sites and
-// status histories. Its other fields are the accreditation's summary.
+/**
+ * The search item against getting the same accreditation: the same
+ * overseasSites (sites, order, fields, interim sites, status histories), or
+ * none on both, and the same value, or absence, for every summary field.
+ */
 async function assertMatchesAccreditation(item) {
   const what = describeItem(item)
   const { status, body } = await getAccreditationApi(pathOf(item))
   assert.equal(status, 200, `${what}: ${JSON.stringify(body)}`)
-  assert.deepStrictEqual(
-    item.overseasSites,
-    body.overseasSites,
-    `${what}: the search item's overseasSites differ from the accreditation's`
+  assert.equal(
+    body.accreditationNumber,
+    item.accreditationNumber,
+    `${what}: getting it returns another accreditation`
   )
-  for (const field of SUMMARY_FIELDS) {
+  for (const field of [...SUMMARY_FIELDS, 'overseasSites']) {
+    assert.equal(
+      field in item,
+      field in body,
+      `${what}: ${field} is ${field in item ? '' : 'not '}in search but ${field in body ? '' : 'not '}in getting it`
+    )
     assert.deepStrictEqual(
       item[field],
       body[field],
-      `${what}: search ${field} differs from the accreditation's`
+      `${what}: search ${field} differs from getting it`
     )
   }
 }
@@ -164,98 +174,108 @@ describe(
   'Accreditation API: search with overseas sites (RA-802)',
   { skip: notConfigured },
   () => {
-    let context
-    let organisationItems
-    let yearPages
+    let organisationSearch
+    let yearSearch
     let ownedNumbers
     const isOwned = ({ accreditationNumber }) =>
       ownedNumbers.has(accreditationNumber)
-    const ofType = (type) =>
-      organisationItems.filter(
-        ({ wasteProcessingType }) => wasteProcessingType === type
-      )
 
     before(async () => {
-      context = await loadApiContext()
-      // With organisationNumber, one item a page, so each item is a page of
-      // its own.
-      const organisationPages = await searchAllPages(
+      const context = await loadApiContext()
+      // With organisationNumber, one accreditation a page.
+      organisationSearch = await searchAllPages(
         `year=${year}&organisationNumber=${context.organisation.orgId}`,
         1
       )
-      organisationItems = organisationPages.flatMap(({ items }) => items)
       ownedNumbers = new Set(
-        organisationItems.map(({ accreditationNumber }) => accreditationNumber)
+        organisationSearch.items.map(
+          ({ accreditationNumber }) => accreditationNumber
+        )
       )
-      // Without it: every accreditation the year has on test.
-      yearPages = await searchAllPages(`year=${year}`, PAGE_LIMIT)
-      const yearItems = yearPages.flatMap(({ items }) => items)
-      const exporters = yearItems.filter(
-        ({ wasteProcessingType }) => wasteProcessingType === 'exporter'
-      )
+      // Without it: every accreditation the year has on test, at a limit
+      // that makes at least two pages of it.
+      const { totalItems } = await getSearchPage(`year=${year}`, 1, 1)
+      const limit = Math.max(1, Math.min(PAGE_LIMIT, Math.ceil(totalItems / 2)))
+      yearSearch = await searchAllPages(`year=${year}`, limit)
+      const exporters = yearSearch.items.filter(isExporter)
       log(
-        `Search for ${year}: ${yearItems.length} accreditations on ${yearPages.length} page(s), ` +
-          `${exporters.length} exporters, up to ` +
+        `Search for ${year}: ${yearSearch.items.length} accreditations on ` +
+          `${yearSearch.pages.length} pages of ${limit}, ${exporters.length} exporters, up to ` +
           `${Math.max(0, ...exporters.map((e) => e.overseasSites?.length ?? 0))} sites each`
       )
     })
 
-    it("gives each of the organisation's exporters the same overseasSites as getting it", async (t) => {
-      const exporters = ofType('exporter')
-      if (!requireGranted(t, exporters[0], 'exporter')) {
+    it("gives the organisation's exporters their overseasSites and its reprocessors none", (t) => {
+      const exporters = ofType(organisationSearch.items, 'exporter')
+      const reprocessors = ofType(organisationSearch.items, 'reprocessor')
+      if (
+        !requireGranted(t, exporters[0], 'exporter') ||
+        !requireGranted(t, reprocessors[0], 'reprocessor')
+      ) {
         return
       }
+      for (const item of organisationSearch.items) {
+        assertSummary(item)
+        assert.equal(item.accreditationYear, year)
+        assertSearchItemSites(item)
+      }
       for (const item of exporters) {
-        assertOverseasSitesProperty(item)
         assert.ok(
           item.overseasSites.length > 0,
           `${describeItem(item)} has no overseas sites`
         )
-        await assertMatchesAccreditation(item)
       }
     })
 
-    it("leaves overseasSites out of each of the organisation's reprocessors", (t) => {
-      const reprocessors = ofType('reprocessor')
-      if (!requireGranted(t, reprocessors[0], 'reprocessor')) {
-        return
+    it('pages the search by organisationNumber, one accreditation a page', (t) => {
+      // The run owns this organisation's data, so its search is stable: one
+      // page per accreditation, each a different one.
+      const { pages, totalItems, items } = organisationSearch
+      assert.equal(
+        pages.flatMap(({ served }) => served).length,
+        totalItems,
+        `${pages.length} pages served other than ${totalItems} accreditations`
+      )
+      assert.equal(
+        items.length,
+        totalItems,
+        'a page repeated an accreditation from an earlier page'
+      )
+      for (const [index, { served }] of pages.entries()) {
+        assert.equal(served.length, 1, `page ${index + 1} of limit 1`)
       }
-      for (const item of reprocessors) {
-        assertOverseasSitesProperty(item)
-      }
-    })
-
-    it('carries overseasSites on every page of a search by organisationNumber', (t) => {
-      // One item a page: each page's item is checked on a page of its own.
-      if (organisationItems.length < 2) {
+      if (totalItems < 2) {
         t.skip('the organisation has fewer than two accreditations to page')
-        return
-      }
-      for (const item of organisationItems) {
-        assertOverseasSitesProperty(item)
       }
     })
 
-    it('carries overseasSites on every page of a search without organisationNumber', () => {
-      for (const [index, page] of yearPages.entries()) {
-        assert.ok(page.items.length > 0, `page ${index + 1} is empty`)
-        for (const item of page.items) {
-          const strict = isOwned(item)
-          if (strict) {
+    it('carries overseasSites on every page of a search without organisationNumber', (t) => {
+      const { pages } = yearSearch
+      if (yearSearch.totalItems < 2) {
+        t.skip(`fewer than two accreditations in ${year}, so one page only`)
+        return
+      }
+      assert.ok(pages.length >= 2, `only ${pages.length} page searched`)
+      for (const [index, { served, items }] of pages.entries()) {
+        assert.ok(served.length > 0, `page ${index + 1} is empty`)
+        for (const item of items) {
+          const fullShape = isOwned(item)
+          if (fullShape) {
             assertSummary(item)
           }
-          assertOverseasSitesProperty(item, { strict })
+          assertSearchItemSites(item, { fullShape })
         }
       }
     })
 
-    it('gives every exporter in the year the same overseasSites as getting it', async () => {
-      const exporters = yearPages
-        .flatMap(({ items }) => items)
-        .filter(({ wasteProcessingType }) => wasteProcessingType === 'exporter')
-      assert.ok(exporters.length > 0, `no exporters in ${year}`)
+    // Every item, reprocessors included: the overseasSites for an exporter,
+    // and every summary field (tonnageBand and glassRecyclingProcess too) for
+    // both types, which the backend copies onto the search item one by one.
+    it('serves each item in the year as getting its accreditation does: overseasSites and every summary field', async () => {
+      const { items } = yearSearch
+      assert.ok(items.length > 0, `no accreditations in ${year}`)
       const failures = []
-      await inBatches(exporters, async (item) => {
+      await inBatches(items, async (item) => {
         try {
           await assertMatchesAccreditation(item)
         } catch (err) {
@@ -265,73 +285,61 @@ describe(
       assert.deepStrictEqual(failures, [], failures.join('\n'))
     })
 
-    it('returns the same item for the organisation with and without organisationNumber', () => {
-      const byRegistration = new Map(
-        yearPages
-          .flatMap(({ items }) => items)
-          .map((item) => [item.registrationNumber, item])
+    it('returns the same items for the organisation with and without organisationNumber', () => {
+      assert.ok(
+        organisationSearch.items.length > 0,
+        'the organisation search returned nothing'
       )
-      for (const item of organisationItems) {
+      const byAccreditationNumber = new Map(
+        yearSearch.items.map((item) => [item.accreditationNumber, item])
+      )
+      for (const item of organisationSearch.items) {
         assert.deepStrictEqual(
-          byRegistration.get(item.registrationNumber),
+          byAccreditationNumber.get(item.accreditationNumber),
           item,
           `${describeItem(item)} differs without organisationNumber`
         )
       }
     })
 
-    it("keeps every field search returned before, and adds only an exporter's overseasSites", () => {
-      for (const item of yearPages.flatMap(({ items }) => items)) {
+    it("keeps the fields search returned before, and adds only an exporter's overseasSites", () => {
+      for (const item of yearSearch.items) {
         const what = describeItem(item)
         for (const field of REQUIRED_SUMMARY_FIELDS) {
           assert.ok(field in item, `${what} has no ${field}`)
         }
-        const allowed =
-          item.wasteProcessingType === 'exporter'
-            ? SEARCH_ITEM_FIELDS
-            : SUMMARY_FIELDS
+        const allowed = isExporter(item) ? SEARCH_ITEM_FIELDS : SUMMARY_FIELDS
         const extra = Object.keys(item).filter((key) => !allowed.includes(key))
         assert.deepStrictEqual(extra, [], `${what} has fields search never had`)
       }
     })
 
-    it(`serves a page of ${PAGE_LIMIT}, exporters included, within the ${QUERY_TIMEOUT_MS / 1000}s query timeout`, async (t) => {
+    // A search that overran the service's query timeout would answer 503
+    // query_timeout, so the status is the check. The elapsed time is the
+    // client's whole round trip (network and gateway included), so it is
+    // reported, not asserted.
+    it(`serves a page of ${PAGE_LIMIT}, exporters included, without a query timeout`, async (t) => {
       const path = `/v1/accreditations?year=${year}&limit=${PAGE_LIMIT}`
-      // Warm: the first call of a connection also signs in and connects.
-      // Timed from here is the client's round trip, network included: an
-      // upper bound on the server's query time.
-      const warm = await getAccreditationApi(path)
-      assert.equal(
-        warm.status,
-        200,
-        `GET ${path}: ${JSON.stringify(warm.body)}`
-      )
       const started = performance.now()
       const { status, body } = await getAccreditationApi(path)
       const elapsed = Math.round(performance.now() - started)
       assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
-      const bytes = Buffer.byteLength(JSON.stringify(body))
-      const exporters = body.items.filter(
-        ({ wasteProcessingType }) => wasteProcessingType === 'exporter'
-      ).length
-      t.diagnostic(
-        `${body.items.length} items, ${exporters} exporters, ${elapsed}ms, ${Math.round(bytes / 1024)} KB`
+      const exporters = body.items.filter(isExporter).length
+      const kilobytes = Math.round(
+        Buffer.byteLength(JSON.stringify(body)) / 1024
       )
-      log(
-        `Page of ${body.items.length} (${exporters} exporters): ${elapsed}ms, ${Math.round(bytes / 1024)} KB`
-      )
-      // Not t.todo: a todo test's failures are not counted, so the checks
-      // below would stop meaning anything.
+      const report = `Page of ${body.items.length} (${exporters} exporters): ${elapsed}ms, ${kilobytes} KB`
+      t.diagnostic(report)
+      log(report)
       if (body.items.length < PAGE_LIMIT) {
-        t.diagnostic(
-          `only ${body.items.length} accreditations in ${year} on test, not a full page`
+        t.skip(
+          `only ${body.items.length} accreditations in ${year} on test, not a page of ${PAGE_LIMIT}`
         )
+        return
       }
-      assert.ok(exporters > 0, 'the page has no exporters')
-      assert.ok(
-        elapsed < QUERY_TIMEOUT_MS,
-        `a page of ${body.items.length} took ${elapsed}ms`
-      )
+      if (exporters === 0) {
+        t.skip(`no exporters in the first ${PAGE_LIMIT} of ${year}`)
+      }
     })
   }
 )
