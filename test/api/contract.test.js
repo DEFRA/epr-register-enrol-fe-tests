@@ -7,6 +7,7 @@ import {
   assertAbsent,
   assertOneOf,
   assertStatusHistory,
+  assertStatusTimeline,
   assertLatestStatus,
   assertLatestStatusMatchesHistory
 } from './status-history.js'
@@ -101,6 +102,7 @@ function assertInterimSite(site, accreditationYear = year) {
   assertLatestStatus(site, what)
   assertStatusHistory(site.statusHistory, what, accreditationYear)
   assertLatestStatusMatchesHistory(site, what)
+  assertStatusTimeline(site, what)
   site.statusHistory.forEach(({ status }, index) => {
     assert.equal(
       status,
@@ -131,6 +133,7 @@ function assertOverseasSite(site, { accreditationYear = year } = {}) {
   // validFrom is no longer served: the status history carries the dates.
   assertAbsent(site, ['validFrom'], what)
   assertStatusHistory(site.statusHistory, what, accreditationYear)
+  assertStatusTimeline(site, what)
   assert.ok(Array.isArray(site.interimSites))
   for (const interim of site.interimSites) {
     assertInterimSite(interim, accreditationYear)
@@ -175,6 +178,7 @@ describe(
           'accreditation',
           body.accreditationYear
         )
+        assertStatusTimeline(body, 'accreditation')
 
         assert.ok(Array.isArray(body.tonnageBandHistory))
         for (const entry of body.tonnageBandHistory) {
@@ -233,7 +237,12 @@ describe(
         assert.equal(item.accreditationYear, year)
         assertAbsent(
           item,
-          ['statusHistory', 'tonnageBandHistory', 'signatories'],
+          [
+            'statusHistory',
+            'statusTimeline',
+            'tonnageBandHistory',
+            'signatories'
+          ],
           what
         )
         if (item.wasteProcessingType === 'reprocessor') {
@@ -587,6 +596,9 @@ describe(
         'the withdrawn interim site is not in the overseas sites list'
       )
       assert.deepStrictEqual(inList.statusHistory, withdrawn.statusHistory)
+      // RA-809: its timeline ends withdrawn, and the list serves the same one.
+      assert.equal(withdrawn.statusTimeline?.at(-1).status, 'withdrawn')
+      assert.deepStrictEqual(inList.statusTimeline, withdrawn.statusTimeline)
     })
 
     it('keeps a restored interim site as one site: approved, withdrawn, approved', (t) => {
@@ -604,6 +616,8 @@ describe(
         restored.latestStatus,
         restored.statusHistory.at(-1)
       )
+      // RA-809: its timeline ends approved again.
+      assert.equal(restored.statusTimeline?.at(-1).status, 'approved')
     })
 
     // recordedAt is when a status change was recorded. The workflow's Test 2
