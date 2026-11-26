@@ -127,8 +127,12 @@ runs:
 
     - name: Run the tests
       shell: bash
+      # test:github:serial runs test/serial-specs one at a time, after the
+      # parallel run: they change state every spec shares (a MongoDB fail
+      # point). Both load docker/config/journey-tests.env.
       run: |
         npm run test:github
+        npm run test:github:serial
         npm run report
 
     - name: Collect logs
