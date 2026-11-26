@@ -14,6 +14,10 @@ import {
   getCaseManagementStatusMapping,
   getLegacyApplicationStatuses
 } from '../helpers/admin-api.js'
+import {
+  deleteApplication,
+  insertApplicationWithoutStatus
+} from '../helpers/sandbox-mongo.js'
 import { nonAdminApiClient } from '../config.js'
 
 /**
@@ -31,7 +35,9 @@ import { nonAdminApiClient } from '../config.js'
  * frontend is the one the batch finds the application by, that the status it
  * answers is the live one (it follows a status case management pushes), and
  * that the route answers the signed admin client this stack registers
- * (docker/config/operator-be.env, test/config.js) and refuses any other.
+ * (docker/config/operator-be.env, test/config.js) and refuses any other, and
+ * that a linked application stored with no status fails the whole batch with a
+ * 500 rather than being given one.
  *
  * Its application is a run-unique disposable year on org 50003 (Delta Green
  * Ltd, Plastic), as status-push.e2e.js uses, so no other spec sees it.
@@ -238,6 +244,30 @@ describe('RA-751: Legacy application statuses for case management work items @do
         400,
         'invalid_work_item_id',
         'workItemId may be given at most 50 times.'
+      )
+    })
+  })
+
+  describe('for a work item whose Legacy application has no status', () => {
+    const workItemId = randomUUID()
+    let applicationId
+
+    before(async () => {
+      // The frontend cannot store an application without a status, so the
+      // document goes straight into the sandbox's MongoDB.
+      applicationId = await insertApplicationWithoutStatus(workItemId)
+    })
+
+    after(async () => {
+      await deleteApplication(applicationId)
+    })
+
+    it('answers 500 invalid_stored_application rather than guess a status', async () => {
+      expectProblem(
+        await getLegacyApplicationStatuses([randomUUID(), workItemId]),
+        500,
+        'invalid_stored_application',
+        'A Legacy application linked to one of the work items has no status the service can read. Quote the traceId to the delivery team.'
       )
     })
   })

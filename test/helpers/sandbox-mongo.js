@@ -204,3 +204,46 @@ export async function expirePendingUploadOf(s3PathSuffix, upload) {
   }
   return deletedId
 }
+
+const APPLICATIONS = `db.getSiblingDB('${OPERATOR_DATABASE}').accreditationApplications`
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+/**
+ * RA-751: inserts a Legacy application linked to case management work item
+ * `workItemId` with no applicationStatus, a document the frontend can never
+ * write, so a spec can see how the admin batch answers one it cannot read.
+ * Its organisation is run-unique too, so no other spec's organisation lists
+ * it. Remove it with deleteApplication.
+ *
+ * @param {string} workItemId a lower-case GUID no other application uses
+ * @returns {Promise<string>} the application's id
+ */
+export async function insertApplicationWithoutStatus(workItemId) {
+  if (!GUID.test(workItemId)) {
+    throw new Error(`${workItemId} is not a lower-case GUID`)
+  }
+  const organisationId = JSON.stringify(`ra-751-no-status-${workItemId}`)
+  const { insertedId } = await sandboxMongosh(
+    `const { insertedId } = ${APPLICATIONS}.insertOne({ organisationId: ${organisationId}, caseManagementWorkItemId: UUID('${workItemId}') }); print(JSON.stringify({ insertedId: insertedId.toHexString() }))`
+  )
+  return insertedId
+}
+
+/**
+ * Deletes an application by its id, and throws unless exactly one went.
+ *
+ * @param {string} applicationId
+ */
+export async function deleteApplication(applicationId) {
+  if (!/^[0-9a-f]{24}$/.test(applicationId)) {
+    throw new Error(`${applicationId} is not an application id`)
+  }
+  const { deletedCount } = await sandboxMongosh(
+    `print(JSON.stringify(${APPLICATIONS}.deleteOne({ _id: ObjectId('${applicationId}') })))`
+  )
+  if (deletedCount !== 1) {
+    throw new Error(
+      `Deleted ${deletedCount} applications with id ${applicationId}, not 1`
+    )
+  }
+}
