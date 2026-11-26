@@ -484,14 +484,14 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       // Coordinates aren't on the design's site details.
       await expect(detail.rowValue('coordinates')).not.toBeExisting()
 
-      // Only the ORS's current interim sites: Old Depot was removed.
+      // Only the ORS's current interim sites: Old Depot was removed. A queried item also offers a Change link on each (RA-698), so match the summary text.
       await expect(detail.interimSitesHeading).toHaveText('Interim sites (2)')
       await expect(detail.interimSiteRows).toBeElementsArrayOfSize(2)
       await expect(detail.interimSite(INTERIM.calais)).toHaveText(
-        'Calais Storage SARL, France, R13'
+        expect.stringContaining('Calais Storage SARL, France, R13')
       )
       await expect(detail.interimSite(INTERIM.antwerpForRotterdam)).toHaveText(
-        'Antwerp Transfer Hub, Belgium, R3, R13'
+        expect.stringContaining('Antwerp Transfer Hub, Belgium, R3, R13')
       )
       await expect(detail.interimSite(INTERIM.oldDepot)).not.toBeExisting()
 
