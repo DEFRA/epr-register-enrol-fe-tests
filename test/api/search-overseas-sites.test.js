@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { isDeepStrictEqual } from 'node:util'
 import { before, describe, it } from 'node:test'
 
 import {
@@ -33,8 +34,15 @@ import {
 const SEARCH_ITEM_FIELDS = [...SUMMARY_FIELDS, 'overseasSites']
 
 const PAGE_LIMIT = 100
-// Requests at a time when getting every accreditation in the year.
+// Requests at a time when getting accreditations one by one.
 const CONCURRENCY = 5
+// How many of other teams' accreditations are compared with getting them, on
+// top of every one the seeded organisation has: a sample spread across the
+// year, so the run does not grow with the environment.
+const OTHERS_SAMPLE = 40
+// Times a search is paged again from page 1 when its totalItems changes
+// part-way (shared data changing under it).
+const PAGING_ATTEMPTS = 3
 
 const describeItem = (item) =>
   `${item.wasteProcessingType} ${item.accreditationNumber} (organisation ${item.organisationNumber})`
@@ -63,23 +71,36 @@ async function getSearchPage(query, limit, pageNumber) {
 
 /**
  * Every page of a search, from page 1 until the items run out, with the
- * totalItems page 1 gave. Test is shared, so another team's accreditations
- * can come and go between pages: a changed totalItems is logged, and an item
- * that moved onto the next page is kept once, by accreditationNumber. Each
- * page keeps its own items as served (`served`) as well.
+ * totalItems the pages agreed on. Test is shared, so another team's
+ * accreditations can come and go while it pages: an item can move onto the
+ * next page (kept once, by accreditationNumber) or back onto one already read
+ * (missed). So when totalItems changes part-way, it pages again from page 1,
+ * up to PAGING_ATTEMPTS times. `stable` is false when no attempt saw the same
+ * totalItems throughout. Each page keeps its items as served (`served`).
  */
 async function searchAllPages(query, limit) {
+  let result
+  for (let attempt = 1; attempt <= PAGING_ATTEMPTS; attempt++) {
+    result = await pageOnce(query, limit)
+    if (result.stable) {
+      return result
+    }
+    log(
+      `${query}: totalItems changed while paging (attempt ${attempt} of ${PAGING_ATTEMPTS})`
+    )
+  }
+  return result
+}
+
+async function pageOnce(query, limit) {
   const pages = []
   const seen = new Set()
   let totalItems
+  let stable = true
   for (let pageNumber = 1; ; pageNumber++) {
     const body = await getSearchPage(query, limit, pageNumber)
     totalItems ??= body.totalItems
-    if (body.totalItems !== totalItems) {
-      log(
-        `${query}: totalItems went from ${totalItems} to ${body.totalItems} while paging`
-      )
-    }
+    stable &&= body.totalItems === totalItems
     const items = body.items.filter(({ accreditationNumber }) => {
       const isNew = !seen.has(accreditationNumber)
       seen.add(accreditationNumber)
@@ -87,10 +108,21 @@ async function searchAllPages(query, limit) {
     })
     pages.push({ served: body.items, items })
     if (body.items.length < limit || pageNumber * limit >= body.totalItems) {
-      return { pages, totalItems, items: pages.flatMap((page) => page.items) }
+      return {
+        pages,
+        totalItems,
+        stable,
+        items: pages.flatMap((page) => page.items)
+      }
     }
   }
 }
+
+/** Every nth item, at most `size` of them, spread across the list. */
+const spreadSample = (items, size) =>
+  items.length <= size
+    ? items
+    : items.filter((_, i) => i % Math.ceil(items.length / size) === 0)
 
 /** Runs fn over items, CONCURRENCY at a time. */
 async function inBatches(items, fn) {
@@ -146,28 +178,64 @@ function assertSearchItemSites(item, { fullShape = true } = {}) {
  * The search item against getting the same accreditation: the same
  * overseasSites (sites, order, fields, interim sites, status histories), or
  * none on both, and the same value, or absence, for every summary field.
+ * Returns what differs, empty when they agree.
  */
-async function assertMatchesAccreditation(item) {
+async function differencesFromAccreditation(item) {
   const what = describeItem(item)
   const { status, body } = await getAccreditationApi(pathOf(item))
-  assert.equal(status, 200, `${what}: ${JSON.stringify(body)}`)
-  assert.equal(
-    body.accreditationNumber,
-    item.accreditationNumber,
-    `${what}: getting it returns another accreditation`
-  )
-  for (const field of [...SUMMARY_FIELDS, 'overseasSites']) {
-    assert.equal(
-      field in item,
-      field in body,
-      `${what}: ${field} is ${field in item ? '' : 'not '}in search but ${field in body ? '' : 'not '}in getting it`
-    )
-    assert.deepStrictEqual(
-      item[field],
-      body[field],
-      `${what}: search ${field} differs from getting it`
-    )
+  if (status !== 200) {
+    return [`${what}: getting it answered ${status}: ${JSON.stringify(body)}`]
   }
+  if (body.accreditationNumber !== item.accreditationNumber) {
+    return [
+      `${what}: getting it returns another accreditation, ${body.accreditationNumber}`
+    ]
+  }
+  const differences = []
+  for (const field of [...SUMMARY_FIELDS, 'overseasSites']) {
+    if (field in item !== field in body) {
+      differences.push(
+        `${what}: ${field} is ${field in item ? '' : 'not '}in search but ${field in body ? '' : 'not '}in getting it`
+      )
+    } else if (!isDeepStrictEqual(item[field], body[field])) {
+      differences.push(`${what}: search ${field} differs from getting it`)
+    }
+  }
+  return differences
+}
+
+/**
+ * The item as search serves it now, by searching for its registration
+ * (without organisationNumber), or undefined if it is no longer served.
+ */
+async function searchAgain(item) {
+  const query =
+    `year=${item.accreditationYear}` +
+    `&registrationNumber=${encodeURIComponent(item.registrationNumber)}`
+  const { items } = await getSearchPage(query, PAGE_LIMIT, 1)
+  return items.find(
+    ({ accreditationNumber }) =>
+      accreditationNumber === item.accreditationNumber
+  )
+}
+
+/**
+ * differencesFromAccreditation for an item another team owns. Their data can
+ * change between the search in before() and getting it, so on a difference
+ * the item is searched again, and only a difference that remains between the
+ * fresh search item and getting it counts. An item no longer served is
+ * logged, not failed.
+ */
+async function differencesForOthers(item) {
+  if ((await differencesFromAccreditation(item)).length === 0) {
+    return []
+  }
+  const fresh = await searchAgain(item)
+  if (!fresh) {
+    log(`${describeItem(item)} is no longer served; not compared`)
+    return []
+  }
+  return differencesFromAccreditation(fresh)
 }
 
 describe(
@@ -205,21 +273,17 @@ describe(
       )
     })
 
-    it("gives the organisation's exporters their overseasSites and its reprocessors none", (t) => {
+    // Each type on its own, so an organisation without one still has the
+    // other checked.
+    it("gives each of the organisation's exporters its overseasSites", (t) => {
       const exporters = ofType(organisationSearch.items, 'exporter')
-      const reprocessors = ofType(organisationSearch.items, 'reprocessor')
-      if (
-        !requireGranted(t, exporters[0], 'exporter') ||
-        !requireGranted(t, reprocessors[0], 'reprocessor')
-      ) {
+      if (!requireGranted(t, exporters[0], 'exporter')) {
         return
       }
-      for (const item of organisationSearch.items) {
+      for (const item of exporters) {
         assertSummary(item)
         assert.equal(item.accreditationYear, year)
         assertSearchItemSites(item)
-      }
-      for (const item of exporters) {
         assert.ok(
           item.overseasSites.length > 0,
           `${describeItem(item)} has no overseas sites`
@@ -227,26 +291,42 @@ describe(
       }
     })
 
+    it("leaves overseasSites out of each of the organisation's reprocessors", (t) => {
+      const reprocessors = ofType(organisationSearch.items, 'reprocessor')
+      if (!requireGranted(t, reprocessors[0], 'reprocessor')) {
+        return
+      }
+      for (const item of reprocessors) {
+        assertSummary(item)
+        assert.equal(item.accreditationYear, year)
+        assertSearchItemSites(item)
+      }
+    })
+
     it('pages the search by organisationNumber, one accreditation a page', (t) => {
       // The run owns this organisation's data, so its search is stable: one
       // page per accreditation, each a different one.
-      const { pages, totalItems, items } = organisationSearch
+      const { pages, totalItems, items, stable } = organisationSearch
+      if (totalItems < 2) {
+        t.skip(
+          `the organisation has ${totalItems} accreditation(s), fewer than two to page`
+        )
+        return
+      }
+      assert.ok(stable, "the organisation's totalItems changed while paging")
       assert.equal(
-        pages.flatMap(({ served }) => served).length,
+        pages.length,
         totalItems,
-        `${pages.length} pages served other than ${totalItems} accreditations`
+        `${pages.length} pages for ${totalItems} accreditations`
       )
+      for (const [index, { served }] of pages.entries()) {
+        assert.equal(served.length, 1, `page ${index + 1} of limit 1`)
+      }
       assert.equal(
         items.length,
         totalItems,
         'a page repeated an accreditation from an earlier page'
       )
-      for (const [index, { served }] of pages.entries()) {
-        assert.equal(served.length, 1, `page ${index + 1} of limit 1`)
-      }
-      if (totalItems < 2) {
-        t.skip('the organisation has fewer than two accreditations to page')
-      }
     })
 
     it('carries overseasSites on every page of a search without organisationNumber', (t) => {
@@ -257,7 +337,10 @@ describe(
       }
       assert.ok(pages.length >= 2, `only ${pages.length} page searched`)
       for (const [index, { served, items }] of pages.entries()) {
-        assert.ok(served.length > 0, `page ${index + 1} is empty`)
+        // A last page can come back empty if other teams' data shrank while
+        // paging and no attempt saw it hold still.
+        const mayBeEmpty = !yearSearch.stable && index === pages.length - 1
+        assert.ok(served.length > 0 || mayBeEmpty, `page ${index + 1} is empty`)
         for (const item of items) {
           const fullShape = isOwned(item)
           if (fullShape) {
@@ -268,24 +351,36 @@ describe(
       }
     })
 
-    // Every item, reprocessors included: the overseasSites for an exporter,
-    // and every summary field (tonnageBand and glassRecyclingProcess too) for
-    // both types, which the backend copies onto the search item one by one.
-    it('serves each item in the year as getting its accreditation does: overseasSites and every summary field', async () => {
-      const { items } = yearSearch
-      assert.ok(items.length > 0, `no accreditations in ${year}`)
-      const failures = []
-      await inBatches(items, async (item) => {
-        try {
-          await assertMatchesAccreditation(item)
-        } catch (err) {
-          failures.push(err.message)
-        }
-      })
-      assert.deepStrictEqual(failures, [], failures.join('\n'))
-    })
+    // Reprocessors included: the overseasSites for an exporter, and every
+    // summary field (tonnageBand and glassRecyclingProcess too) for both
+    // types, which the backend copies onto the search item one by one. Every
+    // one of the seeded organisation's, compared strictly; and a sample of
+    // OTHERS_SAMPLE of other teams', whose data can change mid-run.
+    it(
+      'serves items as getting the accreditation does: overseasSites and every summary field',
+      { timeout: 5 * 60 * 1000 },
+      async () => {
+        const owned = yearSearch.items.filter(isOwned)
+        const others = spreadSample(
+          yearSearch.items.filter((item) => !isOwned(item)),
+          OTHERS_SAMPLE
+        )
+        assert.ok(owned.length > 0, 'none of the organisation’s items found')
+        log(
+          `Comparing ${owned.length} of the organisation's items and ${others.length} of other teams'`
+        )
+        const failures = []
+        await inBatches(owned, async (item) => {
+          failures.push(...(await differencesFromAccreditation(item)))
+        })
+        await inBatches(others, async (item) => {
+          failures.push(...(await differencesForOthers(item)))
+        })
+        assert.deepStrictEqual(failures, [], failures.join('\n'))
+      }
+    )
 
-    it('returns the same items for the organisation with and without organisationNumber', () => {
+    it('returns the same items for the organisation with and without organisationNumber', async () => {
       assert.ok(
         organisationSearch.items.length > 0,
         'the organisation search returned nothing'
@@ -294,8 +389,13 @@ describe(
         yearSearch.items.map((item) => [item.accreditationNumber, item])
       )
       for (const item of organisationSearch.items) {
+        // If other teams' data never held still while the year was paged, an
+        // item can have been missed: search for it directly.
+        const unfiltered =
+          byAccreditationNumber.get(item.accreditationNumber) ??
+          (yearSearch.stable ? undefined : await searchAgain(item))
         assert.deepStrictEqual(
-          byAccreditationNumber.get(item.accreditationNumber),
+          unfiltered,
           item,
           `${describeItem(item)} differs without organisationNumber`
         )
