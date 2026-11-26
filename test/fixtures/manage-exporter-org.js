@@ -10,7 +10,7 @@
 import { dayOf, seededIds } from './change-request-seed.js'
 import { seededRegistrationYear, yearSuffix } from './year-suffix.js'
 
-const ORGANISATION_ID = '50018'
+export const ORGANISATION_ID = '50018'
 export const ORGANISATION_NAME = 'Manage Accreditation Test Ltd'
 const REGISTRATION_ID = 'aaa000000000000000050018'
 export const MATERIAL = 'Plastic'
@@ -104,7 +104,7 @@ export const CHANGE_ITEMS = {
   }),
   dragonNewRefused: item('a', 2, 1, {
     orsId: ORS_IDS.dragon,
-    type: 'New ORS accreditation',
+    type: 'Accreditation: new ORS',
     status: 'REFUSED',
     sent: dayOf(2, 20)
   }),
@@ -118,7 +118,7 @@ export const CHANGE_ITEMS = {
   }),
   dragonNewWithdrawn: item('a', 4, 1, {
     orsId: ORS_IDS.dragon,
-    type: 'New ORS accreditation',
+    type: 'Accreditation: new ORS',
     status: 'WITHDRAWN',
     sent: dayOf(4, 6),
     validTo: dayOf(6, 15)
@@ -168,7 +168,7 @@ export const CHANGE_ITEMS = {
   }),
   dragonNewInProgress: item('a', 11, 1, {
     orsId: ORS_IDS.dragon,
-    type: 'New ORS accreditation',
+    type: 'Accreditation: new ORS',
     status: 'IN PROGRESS'
   }),
   // Refused, as Dragon's draft is its one active item.

@@ -104,6 +104,94 @@ class ChangeRequestDetailPage extends Page {
     return $('[data-testid="request-reference"]')
   }
 
+  // RA-698: a Queried item's page. It shows the regulator's note, a Change (or,
+  // for BES evidence, Upload) link on each field the query leaves open, a
+  // Change link on each interim site, and Save and continue to the declaration.
+  get queryNote() {
+    return $('[data-testid="query-note"]')
+  }
+
+  get successBanner() {
+    return $('[data-testid="success-banner"]')
+  }
+
+  // The problem a refused declaration returns to the page with.
+  get errorSummary() {
+    return $('[data-testid="error-summary"]')
+  }
+
+  get saveAndContinueButton() {
+    return $('[data-testid="save-and-continue-button"]')
+  }
+
+  get cancelLink() {
+    return $('[data-testid="cancel-link"]')
+  }
+
+  // The row's Change (or Upload) link, which only an open field has.
+  rowAction(id) {
+    return $(`[data-testid="row-${id}-action"]`)
+  }
+
+  // The ids of the rows with a Change or Upload link, top to bottom.
+  async rowIdsWithActions() {
+    const links = await $$('[data-testid^="row-"][data-testid$="-action"]')
+    const ids = []
+    for (const link of [...links]) {
+      const testId = await link.getAttribute('data-testid')
+      ids.push(testId.slice('row-'.length, -'-action'.length))
+    }
+    return ids
+  }
+
+  interimChangeLink(siteId) {
+    return $(`[data-testid="change-interim-site-${siteId}"]`)
+  }
+
+  get interimChangeLinks() {
+    return $$('[data-testid^="change-interim-site-"]')
+  }
+
+  // An interim site's own summary page, at {item page}/interim-sites/{siteId}:
+  // the ORS summary's layout, with a Change link (change-{row id}) on each
+  // field the query leaves open, and Continue back to the ORS.
+  get interimSiteSummary() {
+    return $('[data-testid="interim-site-summary"]')
+  }
+
+  interimRowChange(id) {
+    return $(`[data-testid="change-${id}"]`)
+  }
+
+  get interimChangeActions() {
+    return $$('[data-testid="interim-site-summary"] a[data-testid^="change-"]')
+  }
+
+  get continueButton() {
+    return $('[data-testid="continue-button"]')
+  }
+
+  // Follows an ORS row's Change or Upload link to the page that changes it.
+  async changeRow(id) {
+    await this.clickAndWaitForNextPage(this.rowAction(id))
+  }
+
+  async changeInterimSite(siteId) {
+    await this.clickAndWaitForNextPage(this.interimChangeLink(siteId))
+  }
+
+  async changeInterimRow(id) {
+    await this.clickAndWaitForNextPage(this.interimRowChange(id))
+  }
+
+  async saveAndContinue() {
+    await this.clickAndWaitForNextPage(this.saveAndContinueButton)
+  }
+
+  async continueToOrs() {
+    await this.clickAndWaitForNextPage(this.continueButton)
+  }
+
   // Read-only: no Change, Remove or Add links, and no buttons or forms.
   get actions() {
     return $$('main .govuk-summary-list__actions, main button, main form')

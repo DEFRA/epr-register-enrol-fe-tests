@@ -5,8 +5,13 @@ import AddOrsRecyclingOperationPage from 'page-objects/add-ors-recycling-operati
 import AddToAccreditationPage from 'page-objects/add-to-accreditation.page'
 import ChangeRequestDetailPage from 'page-objects/change-request-detail.page'
 import ChangeRequestsPage from 'page-objects/change-requests.page'
+import CmQueryPage from 'page-objects/cm-query.page'
 import CmWorkItemPage from 'page-objects/cm-work-item.page'
+import CmWorkItemReviewPage from 'page-objects/cm-work-item-review.page'
 import CmWorkItemsPage from 'page-objects/cm-work-items.page'
+import AddOrsSiteContactPage from 'page-objects/add-ors-site-contact.page'
+import AddOrsSiteNamePage from 'page-objects/add-ors-site-name.page'
+import ManageRegistrationAccreditationPage from 'page-objects/manage-registration-accreditation.page'
 import ManageOverseasSitesPage from 'page-objects/manage-overseas-sites.page'
 import SubmitApplicationPage from 'page-objects/submit-application.page'
 
@@ -15,6 +20,7 @@ import {
   signInToCaseManagement
 } from '../../helpers/case-management-journey.js'
 import { getAccreditationChanges } from '../../helpers/case-management.js'
+import { continueReview } from '../../helpers/monorepo-case-management.js'
 import {
   addOverseasSiteWorkItemsFor,
   clearChangeRequests,
@@ -31,6 +37,7 @@ import {
   ORGANISATION_NAME,
   ORS,
   OVERSEAS_SITES_PATH,
+  QUERY_RESPONSE,
   accreditationApplicationId
 } from '../../fixtures/in-year-change-org.js'
 
@@ -54,6 +61,17 @@ import {
 //                 tabs (RA-495); and its Application summary shows the
 //                 site's name and location
 //   4 operator    sees each site's own reference on its change request
+//
+// RA-698 continues with Lyon's application:
+//
+//   5 regulator   raises a query on it: the form shows the ORS and one fixed
+//                 "Overseas reprocessing site and BES evidence" scope, with no
+//                 section checkboxes, and the work item becomes Queried
+//   6 operator    sees the query on the item (status Queried, the note), changes
+//                 the ORS's name and contact details, and answers through the
+//                 declaration; the item becomes Updated
+//   7 regulator   sees the work item Updated, with the answered name, and
+//                 continues the review
 //
 // Org 50019 is seeded by the operator backend's DevExporterAccreditationSeedService
 // (test/fixtures/in-year-change-org.js). Its Lyon ORS is complete; Izmir lacks
@@ -81,6 +99,27 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   // What the run has got to: the submitted request's items by site id, then
   // the case management work items raised for them.
   const progress = {}
+
+  // The backend's view of one change item, by item id.
+  async function backendItem(itemId) {
+    const { requests } = await getAccreditationChanges(
+      ORGANISATION_ID,
+      progress.applicationId
+    )
+    return requests.flatMap((r) => r.sites).find((s) => s.itemId === itemId)
+  }
+
+  // Waits for the push from case management to leave the item in the status.
+  async function waitForItemStatus(itemId, status) {
+    await browser.waitUntil(
+      async () => (await backendItem(itemId))?.status === status,
+      {
+        timeout: 30000,
+        interval: 1000,
+        timeoutMsg: `The operator backend's item did not become ${status}`
+      }
+    )
+  }
 
   function requireStage(context, stage) {
     if (!progress[stage]) {
@@ -126,6 +165,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
       material: MATERIAL
     })
     const applicationId = accreditationApplicationId(year)
+    progress.applicationId = applicationId
 
     await reportStep(`Operator: add ORS ${ORS.lyon.orsId}`, async () => {
       await addSite(ORS.lyon)
@@ -324,5 +364,125 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
         }
       )
     }
+  })
+
+  it("Regulator: queries Lyon's application with the one combined scope, and no section checkboxes", async function () {
+    requireStage(this, 'listed')
+    const item = progress.items[LYON.siteId]
+    const card = progress.cards.find(
+      ({ reference }) => reference === item.reference
+    )
+    await signInToCaseManagement()
+
+    await reportStep(`Regulator: open ${item.reference}`, async () => {
+      await CmWorkItemPage.open(card.workItemId)
+      await CmWorkItemPage.waitUntilLoaded()
+      await expect(CmWorkItemPage.stateTag).toHaveText(
+        WORK_ITEM_STATES.notStarted
+      )
+    })
+
+    await reportStep(
+      'Regulator: the query form is for the whole ORS',
+      async () => {
+        await CmWorkItemPage.startQuery()
+        await waitForPath('/query')
+        await expect(CmQueryPage.orsName).toHaveText(LYON.siteName)
+        await expect(CmQueryPage.orsId).toHaveText(LYON.orsId)
+        await expect(CmQueryPage.orsLocation).toHaveText(
+          expect.stringContaining('France')
+        )
+        await expect(CmQueryPage.scope).toHaveText(
+          'Overseas reprocessing site and BES evidence'
+        )
+        await expect(CmQueryPage.sectionCheckboxes).not.toBeExisting()
+      }
+    )
+
+    await reportStep('Regulator: send the query', async () => {
+      await CmQueryPage.sendQuery({ sections: [], reason: QUERY_RESPONSE.note })
+      await CmWorkItemPage.waitUntilLoaded()
+      await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.queried)
+    })
+    progress.queried = true
+  })
+
+  it('Operator: answers the query by changing the ORS name and contact details, and the item becomes Updated', async function () {
+    requireStage(this, 'queried')
+    const { itemId } = progress.items[LYON.siteId]
+    const itemPath = `${MANAGE_PATH}/change-requests/${itemId}`
+    await signInAsOperator()
+
+    // The push reaches the operator backend as the query is sent.
+    await waitForItemStatus(itemId, 'Queried')
+
+    await reportStep('Operator: the item shows the query', async () => {
+      await browser.url(itemPath)
+      await ChangeRequestDetailPage.pageHeading.waitForDisplayed()
+      await expect(ChangeRequestDetailPage.statusTag).toHaveText('QUERIED')
+      await expect(ChangeRequestDetailPage.queryNote).toHaveText(
+        QUERY_RESPONSE.note
+      )
+    })
+
+    await reportStep('Operator: change the ORS name', async () => {
+      await ChangeRequestDetailPage.changeRow('site-name')
+      await waitForPath(`${itemPath}/site-name`)
+      await AddOrsSiteNamePage.enterSiteName(QUERY_RESPONSE.siteName)
+      await AddOrsSiteNamePage.continue()
+      await waitForPath(itemPath)
+      await expect(ChangeRequestDetailPage.rowValue('site-name')).toHaveText(
+        QUERY_RESPONSE.siteName
+      )
+    })
+
+    await reportStep('Operator: change the contact details', async () => {
+      await ChangeRequestDetailPage.changeRow('contact-name')
+      await waitForPath(`${itemPath}/contact-details`)
+      await AddOrsSiteContactPage.enterContactDetails(QUERY_RESPONSE.contact)
+      await AddOrsSiteContactPage.continue()
+      await waitForPath(itemPath)
+      await expect(ChangeRequestDetailPage.rowValue('contact-name')).toHaveText(
+        QUERY_RESPONSE.contact.name
+      )
+    })
+
+    await reportStep('Operator: send the response', async () => {
+      await ChangeRequestDetailPage.saveAndContinue()
+      await waitForPath(`${itemPath}/declaration`)
+      await SubmitApplicationPage.submitApplication()
+      await waitForPath(MANAGE_PATH)
+      await expect(
+        ManageRegistrationAccreditationPage.successBanner
+      ).toHaveText(expect.stringContaining('Request updated'))
+    })
+
+    await reportStep('Operator: the item is Updated', async () => {
+      expect((await backendItem(itemId)).status).toBe('Updated')
+      await browser.url(itemPath)
+      await expect(ChangeRequestDetailPage.statusTag).toHaveText('UPDATED')
+      expect(await ChangeRequestDetailPage.rowIdsWithActions()).toEqual([])
+    })
+    progress.updated = true
+  })
+
+  it("Regulator: sees Lyon's application Updated with the operator's answer, and continues the review", async function () {
+    requireStage(this, 'updated')
+    const item = progress.items[LYON.siteId]
+    const card = progress.cards.find(
+      ({ reference }) => reference === item.reference
+    )
+    await signInToCaseManagement()
+
+    await CmWorkItemPage.open(card.workItemId)
+    await CmWorkItemPage.waitUntilLoaded()
+    await expect(CmWorkItemPage.stateTag).toHaveText(WORK_ITEM_STATES.updated)
+    // The caseworker sees the ORS as the operator now describes it.
+    await expect(CmWorkItemPage.summaryValue('site-name')).toHaveText(
+      QUERY_RESPONSE.siteName
+    )
+
+    await continueReview()
+    await expect(CmWorkItemReviewPage.makeDeterminationLink).toBeDisplayed()
   })
 })

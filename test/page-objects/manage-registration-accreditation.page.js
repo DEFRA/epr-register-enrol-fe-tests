@@ -42,6 +42,11 @@ class ManageRegistrationAccreditationPage extends Page {
     return $('[data-testid="manage-overseas-sites-link"]')
   }
 
+  // RA-698: "Request updated", shown once after the operator answers a query.
+  get successBanner() {
+    return $('[data-testid="success-banner"]')
+  }
+
   get backLink() {
     return $('[data-testid="back-link"]')
   }

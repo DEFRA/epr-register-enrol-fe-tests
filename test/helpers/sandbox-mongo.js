@@ -204,3 +204,46 @@ export async function expirePendingUploadOf(s3PathSuffix, upload) {
   }
   return deletedId
 }
+
+/**
+ * RA-698: puts one seeded change request item back to Queried, as the
+ * backend's dev seed (DevChangeRequestSeedService) leaves it: the regulator's
+ * note, no answers and no BES evidence of its own. The query-response spec
+ * answers the item, which is one-way (Updated), so it restores the item before
+ * it starts and after it finishes, leaving the item as RA-697's read-only
+ * specs expect it. The request, an id of its own, stays Submitted.
+ *
+ * @param {{ requestId: string, siteId: number, queryNote: string }} item
+ * @returns {Promise<{ matched: number, modified: number }>}
+ */
+export async function resetQueriedChangeItem({ requestId, siteId, queryNote }) {
+  const update = JSON.stringify({
+    $set: {
+      'sites.$[site].status': 'Queried',
+      'sites.$[site].answers': { interimSites: [] },
+      'sites.$[site].besEvidence': null,
+      'sites.$[site].query': {
+        queryNote,
+        raisedAt: '__NOW__',
+        besFileIdsAtQuery: [],
+        answersAtQuery: { interimSites: [] },
+        querySubmissions: []
+      }
+    }
+  }).replace('"__NOW__"', 'new Date()')
+  const arrayFilters = JSON.stringify([{ 'site.siteId': siteId }])
+
+  return sandboxMongosh(`
+    const result = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationChangeRequests
+      .updateOne(
+        { _id: ${JSON.stringify(requestId)} },
+        ${update},
+        { arrayFilters: ${arrayFilters} }
+      )
+    print(JSON.stringify({
+      matched: result.matchedCount,
+      modified: result.modifiedCount
+    }))
+  `)
+}

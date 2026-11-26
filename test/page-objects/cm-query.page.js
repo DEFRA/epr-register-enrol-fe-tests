@@ -8,13 +8,38 @@ export const QUERY_SECTIONS = {
   businessPlan: 'business-plan',
   prnTonnage: 'prn-tonnage',
   samplingPlan: 'sampling-and-inspection-plan',
-  bes: 'broadly-equivalent-standards',
-  overseasSites: 'overseas-reprocessing-sites'
+  // RA-698: BES evidence and the overseas reprocessing sites are one checkbox,
+  // which sends both of the backend's section keys. An add-ORS work item has no
+  // checkboxes at all: the item is one ORS, so its query is always the combined
+  // one.
+  overseasSitesAndBes: 'overseas-sites-and-bes-evidence'
 }
 
 class CmQueryPage extends Page {
   sectionCheckbox(section) {
     return $(`input[name="sections"][value="${section}"]`)
+  }
+
+  get sectionCheckboxes() {
+    return $('[data-testid="query-sections"]')
+  }
+
+  // RA-698: an add-ORS query form shows the ORS being queried and one fixed
+  // scope in place of the checkboxes.
+  get orsName() {
+    return $('[data-testid="query-ors-name"]')
+  }
+
+  get orsId() {
+    return $('[data-testid="query-ors-id"]')
+  }
+
+  get orsLocation() {
+    return $('[data-testid="query-ors-location"]')
+  }
+
+  get scope() {
+    return $('[data-testid="query-scope"]')
   }
 
   get reasonInput() {

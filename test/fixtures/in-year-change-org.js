@@ -45,3 +45,22 @@ export const ORS = {
 // 19 digits (the backend's DevExporterAccreditationSeedService.ApplicationIdFor).
 export const accreditationApplicationId = (year) =>
   `a${year}${ORGANISATION_ID.padStart(19, '0')}`
+
+// RA-698: an interim site of the registered Netherlands ORS (901914, ORS 009),
+// which the monorepo spec can query and answer.
+export const INTERIM = {
+  antwerpForRotterdam: 901915
+}
+
+// RA-698: how the operator answers the regulator's query on Lyon's add-ORS
+// item (test/specs/monorepo/add-ors-to-case-management.monorepo.js), and the
+// regulator's note.
+export const QUERY_RESPONSE = {
+  note: 'Please correct the site name and add a contact for the site.',
+  siteName: 'Lyon Plastiques Recyclage SA',
+  contact: {
+    name: 'Camille Laurent',
+    email: 'camille.laurent@example.com',
+    phone: '+33 4 72 00 00 00'
+  }
+}

@@ -225,7 +225,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
       const managePage = ManageRegistrationAccreditationPage
       await expect(managePage.changeRequestsHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       expect(await managePage.changeRequestsSummaryTypes()).toEqual([
         'add-overseas-site',
@@ -277,7 +277,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await ChangeRequestsPage.open(LIST_PATH)
 
       await expect(ChangeRequestsPage.pageHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       await expect(ChangeRequestsPage.pageCaption).toHaveText(
         `${ORGANISATION_NAME} (${year}, ${MATERIAL})`
@@ -640,7 +640,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await ChangeRequestsPage.open(REPROCESSOR_LIST_PATH)
 
       await expect(ChangeRequestsPage.pageHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       await expectRows([tonnageSubmitted, granted, refused], year)
       await expect(ChangeRequestsPage.countLine).toHaveText('Showing 1-3 of 3')
@@ -691,11 +691,11 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
 
       await expect(managePage.changeRequestsHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       await expect(managePage.changeRequestsSummaryTable).not.toBeExisting()
       await expect(managePage.noActiveChangeRequests).toHaveText(
-        'You currently have no active change requests. View change requests.'
+        'You currently have no active change requests. View your in year change applications.'
       )
 
       await managePage.clickAndWaitForNextPage(
@@ -704,7 +704,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
       await waitForListQuery(EMPTY_LIST_PATH, '')
       await expect(ChangeRequestsPage.pageHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       await expect(ChangeRequestsPage.noResultsTitle).toHaveText(
         'There are no matching results'
@@ -750,7 +750,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
       // Its change requests section: ORS updates, the only type it can have.
       await expect(managePage.changeRequestsHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       expect(await managePage.changeRequestsSummaryTypes()).toEqual([
         'update-overseas-site'
