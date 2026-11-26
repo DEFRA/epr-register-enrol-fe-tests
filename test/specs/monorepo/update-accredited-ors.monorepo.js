@@ -114,11 +114,12 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
     await expect(UpdateOverseasSitePage.statusTag).toHaveText('Approved')
     for (const locked of [
       'coordinates',
-      'recycling-operations',
+      'recycling-operation',
       'basel-codes',
       'conditions-of-export',
       'bes-evidence'
     ]) {
+      await expect(UpdateOverseasSitePage.rowValue(locked)).toExist()
       await expect(UpdateOverseasSitePage.rowAction(locked)).not.toExist()
     }
 
@@ -136,7 +137,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
         await expect(
           UpdateOverseasSitePage.input('coordinates')
         ).toHaveAttribute('readonly')
-        // Saved unchanged: the read-only values go with it and the backend accepts them.
+        // Saved unchanged: the read-only values are shown but not sent.
         await UpdateOverseasSitePage.continue()
         await waitForPath(`/update/${ORS.a.siteId}`)
       }
@@ -212,7 +213,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
       'New ORS'
     )
     await expect(AccreditationRequestsPage.chargeCount).toHaveText(
-      expect.stringContaining('1')
+      'Number of overseas reprocessing sites: 1'
     )
     progress.c = true
   })
@@ -268,7 +269,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
       2
     )
     await expect(AccreditationRequestsPage.chargeCount).toHaveText(
-      expect.stringContaining('1')
+      'Number of overseas reprocessing sites: 1'
     )
 
     await openDetails(ORS.b)
