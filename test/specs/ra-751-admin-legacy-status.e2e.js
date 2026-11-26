@@ -35,7 +35,7 @@ import { nonAdminApiClient } from '../config.js'
  * frontend is the one the batch finds the application by, that the status it
  * answers is the live one (it follows a status case management pushes), and
  * that the route answers the signed admin client this stack registers
- * (docker/config/operator-be.env, test/config.js) and refuses any other, and
+ * (docker/config/operator-be.env, docker/config/journey-tests.env) and refuses any other, and
  * that a linked application stored with no status fails the whole batch with a
  * 500 rather than being given one.
  *
@@ -284,13 +284,13 @@ describe('RA-751: Legacy application statuses for case management work items @do
     it('answers 403 forbidden to another known service client, on both routes', async () => {
       expectProblem(
         await getLegacyApplicationStatuses([randomUUID()], {
-          client: nonAdminApiClient
+          client: nonAdminApiClient()
         }),
         403,
         'forbidden'
       )
       expectProblem(
-        await getCaseManagementStatusMapping({ client: nonAdminApiClient }),
+        await getCaseManagementStatusMapping({ client: nonAdminApiClient() }),
         403,
         'forbidden'
       )

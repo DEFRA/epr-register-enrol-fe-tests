@@ -19,23 +19,33 @@ export const frontendSharedSecret = process.env.AUTH_SHARED_SECRET__FRONTEND
 // RA-751: the two service clients docker/config/operator-be.env registers on
 // the compose backend, for the /admin API calls in test/helpers/admin-api.js.
 // "admin" is the one client the /admin routes accept; "reader" is any other
-// known client, which they must refuse. The defaults are the compose
-// sandbox's own fake, sandbox-only values (keep them in step with
-// operator-be.env); the specs that use them are @docker-only, so they never
-// run against a deployed environment, whose admin secret this suite does not
-// hold.
-export const adminApiClient = {
-  clientId: process.env.ADMIN_API_CLIENT_ID || 'epr-e2e-admin',
-  secret:
-    process.env.ADMIN_API_CLIENT_SECRET || 'E2eComposeAdminToOperatorBackend'
+// known client, which they must refuse. Required, with no defaults: the
+// compose runs (npm run test:github, test:github:serial, test:local) load them
+// from docker/config/journey-tests.env, and a spec that needs one throws,
+// naming it, when it is not set. Only @docker-only specs use them, so a run
+// against a deployed environment, whose admin secret this suite does not
+// hold, skips them before they are read.
+function requiredEnv(name) {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(
+      `${name} is not set. Compose runs load it from docker/config/journey-tests.env.`
+    )
+  }
+  return value
 }
 
-export const nonAdminApiClient = {
-  clientId: process.env.NON_ADMIN_API_CLIENT_ID || 'epr-e2e-reader',
-  secret:
-    process.env.NON_ADMIN_API_CLIENT_SECRET ||
-    'E2eComposeReaderToOperatorBackend'
-}
+/** @returns {{ clientId: string, secret: string }} */
+export const adminApiClient = () => ({
+  clientId: requiredEnv('ADMIN_API_CLIENT_ID'),
+  secret: requiredEnv('ADMIN_API_CLIENT_SECRET')
+})
+
+/** @returns {{ clientId: string, secret: string }} */
+export const nonAdminApiClient = () => ({
+  clientId: requiredEnv('NON_ADMIN_API_CLIENT_ID'),
+  secret: requiredEnv('NON_ADMIN_API_CLIENT_SECRET')
+})
 
 // RA-439: the second frontend container compose.yml runs with
 // REGULATOR_QUERY_TEXT_DISABLED=true, used only by the banner-hidden e2e

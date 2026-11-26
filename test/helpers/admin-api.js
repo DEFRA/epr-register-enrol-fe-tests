@@ -6,7 +6,8 @@ import { serviceClientHeaders } from './service-client-signing.js'
 // RA-751: direct calls to epr-register-enrol-backend's /admin API, the
 // read-only API the internal Admin UI (epr-register-enrol-admin) reads
 // through, signed as one of the service clients this suite's compose stack
-// registers on the backend (test/config.js has their ids and secrets).
+// registers on the backend (test/config.js reads their ids and secrets from
+// the environment).
 //
 // Only usable against this repo's docker-compose sandbox: a deployed
 // environment's admin secret is a CDP secret this suite does not hold, so
@@ -19,9 +20,9 @@ import { serviceClientHeaders } from './service-client-signing.js'
  * @param {object} [options]
  * @param {{ clientId: string, secret: string } | null} [options.client] the
  *   client to sign as (default the admin client); null sends it unsigned
- * @returns {Promise<{status: number, contentType: string, body: any}>}
+ * @returns {Promise<{status: number, contentType: string, retryAfter: string | undefined, body: any}>}
  */
-export async function getAdminApi(path, { client = adminApiClient } = {}) {
+export async function getAdminApi(path, { client = adminApiClient() } = {}) {
   const { statusCode, headers, body } = await request(`${backendUrl}${path}`, {
     headers: client ? serviceClientHeaders(client) : {}
   })
@@ -29,6 +30,7 @@ export async function getAdminApi(path, { client = adminApiClient } = {}) {
   return {
     status: statusCode,
     contentType: String(headers['content-type']),
+    retryAfter: headers['retry-after'],
     body: text ? JSON.parse(text) : null
   }
 }

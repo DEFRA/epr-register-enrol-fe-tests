@@ -247,3 +247,42 @@ export async function deleteApplication(applicationId) {
     )
   }
 }
+
+/**
+ * RA-751: makes the sandbox MongoDB answer the next find on the Legacy
+ * applications collection with MaxTimeMSExpired (code 50), which the backend
+ * reads as a query that ran past its limit. Uses the failCommand fail point,
+ * so it needs the test commands compose.yml enables on the mongodb service.
+ * Narrowed to finds on that one collection, and to one of them, but any
+ * caller's find there consumes it: only call it from a spec in
+ * test/serial-specs, which run alone. Always clear it with
+ * clearApplicationsFindTimeout.
+ *
+ * @returns {Promise<number>} how many times the fail point has fired since
+ *   mongod started, to compare with clearApplicationsFindTimeout's
+ */
+export async function failNextApplicationsFindWithTimeout() {
+  const { ok, count } = await sandboxMongosh(
+    `print(JSON.stringify(db.adminCommand({ configureFailPoint: 'failCommand', mode: { times: 1 }, data: { failCommands: ['find'], namespace: '${OPERATOR_DATABASE}.accreditationApplications', errorCode: 50 } })))`
+  )
+  if (ok !== 1) {
+    throw new Error('Could not set the failCommand fail point')
+  }
+  return count
+}
+
+/**
+ * Switches the failCommand fail point off, whether or not it fired.
+ *
+ * @returns {Promise<number>} how many times the fail point has fired since
+ *   mongod started
+ */
+export async function clearApplicationsFindTimeout() {
+  const { ok, count } = await sandboxMongosh(
+    `print(JSON.stringify(db.adminCommand({ configureFailPoint: 'failCommand', mode: 'off' })))`
+  )
+  if (ok !== 1) {
+    throw new Error('Could not switch the failCommand fail point off')
+  }
+  return count
+}
