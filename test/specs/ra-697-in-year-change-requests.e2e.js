@@ -185,11 +185,12 @@ async function expectRequestDetails(
   await expect(detail.requestValidTo).toHaveText(
     item.validTo?.(year) ?? 'Not applicable'
   )
-  // Read-only: nothing on the page changes the request.
-  // A queried item (RA-698) offers Change links so the operator can answer; it still has no buttons or forms.
-  await expect(
-    queried ? detail.controls : detail.actions
-  ).toBeElementsArrayOfSize(0)
+  // Read-only: nothing on the page changes the request. A queried item (RA-698)
+  // is the exception: it offers Change links, an upload and Save and continue so
+  // the operator can answer, which ra-698-in-year-query-response.e2e.js covers.
+  if (!queried) {
+    await expect(detail.actions).toBeElementsArrayOfSize(0)
+  }
 }
 
 describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
