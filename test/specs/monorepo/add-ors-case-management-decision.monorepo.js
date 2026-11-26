@@ -391,6 +391,9 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
         await expect(CmWorkItemPage.stateTag).toHaveText(
           WORK_ITEM_STATES.approved
         )
+        // The Updated banner stands in for the pending-contact banner on the
+        // page shown after a save, so open the work item again to check it.
+        await openWorkItem()
         await expect(CmWorkItemPage.pendingContactBanner).toBeDisplayed()
         await expect(CmWorkItemPage.confirmApplicantContactLink).toBeDisplayed()
       }
