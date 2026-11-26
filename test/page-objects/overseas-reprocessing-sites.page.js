@@ -131,7 +131,9 @@ class OverseasReprocessingSitesPage extends withInterimSiteDisclosure(Page) {
     await button.click()
   }
 
-  // RA-470: same "Change" link as editAccreditedButton, on a New sites row.
+  // RA-470: the "Change" link on a New sites row — navigates to
+  // .../select-overseas-sites/{applicationId}/edit/{siteId}, which replays
+  // the add-overseas-site wizard pre-seeded with this site's existing data.
   editNewSiteButton(siteId) {
     return $(`[data-testid="edit-button-new-${siteId}"]`)
   }
