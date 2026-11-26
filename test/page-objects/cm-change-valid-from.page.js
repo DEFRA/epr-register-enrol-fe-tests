@@ -10,10 +10,6 @@ class CmChangeValidFromPage extends Page {
     return $('[data-testid="change-valid-from-link"]')
   }
 
-  get currentValidFromDate() {
-    return $('[data-testid="change-valid-from-current"]')
-  }
-
   get reasonInput() {
     return $('#reason')
   }
