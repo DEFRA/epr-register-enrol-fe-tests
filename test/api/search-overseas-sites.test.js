@@ -342,10 +342,15 @@ describe(
       }
       assert.ok(pages.length >= 2, `only ${pages.length} page searched`)
       for (const [index, { served, items }] of pages.entries()) {
-        // A last page can come back empty if other teams' data shrank while
-        // paging and no attempt saw it hold still.
+        // Each page must bring accreditations no earlier page did: a search
+        // that served page 1 again would leave a later page with none new.
+        // Only a last page may, when other teams' data shrank while paging
+        // and no attempt saw it hold still.
         const mayBeEmpty = !yearSearch.stable && index === pages.length - 1
-        assert.ok(served.length > 0 || mayBeEmpty, `page ${index + 1} is empty`)
+        assert.ok(
+          items.length > 0 || mayBeEmpty,
+          `page ${index + 1} has no accreditation an earlier page did not (served ${served.length})`
+        )
         for (const item of items) {
           const fullShape = isOwned(item)
           if (fullShape) {
@@ -359,13 +364,14 @@ describe(
     // Reprocessors included: the overseasSites for an exporter, and every
     // summary field (tonnageBand and glassRecyclingProcess too) for both
     // types, which the backend copies onto the search item one by one. Every
-    // one of the seeded organisation's, compared strictly; and a sample of
-    // OTHERS_SAMPLE of other teams', whose data can change mid-run.
+    // one of the seeded organisation's, as its own search serves them,
+    // compared strictly; and a sample of OTHERS_SAMPLE of other teams', whose
+    // data can change mid-run.
     it(
       'serves items as getting the accreditation does: overseasSites and every summary field',
       { timeout: 5 * 60 * 1000 },
       async () => {
-        const owned = yearSearch.items.filter(isOwned)
+        const owned = organisationSearch.items
         const others = spreadSample(
           yearSearch.items.filter((item) => !isOwned(item)),
           OTHERS_SAMPLE
@@ -390,16 +396,32 @@ describe(
         organisationSearch.items.length > 0,
         'the organisation search returned nothing'
       )
-      const byAccreditationNumber = new Map(
-        yearSearch.items.map((item) => [item.accreditationNumber, item])
-      )
+      const index = (search) =>
+        new Map(search.items.map((item) => [item.accreditationNumber, item]))
+      let byAccreditationNumber = index(yearSearch)
+      // Other teams' data can shift items between pages while the year is
+      // paged, even with totalItems unchanged (one added, one removed). So if
+      // any of the organisation's items is missing, the year is paged once
+      // more, and an item still missing fails: the year search skipped it.
+      const missing = () =>
+        organisationSearch.items.filter(
+          ({ accreditationNumber }) =>
+            !byAccreditationNumber.has(accreditationNumber)
+        )
+      if (missing().length > 0) {
+        log(
+          `${missing().map(describeItem).join(', ')} not in the year search; paging it again`
+        )
+        byAccreditationNumber = index(
+          await searchAllPages(`year=${year}`, yearLimit)
+        )
+      }
       for (const item of organisationSearch.items) {
-        // Other teams' data can shift items between pages while the year is
-        // paged, even with totalItems unchanged (one added, one removed), so
-        // an item not found there is searched for directly.
-        const unfiltered =
-          byAccreditationNumber.get(item.accreditationNumber) ??
-          (await searchAgain(item))
+        const unfiltered = byAccreditationNumber.get(item.accreditationNumber)
+        assert.ok(
+          unfiltered,
+          `${describeItem(item)} is missing from the search without organisationNumber, paged twice`
+        )
         assert.deepStrictEqual(
           unfiltered,
           item,
