@@ -53,7 +53,7 @@ import {
 // DevExporterAccreditationSeedService (DevSeedData__ManageExporterEnabled in
 // docker/config), alongside RA-425's org 50018, which this spec leaves alone.
 // ORS 001 is accredited, and ORS 008 (901913) was never registered, so it
-// is on neither tab and cannot be added. Its registered-only sites:
+// is not listed and cannot be added. Its registered-only sites:
 //   901910 / ORS 005 - France, complete: every lockable field recorded
 //   901911 / ORS 006 - India, country only: coordinates, R code and
 //                      conditions of export missing, and outside the
@@ -137,29 +137,37 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
   it('AC01/AC03/AC04: adds a complete registered ORS, with its recorded fields locked, and shows a £328 charge', async () => {
     await openManageOverseasSites()
 
-    // RA-425's partition: only ORS 001 is on the accreditation.
-    await expect(ManageOverseasSitesPage.tab('accredited')).toHaveText(
-      'Accredited (1)'
-    )
-    await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-      'Registered (4)'
-    )
-    await ManageOverseasSitesPage.openTab('registered')
+    // RA-814's one table, by ORS id: only ORS 001 is on the accreditation.
+    expect(await ManageOverseasSitesPage.rowOrsIds()).toEqual([
+      ORS.hamburg.orsId,
+      ORS.lyon.orsId,
+      ORS.delhi.orsId,
+      ORS.izmir.orsId,
+      ORS.rotterdam.orsId
+    ])
+    await expect(
+      ManageOverseasSitesPage.orsStatusTag(ORS.hamburg.siteId)
+    ).toHaveText('Approved')
     for (const { siteId } of [completeSite, incompleteSite, untouchedSite]) {
+      await expect(ManageOverseasSitesPage.orsStatusTag(siteId)).toHaveText(
+        'Registered'
+      )
       await expect(
         ManageOverseasSitesPage.addToAccreditationButton(siteId)
       ).toBeDisplayed()
     }
-    // ORS 001 is already accredited, so it is not offered again.
+    // ORS 001 is already accredited, so it is not offered again, and its
+    // row has no actions at all.
     await expect(
       ManageOverseasSitesPage.addToAccreditationButton(ORS.hamburg.siteId)
     ).not.toExist()
-    // A never-registered site is on neither tab.
-    for (const tab of ['accredited', 'registered']) {
-      await expect(
-        ManageOverseasSitesPage.siteRow(tab, ORS.valencia.siteId)
-      ).not.toExist()
-    }
+    await expect(
+      ManageOverseasSitesPage.siteActionsCell(ORS.hamburg.siteId)
+    ).toHaveText('')
+    // A never-registered site is not listed.
+    await expect(
+      ManageOverseasSitesPage.siteRow(ORS.valencia.siteId)
+    ).not.toExist()
 
     await ManageOverseasSitesPage.addToAccreditation(completeSite.siteId)
     await waitForPath(`/add/${completeSite.siteId}`)
@@ -229,13 +237,13 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     await ManageOverseasSitesPage.viewRequests()
     await waitForPath('/requests')
 
-    // Back to the registered tab of RA-425's page.
+    // Back to the first page of RA-814's table, with no anchor.
     await AccreditationRequestsPage.addAnotherRequest()
-    const { pathname, hash } = new URL(await browser.getUrl())
+    const { pathname, search, hash } = new URL(await browser.getUrl())
     expect(pathname).toBe(OVERSEAS_SITES_PATH)
-    expect(hash).toBe('#registered')
+    expect(search).toBe('')
+    expect(hash).toBe('')
 
-    await ManageOverseasSitesPage.openTab('registered')
     // The site already in the request is resumed, not added twice.
     await expect(
       ManageOverseasSitesPage.siteStatusTag(completeSite.siteId)
@@ -474,28 +482,22 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
     )
     await expect(ManageOverseasSitesPage.requestsBanner).not.toExist()
 
-    // AC08: RA-425's tabs list only what is on the accreditation as
-    // accredited, so a submitted site stays on the registered tab, tagged
-    // pending and no longer addable, until the regulator decides.
-    await expect(ManageOverseasSitesPage.tab('accredited')).toHaveText(
-      'Accredited (1)'
-    )
-    await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-      'Registered (4)'
-    )
-    await ManageOverseasSitesPage.openTab('registered')
+    // AC08: only what is on the accreditation is Approved, so a submitted
+    // site stays Registered, tagged pending and no longer addable, until the
+    // regulator decides.
+    await expect(
+      ManageOverseasSitesPage.orsStatusTag(ORS.hamburg.siteId)
+    ).toHaveText('Approved')
     for (const { siteId } of [completeSite, incompleteSite]) {
-      await expect(
-        ManageOverseasSitesPage.siteRow('registered', siteId)
-      ).toBeDisplayed()
+      await expect(ManageOverseasSitesPage.siteRow(siteId)).toBeDisplayed()
+      await expect(ManageOverseasSitesPage.orsStatusTag(siteId)).toHaveText(
+        'Registered'
+      )
       await expect(ManageOverseasSitesPage.siteStatusTag(siteId)).toHaveText(
         'Pending'
       )
       await expect(
         ManageOverseasSitesPage.addToAccreditationButton(siteId)
-      ).not.toExist()
-      await expect(
-        ManageOverseasSitesPage.siteRow('accredited', siteId)
       ).not.toExist()
     }
 

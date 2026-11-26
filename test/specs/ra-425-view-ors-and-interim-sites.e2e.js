@@ -37,9 +37,10 @@ import { readSeededYear as readSeededYearFrom } from '../helpers/seeded-year.js'
  *   - ORS 004 Dragon: registered, not accredited; its registration lists an
  *     interim site (Saigon), which must never show
  * RA-697's seed (DevChangeRequestSeedService) also gives the accreditation
- * change requests without touching its sites, so the tab counts below hold;
- * the Registered tab now shows Dragon as "In progress" with View, which this
- * spec doesn't assert on.
+ * change requests without touching its sites, so the sites below hold; it
+ * shows Dragon as "In progress" with "View change requests", which
+ * ra-814-manage-overseas-sites-table.e2e.js asserts on. RA-814 put all four
+ * ORSs in one table, which that spec covers too.
  * Nothing here writes, but every read is still scoped to these seeded site ids
  * rather than "the first row" or a page-wide count (see ra-603's warnings about
  * shared state): mongo is not reset between runs.
@@ -65,12 +66,10 @@ const readSeededYear = () =>
     material: MATERIAL
   })
 
-async function expectSite(tab, siteId, { orsId, name, address }) {
-  await expect(ManageOverseasSitesPage.siteOrsId(tab, siteId)).toHaveText(orsId)
-  await expect(ManageOverseasSitesPage.siteName(tab, siteId)).toHaveText(name)
-  await expect(ManageOverseasSitesPage.siteAddress(tab, siteId)).toHaveText(
-    address
-  )
+async function expectSite(siteId, { orsId, name, address }) {
+  await expect(ManageOverseasSitesPage.siteOrsId(siteId)).toHaveText(orsId)
+  await expect(ManageOverseasSitesPage.siteName(siteId)).toHaveText(name)
+  await expect(ManageOverseasSitesPage.siteAddress(siteId)).toHaveText(address)
 }
 
 async function expectInterimSite(orsSiteId, interimSiteId, text) {
@@ -145,38 +144,46 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       await ManageOverseasSitesPage.pageHeading.waitForDisplayed()
     })
 
-    it('lists the accredited sites, each with only its current interim sites', async () => {
-      await expect(ManageOverseasSitesPage.tab('accredited')).toHaveText(
-        'Accredited (3)'
-      )
-      await expect(ManageOverseasSitesPage.panel('accredited')).toBeDisplayed()
-
-      await expectSite('accredited', ORS.rotterdam, {
+    it('lists every ORS, accredited or registered, each with only its current interim sites', async () => {
+      await expectSite(ORS.rotterdam, {
         orsId: '001',
         name: 'Rotterdam Recycling BV',
         address: 'Industrieweg 44, Netherlands'
       })
-      await expectSite('accredited', ORS.bharat, {
+      await expectSite(ORS.bharat, {
         orsId: '002',
         name: 'Bharat Recycling',
         address: '12 Ring Road, India'
       })
-      await expectSite('accredited', ORS.berlin, {
+      await expectSite(ORS.berlin, {
         orsId: '003',
         name: 'Berlin Steel GmbH',
         address: 'Hafenstrasse 9, Germany'
       })
-      await expect(
-        ManageOverseasSitesPage.siteRow('accredited', ORS.dragon)
-      ).not.toBeExisting()
+      // Registered only, in the same table since RA-814.
+      await expectSite(ORS.dragon, {
+        orsId: '004',
+        name: 'Dragon Recyclers',
+        address: '8 Harbour Avenue, Vietnam'
+      })
 
       // ORS 001: the removed interim site is left out of the count and list.
+      // The disclosure starts closed, and its label does not change when it
+      // opens.
+      const rotterdamDisclosure = ManageOverseasSitesPage.interimSiteDisclosure(
+        ORS.rotterdam
+      )
+      expect(await rotterdamDisclosure.getProperty('open')).toBe(false)
       await expect(
         ManageOverseasSitesPage.interimSiteDisclosureSummary(ORS.rotterdam)
-      ).toHaveText('Show interim sites (2)')
+      ).toHaveText('Interim sites (2)')
       expect(
         await ManageOverseasSitesPage.interimSiteIdsIn(ORS.rotterdam)
       ).toEqual([String(INTERIM.calais), String(INTERIM.antwerpForRotterdam)])
+      expect(await rotterdamDisclosure.getProperty('open')).toBe(true)
+      await expect(
+        ManageOverseasSitesPage.interimSiteDisclosureSummary(ORS.rotterdam)
+      ).toHaveText('Interim sites (2)')
       await expectInterimSite(
         ORS.rotterdam,
         INTERIM.calais,
@@ -194,7 +201,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       // ORS 002: its own copy of the site ORS 001 also uses.
       await expect(
         ManageOverseasSitesPage.interimSiteDisclosureSummary(ORS.bharat)
-      ).toHaveText('Show interim sites (1)')
+      ).toHaveText('Interim sites (1)')
       expect(
         await ManageOverseasSitesPage.interimSiteIdsIn(ORS.bharat)
       ).toEqual([String(INTERIM.antwerpForBharat)])
@@ -208,33 +215,11 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       await expect(
         ManageOverseasSitesPage.interimSiteDisclosure(ORS.berlin)
       ).not.toBeExisting()
-    })
 
-    it('switches to the registered sites', async () => {
-      // Registered-only ORSs: the three accredited ones are not repeated.
-      await expect(ManageOverseasSitesPage.tab('registered')).toHaveText(
-        'Registered (1)'
-      )
-
-      await ManageOverseasSitesPage.openTab('registered')
-
-      await expect(
-        ManageOverseasSitesPage.panel('accredited')
-      ).not.toBeDisplayed()
-      await expectSite('registered', ORS.dragon, {
-        orsId: '004',
-        name: 'Dragon Recyclers',
-        address: '8 Harbour Avenue, Vietnam'
-      })
       // A registered ORS shows its interim sites too.
       await expect(
         ManageOverseasSitesPage.interimSiteDisclosure(ORS.dragon)
       ).toBeExisting()
-      for (const siteId of [ORS.rotterdam, ORS.bharat, ORS.berlin]) {
-        await expect(
-          ManageOverseasSitesPage.siteRow('registered', siteId)
-        ).not.toBeExisting()
-      }
     })
 
     it('goes back to the manage page', async () => {

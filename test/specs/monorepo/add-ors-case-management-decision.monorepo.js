@@ -65,7 +65,7 @@ import {
 //                 approval awaits contact (RA-800): the link goes once the
 //                 applicant has been contacted
 //   6 operator    the request shows GRANTED, valid from the corrected date
-//                 (AC6, RA-800), and Lyon is on the Accredited tab
+//                 (AC6, RA-800), and Lyon is tagged Approved
 //
 // The tests share the requests and run in order; each skips when the one
 // before it did not get as far as it needs. Granting Lyon selects it on the
@@ -188,10 +188,9 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
 
   async function expectSiteLocked() {
     await browser.url(OVERSEAS_SITES_PATH)
-    await ManageOverseasSitesPage.openTab('registered')
-    await expect(
-      ManageOverseasSitesPage.siteRow('registered', SITE.siteId)
-    ).toBeExisting()
+    await expect(ManageOverseasSitesPage.orsStatusTag(SITE.siteId)).toHaveText(
+      'Registered'
+    )
     await expect(
       ManageOverseasSitesPage.addToAccreditationButton(SITE.siteId)
     ).not.toBeExisting()
@@ -328,7 +327,6 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
     await expectOperatorStatus('REFUSED')
 
     await browser.url(OVERSEAS_SITES_PATH)
-    await ManageOverseasSitesPage.openTab('registered')
     await expect(
       ManageOverseasSitesPage.addToAccreditationButton(SITE.siteId)
     ).toBeExisting()
@@ -441,13 +439,9 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
     )
 
     await browser.url(OVERSEAS_SITES_PATH)
-    await ManageOverseasSitesPage.openTab('accredited')
-    await expect(
-      ManageOverseasSitesPage.siteRow('accredited', SITE.siteId)
-    ).toBeExisting()
-    await expect(
-      ManageOverseasSitesPage.siteRow('registered', SITE.siteId)
-    ).not.toBeExisting()
+    await expect(ManageOverseasSitesPage.orsStatusTag(SITE.siteId)).toHaveText(
+      'Approved'
+    )
   })
 })
 
@@ -559,7 +553,6 @@ describe("RA-495: a granted add-ORS request writes the operator's supplied answe
       `Operator: add ORS ${IZMIR.orsId}, with its missing information, and submit`,
       async () => {
         await browser.url(OVERSEAS_SITES_PATH)
-        await ManageOverseasSitesPage.openTab('registered')
         await ManageOverseasSitesPage.addToAccreditation(IZMIR.siteId)
         await waitForPath(`/add/${IZMIR.siteId}`)
 
@@ -643,9 +636,8 @@ describe("RA-495: a granted add-ORS request writes the operator's supplied answe
     expect(site.lockedFields).toEqual(expect.arrayContaining(IZMIR_UNANSWERED))
 
     await browser.url(OVERSEAS_SITES_PATH)
-    await ManageOverseasSitesPage.openTab('accredited')
-    await expect(
-      ManageOverseasSitesPage.siteRow('accredited', IZMIR.siteId)
-    ).toBeExisting()
+    await expect(ManageOverseasSitesPage.orsStatusTag(IZMIR.siteId)).toHaveText(
+      'Approved'
+    )
   })
 })
