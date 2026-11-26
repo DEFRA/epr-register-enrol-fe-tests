@@ -4,6 +4,7 @@ import {
   assertAbsent,
   assertOneOf,
   assertStatusHistory,
+  assertStatusTimeline,
   assertLatestStatus,
   assertLatestStatusMatchesHistory
 } from './status-history.js'
@@ -109,6 +110,7 @@ export function assertInterimSite(site, accreditationYear = year) {
   assertLatestStatus(site, what)
   assertStatusHistory(site.statusHistory, what, accreditationYear)
   assertLatestStatusMatchesHistory(site, what)
+  assertStatusTimeline(site, what)
   site.statusHistory.forEach(({ status }, index) => {
     assert.equal(
       status,
@@ -139,6 +141,7 @@ export function assertOverseasSite(site, { accreditationYear = year } = {}) {
   // validFrom is no longer served: the status history carries the dates.
   assertAbsent(site, ['validFrom'], what)
   assertStatusHistory(site.statusHistory, what, accreditationYear)
+  assertStatusTimeline(site, what)
   assert.ok(Array.isArray(site.interimSites))
   for (const interim of site.interimSites) {
     assertInterimSite(interim, accreditationYear)
