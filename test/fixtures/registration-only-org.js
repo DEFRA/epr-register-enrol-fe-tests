@@ -20,15 +20,21 @@ export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${registrationNumber(seed
 // seed (DevExporterAccreditationSeedService.RegisteredOverseasSites, mirrored
 // by the frontend's stub-manage-accreditations.js). The overseas-sites page
 // keys each row by the ORS id's integer value.
-const registeredOrs = (orsId, name, address) => ({
+const registeredOrs = (orsId, name, address, detailAddress) => ({
   siteId: Number(orsId),
   orsId,
   name,
-  address
+  address,
+  detailAddress
 })
 
 export const REGISTERED_ORS = [
-  registeredOrs('001', 'Porto Plasticos Lda', 'Rua do Porto 21, Portugal'),
+  registeredOrs(
+    '001',
+    'Porto Plasticos Lda',
+    'Rua do Porto 21, Portugal',
+    'Rua do Porto 21, Porto, Portugal'
+  ),
   registeredOrs('002', 'Milano Riciclo SpA', 'Via Industriale 7, Italy'),
   registeredOrs(
     '003',
@@ -57,6 +63,8 @@ const orsUpdate = (request, orsId, status, fields) => {
     orsId,
     siteName: ors.name,
     siteAddress: ors.address,
+    // The detail page shows the whole address, town included.
+    detailAddress: ors.detailAddress ?? ors.address,
     type: 'ORS update',
     status,
     ...fields

@@ -487,7 +487,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
 
       await expect(detail.headerLocation).toHaveText(
-        'Industrieweg 44, Netherlands'
+        'Industrieweg 44, Port, Netherlands'
       )
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.statusTag).toHaveText('QUERIED')
@@ -499,7 +499,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         'Rotterdam Recycling BV'
       )
       await expect(detail.rowValue('location')).toHaveText(
-        'Industrieweg 44, Netherlands'
+        'Industrieweg 44, Port, Netherlands'
       )
       await expect(detail.rowValue('recycling-operation')).toHaveText('R3')
       await expect(detail.rowValue('bes-evidence')).toHaveText('Not provided')
@@ -555,7 +555,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.headerLocation).toHaveText(
-        '8 Harbour Avenue, Vietnam'
+        '8 Harbour Avenue, Port, Vietnam'
       )
       await expect(detail.statusTag).toHaveText('IN PROGRESS')
       await expectRequestDetails(item, year, { submitted: false })
@@ -583,7 +583,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.headerLocation).toHaveText(
-        '8 Harbour Avenue, Vietnam'
+        '8 Harbour Avenue, Port, Vietnam'
       )
       await expect(detail.statusTag).toHaveText('REFUSED')
       await expectRequestDetails(item, year)
@@ -891,14 +891,14 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         `${item.siteName} (${item.orsId})`
       )
 
-      await expect(detail.headerLocation).toHaveText(item.siteAddress)
+      await expect(detail.headerLocation).toHaveText(item.detailAddress)
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.statusTag).toHaveText('SUBMITTED')
       await expect(detail.headerDateAdded).toHaveText(item.sent(year))
       await expect(detail.headerBesExpiry).toHaveText('Not applicable')
 
       await expect(detail.rowValue('site-name')).toHaveText(item.siteName)
-      await expect(detail.rowValue('location')).toHaveText(item.siteAddress)
+      await expect(detail.rowValue('location')).toHaveText(item.detailAddress)
       await expect(detail.rowValue('contact-name')).toHaveText('Site Manager')
       await expect(detail.rowValue('recycling-operation')).toHaveText('R3')
 
