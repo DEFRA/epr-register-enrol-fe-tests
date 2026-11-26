@@ -192,11 +192,6 @@ class ChangeRequestDetailPage extends Page {
     await this.clickAndWaitForNextPage(this.continueButton)
   }
 
-  // Read-only: no Change, Remove or Add links, and no buttons or forms.
-  get controls() {
-    return $$('main button, main form')
-  }
-
   get actions() {
     return $$('main .govuk-summary-list__actions, main button, main form')
   }
