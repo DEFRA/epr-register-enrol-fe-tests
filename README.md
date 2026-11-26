@@ -149,7 +149,7 @@ Steps:
 
 1. Edit the compose.yml to include your services.
 2. Modify the scripts in docker/scripts to pre-populate the database, if required and create any localstack resources.
-3. Test the setup locally with `docker compose up` and `npm run test:github`
+3. Test the setup locally with `docker compose up`, `npm run test:github` and then `npm run test:github:serial`, which runs `test/serial-specs` alone, as CI does. Both load the test runner's environment from `docker/config/journey-tests.env`.
 4. Set up the workflow trigger in `.github/workflows/journey-tests`.
 
 By default, the provided workflow will run when triggered manually from GitHub or when triggered by another workflow.

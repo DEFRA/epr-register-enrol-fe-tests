@@ -204,3 +204,85 @@ export async function expirePendingUploadOf(s3PathSuffix, upload) {
   }
   return deletedId
 }
+
+const APPLICATIONS = `db.getSiblingDB('${OPERATOR_DATABASE}').accreditationApplications`
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+/**
+ * RA-751: inserts a Legacy application linked to case management work item
+ * `workItemId` with no applicationStatus, a document the frontend can never
+ * write, so a spec can see how the admin batch answers one it cannot read.
+ * Its organisation is run-unique too, so no other spec's organisation lists
+ * it. Remove it with deleteApplication.
+ *
+ * @param {string} workItemId a lower-case GUID no other application uses
+ * @returns {Promise<string>} the application's id
+ */
+export async function insertApplicationWithoutStatus(workItemId) {
+  if (!GUID.test(workItemId)) {
+    throw new Error(`${workItemId} is not a lower-case GUID`)
+  }
+  const organisationId = JSON.stringify(`ra-751-no-status-${workItemId}`)
+  const { insertedId } = await sandboxMongosh(
+    `const { insertedId } = ${APPLICATIONS}.insertOne({ organisationId: ${organisationId}, caseManagementWorkItemId: UUID('${workItemId}') }); print(JSON.stringify({ insertedId: insertedId.toHexString() }))`
+  )
+  return insertedId
+}
+
+/**
+ * Deletes an application by its id, and throws unless exactly one went.
+ *
+ * @param {string} applicationId
+ */
+export async function deleteApplication(applicationId) {
+  if (!/^[0-9a-f]{24}$/.test(applicationId)) {
+    throw new Error(`${applicationId} is not an application id`)
+  }
+  const { deletedCount } = await sandboxMongosh(
+    `print(JSON.stringify(${APPLICATIONS}.deleteOne({ _id: ObjectId('${applicationId}') })))`
+  )
+  if (deletedCount !== 1) {
+    throw new Error(
+      `Deleted ${deletedCount} applications with id ${applicationId}, not 1`
+    )
+  }
+}
+
+/**
+ * RA-751: makes the sandbox MongoDB answer the next find on the Legacy
+ * applications collection with MaxTimeMSExpired (code 50), which the backend
+ * reads as a query that ran past its limit. Uses the failCommand fail point,
+ * so it needs the test commands compose.yml enables on the mongodb service.
+ * Narrowed to finds on that one collection, and to one of them, but any
+ * caller's find there consumes it: only call it from a spec in
+ * test/serial-specs, which run alone. Always clear it with
+ * clearApplicationsFindTimeout.
+ *
+ * @returns {Promise<number>} how many times the fail point has fired since
+ *   mongod started, to compare with clearApplicationsFindTimeout's
+ */
+export async function failNextApplicationsFindWithTimeout() {
+  const { ok, count } = await sandboxMongosh(
+    `print(JSON.stringify(db.adminCommand({ configureFailPoint: 'failCommand', mode: { times: 1 }, data: { failCommands: ['find'], namespace: '${OPERATOR_DATABASE}.accreditationApplications', errorCode: 50 } })))`
+  )
+  if (ok !== 1) {
+    throw new Error('Could not set the failCommand fail point')
+  }
+  return count
+}
+
+/**
+ * Switches the failCommand fail point off, whether or not it fired.
+ *
+ * @returns {Promise<number>} how many times the fail point has fired since
+ *   mongod started
+ */
+export async function clearApplicationsFindTimeout() {
+  const { ok, count } = await sandboxMongosh(
+    `print(JSON.stringify(db.adminCommand({ configureFailPoint: 'failCommand', mode: 'off' })))`
+  )
+  if (ok !== 1) {
+    throw new Error('Could not switch the failCommand fail point off')
+  }
+  return count
+}
