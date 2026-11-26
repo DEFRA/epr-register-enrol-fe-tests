@@ -261,7 +261,11 @@ describe(`RA-698: answer a regulator's query on an in-year change request ${DOCK
 
     // The add-to-accreditation pages send the operator back to the manage
     // page (the seeded ORSs on this page have no addable one, so its buttons
-    // say nothing about the query).
+    // say nothing about the query). They read the accreditation from the
+    // session, which the overseas sites page puts there; without it the page
+    // sends the operator to Re/Ex, which this environment cannot reach.
+    await ManageOverseasSitesPage.open(`${MANAGE_PATH}/overseas-sites`)
+    await ManageOverseasSitesPage.pageHeading.waitForDisplayed()
     await ManageOverseasSitesPage.open(
       `/accreditation/manage-overseas-sites/${applicationId}/requests`
     )
