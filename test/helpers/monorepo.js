@@ -434,3 +434,72 @@ export async function setChangeRequestSite({
     print(JSON.stringify({ changeRequests }))
   `)
 }
+
+// RA-682: ORS changes are add-ORS or ORS update work items. A request holding
+// both is sent as one submission per type, the update one under
+// `{requestId}:update-overseas-site`.
+const UPDATE_OVERSEAS_SITE_TYPE_ID = 'update-overseas-site'
+const ORS_CHANGE_TYPE_IDS = [
+  ADD_OVERSEAS_SITE_TYPE_ID,
+  UPDATE_OVERSEAS_SITE_TYPE_ID
+]
+
+/**
+ * As clearChangeRequests, for both ORS change types: the organisation's change
+ * requests and the case management work items and submissions they raised.
+ *
+ * @param {{ organisationId: string }} org
+ */
+export async function clearOrsChangeRequests({ organisationId }) {
+  const filter = JSON.stringify({ organisationId })
+  const workItemFilter = JSON.stringify({
+    typeId: { $in: ORS_CHANGE_TYPE_IDS },
+    'payload.operatorOrganisationId': organisationId
+  })
+
+  return mongosh(`
+    const changeRequests = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationChangeRequests.deleteMany(${filter}).deletedCount
+    const caseManagement = db.getSiblingDB('${CASE_MANAGEMENT_DATABASE}')
+    const requestIds = caseManagement.workItems
+      .distinct('payload.operatorRequestId', ${workItemFilter})
+    const submissions = caseManagement.submissions
+      .deleteMany({ _id: { $in: requestIds } }).deletedCount
+    const workItems = caseManagement.workItems
+      .deleteMany(${workItemFilter}).deletedCount
+    print(JSON.stringify({ changeRequests, workItems, submissions }))
+  `)
+}
+
+/**
+ * The add-ORS and ORS update work items case management raised for the
+ * organisation, one per site, with what each update proposes.
+ *
+ * @param {{ organisationId: string }} org
+ */
+export async function orsWorkItemsFor({ organisationId }) {
+  const filter = JSON.stringify({
+    typeId: { $in: ORS_CHANGE_TYPE_IDS },
+    'payload.operatorOrganisationId': organisationId
+  })
+
+  return mongosh(`
+    print(JSON.stringify(
+      db.getSiblingDB('${CASE_MANAGEMENT_DATABASE}').workItems
+        .find(${filter})
+        .toArray()
+        .map((w) => ({
+          id: String(w._id),
+          typeId: w.typeId,
+          stateId: w.stateId,
+          siteId: w.payload.site.siteId,
+          orsId: w.payload.site.orsId,
+          operatorRequestId: w.payload.operatorRequestId,
+          applicationReference: w.payload.applicationReference,
+          chargePence: w.payload.site.chargePence ?? null,
+          proposed: w.payload.site.proposed ?? null,
+          interimSiteChanges: (w.payload.site.interimSiteChanges ?? []).map((c) => c.action)
+        }))
+    ))
+  `)
+}
