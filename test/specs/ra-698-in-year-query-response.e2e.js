@@ -281,87 +281,83 @@ describe(`RA-698: answer a regulator's query on an in-year change request ${DOCK
     await expect(ChangeRequestDetailPage.successBanner).not.toBeExisting()
   })
 
-  describe('validation', () => {
-    it('refuses a blank ORS name', async () => {
-      await openStep('site-name', 'site-name')
-      await AddOrsSiteNamePage.siteNameInput.setValue('')
-      await AddOrsSiteNamePage.continue()
+  it('refuses a blank ORS name', async () => {
+    await openStep('site-name', 'site-name')
+    await AddOrsSiteNamePage.siteNameInput.setValue('')
+    await AddOrsSiteNamePage.continue()
 
-      await expect(AddOrsSiteNamePage.errorSummary).toBeDisplayed()
-      await expectStillOn(itemPath(itemId, 'site-name'))
+    await expect(AddOrsSiteNamePage.errorSummary).toBeDisplayed()
+    await expectStillOn(itemPath(itemId, 'site-name'))
+  })
+
+  it('refuses a location without a first address line', async () => {
+    await openStep('location', 'location')
+    await ChangeRequestResponsePage.addressLine1Input.setValue('')
+    await ChangeRequestResponsePage.continue()
+
+    await expect(ChangeRequestResponsePage.errorSummary).toBeDisplayed()
+    await expectStillOn(itemPath(itemId, 'location'))
+  })
+
+  it('refuses contact details without a name or with an invalid email', async () => {
+    await openStep('contact-name', 'contact-details')
+    await AddOrsSiteContactPage.enterContactDetails({
+      name: '',
+      email: 'not-an-email',
+      phone: CHANGED.contact.phone
     })
+    await AddOrsSiteContactPage.continue()
 
-    it('refuses a location without a first address line', async () => {
-      await openStep('location', 'location')
-      await ChangeRequestResponsePage.addressLine1Input.setValue('')
-      await ChangeRequestResponsePage.continue()
+    await expect(AddOrsSiteContactPage.errorSummary).toBeDisplayed()
+    await expectStillOn(itemPath(itemId, 'contact-details'))
+  })
 
-      await expect(ChangeRequestResponsePage.errorSummary).toBeDisplayed()
-      await expectStillOn(itemPath(itemId, 'location'))
+  it('refuses arrangements for rejected or returned loads over 500 words', async () => {
+    await openStep('repatriated-loads', 'rejected-loads')
+    await AddOrsRepatriatedLoadsPage.enterDescription('word '.repeat(501))
+    await AddOrsRepatriatedLoadsPage.continue()
+
+    await expect(AddOrsRepatriatedLoadsPage.errorSummary).toBeDisplayed()
+    await expect(AddOrsRepatriatedLoadsPage.fieldError).toBeDisplayed()
+    await expectStillOn(itemPath(itemId, 'rejected-loads'))
+  })
+
+  it('refuses an upload with no file', async () => {
+    await openStep('bes-evidence', 'bes-evidence')
+    await ChangeRequestResponsePage.attemptEmptyUpload()
+
+    await expect(ChangeRequestResponsePage.fileError).toBeDisplayed()
+    await expectStillOn(itemPath(itemId, 'bes-evidence'))
+  })
+
+  it("refuses an interim site's blank name and invalid contact details", async () => {
+    await openItem()
+    await ChangeRequestDetailPage.changeInterimSite(INTERIM.calais)
+    const interimPath = itemPath(itemId, `interim-sites/${INTERIM.calais}`)
+    await waitForPath(interimPath)
+
+    await ChangeRequestDetailPage.changeInterimRow('site-name')
+    await waitForPath(`${interimPath}/site-name`)
+    await AddInterimSiteSiteNamePage.siteNameInput.setValue('')
+    await AddInterimSiteSiteNamePage.continue()
+    await expect(AddInterimSiteSiteNamePage.errorSummary).toBeDisplayed()
+    await expectStillOn(`${interimPath}/site-name`)
+
+    await ChangeRequestDetailPage.open(`${interimPath}/contact-details`)
+    await AddInterimSiteSiteContactPage.enterContactDetails({
+      name: CHANGED.interimContact.name,
+      email: 'not-an-email',
+      phone: CHANGED.interimContact.phone
     })
+    await AddInterimSiteSiteContactPage.continue()
+    await expect(AddInterimSiteSiteContactPage.errorSummary).toBeDisplayed()
+    await expectStillOn(`${interimPath}/contact-details`)
+  })
 
-    it('refuses contact details without a name or with an invalid email', async () => {
-      await openStep('contact-name', 'contact-details')
-      await AddOrsSiteContactPage.enterContactDetails({
-        name: '',
-        email: 'not-an-email',
-        phone: CHANGED.contact.phone
-      })
-      await AddOrsSiteContactPage.continue()
-
-      await expect(AddOrsSiteContactPage.errorSummary).toBeDisplayed()
-      await expectStillOn(itemPath(itemId, 'contact-details'))
-    })
-
-    it('refuses arrangements for rejected or returned loads over 500 words', async () => {
-      await openStep('repatriated-loads', 'rejected-loads')
-      await AddOrsRepatriatedLoadsPage.enterDescription('word '.repeat(501))
-      await AddOrsRepatriatedLoadsPage.continue()
-
-      await expect(AddOrsRepatriatedLoadsPage.errorSummary).toBeDisplayed()
-      await expect(AddOrsRepatriatedLoadsPage.fieldError).toBeDisplayed()
-      await expectStillOn(itemPath(itemId, 'rejected-loads'))
-    })
-
-    it('refuses an upload with no file', async () => {
-      await openStep('bes-evidence', 'bes-evidence')
-      await ChangeRequestResponsePage.attemptEmptyUpload()
-
-      await expect(ChangeRequestResponsePage.fileError).toBeDisplayed()
-      await expectStillOn(itemPath(itemId, 'bes-evidence'))
-    })
-
-    it("refuses an interim site's blank name and invalid contact details", async () => {
-      await openItem()
-      await ChangeRequestDetailPage.changeInterimSite(INTERIM.calais)
-      const interimPath = itemPath(itemId, `interim-sites/${INTERIM.calais}`)
-      await waitForPath(interimPath)
-
-      await ChangeRequestDetailPage.changeInterimRow('site-name')
-      await waitForPath(`${interimPath}/site-name`)
-      await AddInterimSiteSiteNamePage.siteNameInput.setValue('')
-      await AddInterimSiteSiteNamePage.continue()
-      await expect(AddInterimSiteSiteNamePage.errorSummary).toBeDisplayed()
-      await expectStillOn(`${interimPath}/site-name`)
-
-      await ChangeRequestDetailPage.open(`${interimPath}/contact-details`)
-      await AddInterimSiteSiteContactPage.enterContactDetails({
-        name: CHANGED.interimContact.name,
-        email: 'not-an-email',
-        phone: CHANGED.interimContact.phone
-      })
-      await AddInterimSiteSiteContactPage.continue()
-      await expect(AddInterimSiteSiteContactPage.errorSummary).toBeDisplayed()
-      await expectStillOn(`${interimPath}/contact-details`)
-    })
-
-    it('saved none of the refused changes', async () => {
-      await openItem()
-      await expect(ChangeRequestDetailPage.rowValue('site-name')).toHaveText(
-        NAME
-      )
-      await expect(ChangeRequestDetailPage.successBanner).not.toBeExisting()
-    })
+  it('saved none of the refused changes', async () => {
+    await openItem()
+    await expect(ChangeRequestDetailPage.rowValue('site-name')).toHaveText(NAME)
+    await expect(ChangeRequestDetailPage.successBanner).not.toBeExisting()
   })
 
   it('changes the ORS name', async () => {
@@ -579,7 +575,7 @@ describe(`RA-698: answer a regulator's query on an in-year change request ${DOCK
       { siteName: 'Removed depot' },
       { interimSiteId: INTERIM.oldDepot }
     )
-    expect(removedInterimSite.statusCode).toBe(400)
+    expect(removedInterimSite.statusCode).toBe(422)
   })
 
   it('sends the response through the declaration, which asks for a full name and job title', async () => {
