@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 import { year } from './support.js'
 
 // The status rules the accreditation API's responses follow, shared by the
-// test files: how each status's period is dated (RA-772), and the latest
-// status (latestStatus, RA-773). As
+// test files: how each status's period is dated (RA-772), the latest
+// status (latestStatus, RA-773), and the history as periods that don't
+// overlap (statusTimeline, RA-809). As
 // docs/openapi/registration-accreditation-api.v2.yaml in
 // epr-register-enrol-backend describes them.
 
@@ -40,12 +41,19 @@ export function assertOneOf(value, allowed, what) {
   )
 }
 
-// The day before an ISO date (yyyy-MM-dd), as effectiveToDate is written.
-export function dayBefore(date) {
+// An ISO date (yyyy-MM-dd) a number of days later, or earlier if negative.
+function addDays(date, days) {
   const day = new Date(`${date}T00:00:00Z`)
-  day.setUTCDate(day.getUTCDate() - 1)
+  day.setUTCDate(day.getUTCDate() + days)
   return day.toISOString().slice(0, 10)
 }
+
+// A status history's order of precedence, lowest first: effectiveFromDate, then
+// recordedAt. recordedAt is compared as a time, not as text: as text,
+// 10:00:00Z sorts after 10:00:00.5Z.
+const byPrecedence = (a, b) =>
+  a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
+  Date.parse(a.recordedAt) - Date.parse(b.recordedAt)
 
 // The shape of one status entry, in a statusHistory or as latestStatus.
 export function assertStatusEntry(entry, what) {
@@ -93,7 +101,7 @@ export function assertStatusHistory(history, what, accreditationYear = year) {
       const expectedTo =
         next.effectiveFromDate === entry.effectiveFromDate
           ? entry.effectiveFromDate
-          : dayBefore(next.effectiveFromDate)
+          : addDays(next.effectiveFromDate, -1)
       assert.equal(
         entry.effectiveToDate,
         expectedTo,
@@ -132,13 +140,7 @@ export function assertLatestStatus(record, what) {
 // already checks that the entries are in order, so the last-entry check below it
 // guards the order the API returns them in.
 export function assertLatestStatusMatchesHistory(record, what) {
-  const latest = [...record.statusHistory]
-    .sort(
-      (a, b) =>
-        a.effectiveFromDate.localeCompare(b.effectiveFromDate) ||
-        a.recordedAt.localeCompare(b.recordedAt)
-    )
-    .at(-1)
+  const latest = [...record.statusHistory].sort(byPrecedence).at(-1)
   assert.deepStrictEqual(
     record.latestStatus,
     latest,
@@ -149,6 +151,101 @@ export function assertLatestStatusMatchesHistory(record, what) {
     record.statusHistory.at(-1),
     `${what} latestStatus is the last entry of its statusHistory`
   )
+}
+
+// The status on a date from a statusTimeline: that of the period containing
+// it, or null before the first. ISO dates compare as strings.
+const statusOnFromTimeline = (timeline, date) =>
+  timeline.find(
+    ({ effectiveFromDate, effectiveToDate }) =>
+      effectiveFromDate <= date &&
+      (effectiveToDate === null || date <= effectiveToDate)
+  )?.status ?? null
+
+// The same answer straight from a statusHistory: of the entries started by the
+// date, the latest effectiveFromDate, then the latest recordedAt. The history
+// is oldest first and the sort is stable, so a full tie goes to the later entry.
+const statusOnFromHistory = (history, date) =>
+  history
+    .filter(({ effectiveFromDate }) => effectiveFromDate <= date)
+    .sort(byPrecedence)
+    .at(-1)?.status ?? null
+
+// statusTimeline (RA-809): the statusHistory as periods that don't overlap, in
+// order and with no gaps, adjacent periods of one status merged and only the
+// last open-ended. It ends on latestStatus's status, and gives the same status
+// on a date as the history.
+export function assertStatusTimeline(record, what) {
+  const { statusHistory: history, statusTimeline: timeline } = record
+  assert.ok(
+    Array.isArray(timeline) && timeline.length > 0,
+    `${what} has no statusTimeline`
+  )
+
+  timeline.forEach((period, index) => {
+    assertOneOf(period.status, STATUSES, `${what} timeline status`)
+    assert.match(
+      period.effectiveFromDate,
+      DATE_ONLY,
+      `${what} timeline effectiveFromDate`
+    )
+    assert.ok(
+      'effectiveToDate' in period,
+      `${what} timeline period has no effectiveToDate`
+    )
+    assertAbsent(period, ['recordedAt'], `${what} timeline period`)
+
+    const next = timeline[index + 1]
+    if (!next) {
+      assert.equal(
+        period.effectiveToDate,
+        null,
+        `${what} last timeline period has an effectiveToDate`
+      )
+      return
+    }
+    assert.match(
+      period.effectiveToDate ?? '',
+      DATE_ONLY,
+      `${what} timeline effectiveToDate`
+    )
+    assert.ok(
+      period.effectiveToDate >= period.effectiveFromDate,
+      `${what} timeline period ends before it starts`
+    )
+    assert.equal(
+      next.effectiveFromDate,
+      addDays(period.effectiveToDate, 1),
+      `${what} timeline periods have a gap or overlap`
+    )
+    assert.notEqual(
+      next.status,
+      period.status,
+      `${what} adjacent ${period.status} periods are not merged`
+    )
+  })
+
+  assert.equal(
+    timeline.at(-1).status,
+    record.latestStatus.status,
+    `${what} timeline does not end on latestStatus's status`
+  )
+
+  // The status can only change where an entry or a period starts or ends, so
+  // check each of those days and the days either side.
+  const dates = new Set(
+    [...history, ...timeline]
+      .flatMap((entry) => [entry.effectiveFromDate, entry.effectiveToDate])
+      .filter(Boolean)
+      .flatMap((date) => [-1, 0, 1].map((days) => addDays(date, days)))
+  )
+  for (const date of dates) {
+    assert.equal(
+      statusOnFromTimeline(timeline, date),
+      statusOnFromHistory(history, date),
+      `${what} status on ${date}, from the timeline and from the history`
+    )
+  }
 }
 
 // An accreditation's status to filter on: latestStatus's since RA-773, the

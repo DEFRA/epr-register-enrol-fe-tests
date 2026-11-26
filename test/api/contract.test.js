@@ -13,6 +13,7 @@ import {
   assertAbsent,
   assertOneOf,
   assertStatusHistory,
+  assertStatusTimeline,
   assertLatestStatus,
   assertLatestStatusMatchesHistory
 } from './status-history.js'
@@ -28,6 +29,136 @@ import {
 // in epr-register-enrol-backend describes them (v2, RA-644; an exporter's
 // sites inlined in the accreditation since RA-647), checked on the seeded
 // organisation's granted accreditations.
+
+const MATERIALS = [
+  'Steel',
+  'Wood',
+  'Aluminium',
+  'Fibre',
+  'Glass',
+  'Paper',
+  'Plastic'
+]
+const BANDS = ['up_to_500', 'up_to_5000', 'up_to_10000', 'over_10000']
+const GLASS = ['glass_re_melt', 'glass_other']
+
+function assertSummary(item) {
+  assert.equal(typeof item.organisationNumber, 'number')
+  assert.equal(typeof item.registrationNumber, 'string')
+  assert.equal(typeof item.accreditationNumber, 'string')
+  assert.equal(typeof item.accreditationYear, 'number')
+  assertOneOf(item.material, MATERIALS, 'material')
+  assertOneOf(item.wasteProcessingType, ['reprocessor', 'exporter'], 'type')
+  if ('tonnageBand' in item) {
+    assertOneOf(item.tonnageBand, BANDS, 'tonnageBand')
+  }
+  if ('glassRecyclingProcess' in item) {
+    assertOneOf(item.glassRecyclingProcess, GLASS, 'glassRecyclingProcess')
+  }
+  // v1 names and application data, removed in v2.
+  assertAbsent(
+    item,
+    [
+      'accreditationReference',
+      'year',
+      'prnIssuance',
+      'businessPlan',
+      'siteAddress',
+      'submitterContactDetails',
+      'applicationStatus',
+      'samplingPlan',
+      'samplingInspectionPlan',
+      'besEvidence',
+      'formSubmissionTime'
+    ],
+    'accreditation'
+  )
+}
+
+// An interim site's shape, and its status (RA-781): approved from when its
+// overseas site was, then withdrawn and approved again each time it is
+// withdrawn and restored. Its statusHistory and latestStatus have an
+// accreditation's shape and date rules. Withdrawn interim sites are always
+// returned, so there is no removedAt.
+function assertInterimSite(site, accreditationYear = year) {
+  assert.equal(typeof site.siteId, 'number')
+  assert.equal(typeof site.siteNumber, 'string')
+  assert.equal(typeof site.siteName, 'string')
+  for (const field of ['line1', 'town', 'country']) {
+    assert.equal(
+      typeof site.address?.[field],
+      'string',
+      `interim address.${field}`
+    )
+  }
+  for (const field of ['fullName', 'email', 'phone']) {
+    assert.equal(
+      typeof site.contact?.[field],
+      'string',
+      `interim contact.${field}`
+    )
+  }
+  assert.ok(Array.isArray(site.operationCodes))
+  const what = `interim site ${site.siteName}`
+  assertAbsent(
+    site,
+    ['isNewSite', 'addressLine1', 'contactName', 'removedAt'],
+    what
+  )
+  assertLatestStatus(site, what)
+  assertStatusHistory(site.statusHistory, what, accreditationYear)
+  assertLatestStatusMatchesHistory(site, what)
+  assertStatusTimeline(site, what)
+  site.statusHistory.forEach(({ status }, index) => {
+    assert.equal(
+      status,
+      index % 2 === 0 ? 'approved' : 'withdrawn',
+      `${what} history is approved, then alternates withdrawn and approved`
+    )
+  })
+}
+
+// accreditationYear is the year of the accreditation the site is on: the
+// response's own, or the year the path was built with (support.js's year).
+function assertOverseasSite(site, { accreditationYear = year } = {}) {
+  const what = `site ${site.orsId ?? site.siteName}`
+  assert.equal(typeof site.siteId, 'number')
+  if (site.orsId) {
+    assert.match(site.orsId, /^\d{3}$/)
+  }
+  assert.equal(typeof site.siteName, 'string')
+  assert.ok(Array.isArray(site.operationCodes))
+  assert.equal(typeof site.isEu, 'boolean')
+  assert.equal(typeof site.isOecd, 'boolean')
+  if ('address' in site) {
+    assert.equal(typeof site.address, 'object')
+  }
+  if ('contact' in site) {
+    assert.equal(typeof site.contact, 'object')
+  }
+  // validFrom is no longer served: the status history carries the dates.
+  assertAbsent(site, ['validFrom'], what)
+  assertStatusHistory(site.statusHistory, what, accreditationYear)
+  assertStatusTimeline(site, what)
+  assert.ok(Array.isArray(site.interimSites))
+  for (const interim of site.interimSites) {
+    assertInterimSite(interim, accreditationYear)
+  }
+  assertAbsent(
+    site,
+    [
+      'code1',
+      'code2',
+      'code3',
+      'isNewSite',
+      'selected',
+      'registeredNowAccredited',
+      'interimSiteIds',
+      'siteAddress'
+    ],
+    what
+  )
+}
 
 describe(
   'Accreditation API: v2 response shapes',
@@ -53,6 +184,7 @@ describe(
           'accreditation',
           body.accreditationYear
         )
+        assertStatusTimeline(body, 'accreditation')
 
         assert.ok(Array.isArray(body.tonnageBandHistory))
         for (const entry of body.tonnageBandHistory) {
@@ -93,7 +225,66 @@ describe(
       })
     }
 
-    // RA-802's overseasSites on search: search-overseas-sites.test.js.
+    // RA-802: a search item is a summary (no history) plus, for an exporter,
+    // its overseas sites, in the same shape as getting the accreditation, so
+    // paging through search gives every accreditation with its sites. A
+    // reprocessor item has none.
+    it("searches as a page of summaries, with an exporter's overseas sites (RA-802)", async () => {
+      const { status, body } = await getAccreditationApi(
+        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
+      )
+      assert.equal(status, 200)
+      assert.equal(body.pageNumber, 1)
+      assert.equal(body.limit, 100)
+      assert.equal(body.totalItems, body.items.length)
+      for (const item of body.items) {
+        const what = `search item ${item.registrationNumber}`
+        assertSummary(item)
+        assert.equal(item.accreditationYear, year)
+        assertAbsent(
+          item,
+          [
+            'statusHistory',
+            'statusTimeline',
+            'tonnageBandHistory',
+            'signatories'
+          ],
+          what
+        )
+        if (item.wasteProcessingType === 'reprocessor') {
+          assertAbsent(item, ['overseasSites'], what)
+        }
+      }
+
+      // Matched by registration number, so the item compared is the one
+      // context.exporter's detail path names, however each picks an exporter.
+      const exporter =
+        context.exporter &&
+        body.items.find(
+          ({ registrationNumber }) =>
+            registrationNumber === context.exporter.registrationNumber
+        )
+      if (context.exporter) {
+        assert.ok(
+          exporter,
+          `${context.exporter.registrationNumber} is not in the search`
+        )
+        assert.ok(
+          Array.isArray(exporter.overseasSites),
+          `${exporter.registrationNumber} search item has no overseasSites`
+        )
+        for (const site of exporter.overseasSites) {
+          assertOverseasSite(site, { accreditationYear: year })
+        }
+        const detail = await getAccreditationApi(context.exporter.path)
+        assert.equal(detail.status, 200)
+        assert.deepStrictEqual(
+          exporter.overseasSites,
+          detail.body.overseasSites,
+          "the search item's overseas sites are the accreditation's"
+        )
+      }
+    })
 
     it('searches by registration number for exactly that accreditation', async (t) => {
       if (!requireGranted(t, context.exporter, 'exporter')) {
@@ -408,6 +599,9 @@ describe(
         'the withdrawn interim site is not in the overseas sites list'
       )
       assert.deepStrictEqual(inList.statusHistory, withdrawn.statusHistory)
+      // RA-809: its timeline ends withdrawn, and the list serves the same one.
+      assert.equal(withdrawn.statusTimeline?.at(-1).status, 'withdrawn')
+      assert.deepStrictEqual(inList.statusTimeline, withdrawn.statusTimeline)
     })
 
     it('keeps a restored interim site as one site: approved, withdrawn, approved', (t) => {
@@ -425,6 +619,8 @@ describe(
         restored.latestStatus,
         restored.statusHistory.at(-1)
       )
+      // RA-809: its timeline ends approved again.
+      assert.equal(restored.statusTimeline?.at(-1).status, 'approved')
     })
 
     // recordedAt is when a status change was recorded. The API serves only
