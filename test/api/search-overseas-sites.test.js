@@ -245,6 +245,7 @@ describe(
     let organisationSearch
     let yearSearch
     let ownedNumbers
+    let yearLimit
     const isOwned = ({ accreditationNumber }) =>
       ownedNumbers.has(accreditationNumber)
 
@@ -263,12 +264,12 @@ describe(
       // Without it: every accreditation the year has on test, at a limit
       // that makes at least two pages of it.
       const { totalItems } = await getSearchPage(`year=${year}`, 1, 1)
-      const limit = Math.max(1, Math.min(PAGE_LIMIT, Math.ceil(totalItems / 2)))
-      yearSearch = await searchAllPages(`year=${year}`, limit)
+      yearLimit = Math.max(1, Math.min(PAGE_LIMIT, Math.ceil(totalItems / 2)))
+      yearSearch = await searchAllPages(`year=${year}`, yearLimit)
       const exporters = yearSearch.items.filter(isExporter)
       log(
         `Search for ${year}: ${yearSearch.items.length} accreditations on ` +
-          `${yearSearch.pages.length} pages of ${limit}, ${exporters.length} exporters, up to ` +
+          `${yearSearch.pages.length} pages of ${yearLimit}, ${exporters.length} exporters, up to ` +
           `${Math.max(0, ...exporters.map((e) => e.overseasSites?.length ?? 0))} sites each`
       )
     })
@@ -331,8 +332,12 @@ describe(
 
     it('carries overseasSites on every page of a search without organisationNumber', (t) => {
       const { pages } = yearSearch
-      if (yearSearch.totalItems < 2) {
-        t.skip(`fewer than two accreditations in ${year}, so one page only`)
+      // The limit came from a count taken just before paging; other teams'
+      // data can shrink in between, until the year fits on one page.
+      if (yearSearch.totalItems <= yearLimit) {
+        t.skip(
+          `${yearSearch.totalItems} accreditations in ${year} fit on one page of ${yearLimit}`
+        )
         return
       }
       assert.ok(pages.length >= 2, `only ${pages.length} page searched`)
@@ -389,11 +394,12 @@ describe(
         yearSearch.items.map((item) => [item.accreditationNumber, item])
       )
       for (const item of organisationSearch.items) {
-        // If other teams' data never held still while the year was paged, an
-        // item can have been missed: search for it directly.
+        // Other teams' data can shift items between pages while the year is
+        // paged, even with totalItems unchanged (one added, one removed), so
+        // an item not found there is searched for directly.
         const unfiltered =
           byAccreditationNumber.get(item.accreditationNumber) ??
-          (yearSearch.stable ? undefined : await searchAgain(item))
+          (await searchAgain(item))
         assert.deepStrictEqual(
           unfiltered,
           item,
@@ -418,7 +424,7 @@ describe(
     // query_timeout, so the status is the check. The elapsed time is the
     // client's whole round trip (network and gateway included), so it is
     // reported, not asserted.
-    it(`serves a page of ${PAGE_LIMIT}, exporters included, without a query timeout`, async (t) => {
+    it(`serves a page of ${PAGE_LIMIT}, its exporters with their overseasSites, without a query timeout`, async (t) => {
       const path = `/v1/accreditations?year=${year}&limit=${PAGE_LIMIT}`
       const started = performance.now()
       const { status, body } = await getAccreditationApi(path)
@@ -439,6 +445,12 @@ describe(
       }
       if (exporters === 0) {
         t.skip(`no exporters in the first ${PAGE_LIMIT} of ${year}`)
+        return
+      }
+      // The payload this page's cost is about: a page this large must still
+      // carry each exporter's sites.
+      for (const item of body.items) {
+        assertSearchItemSites(item, { fullShape: false })
       }
     })
   }
