@@ -163,7 +163,11 @@ async function expectSelectedFilters(status, type) {
   ).toBe(type)
 }
 
-async function expectRequestDetails(item, year, { submitted = true } = {}) {
+async function expectRequestDetails(
+  item,
+  year,
+  { submitted = true, queried = false } = {}
+) {
   const detail = ChangeRequestDetailPage
   await expect(detail.requestType).toHaveText(item.type)
   if (submitted) {
@@ -182,7 +186,10 @@ async function expectRequestDetails(item, year, { submitted = true } = {}) {
     item.validTo?.(year) ?? 'Not applicable'
   )
   // Read-only: nothing on the page changes the request.
-  await expect(detail.actions).toBeElementsArrayOfSize(0)
+  // A queried item (RA-698) offers Change links so the operator can answer; it still has no buttons or forms.
+  await expect(
+    queried ? detail.controls : detail.actions
+  ).toBeElementsArrayOfSize(0)
 }
 
 describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
@@ -495,7 +502,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
       await expect(detail.interimSite(INTERIM.oldDepot)).not.toBeExisting()
 
-      await expectRequestDetails(item, year)
+      await expectRequestDetails(item, year, { queried: true })
       await expect(detail.backLink).toHaveAttribute(
         'href',
         urlEndingWith(LIST_PATH)
