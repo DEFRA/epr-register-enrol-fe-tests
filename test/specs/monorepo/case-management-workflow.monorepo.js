@@ -29,12 +29,13 @@ import {
   submitAccreditation
 } from '../../helpers/monorepo-journey.js'
 import {
+  COMBINED_ORS_BES_TASK,
   addOverseasSiteWithInterimSite,
   confirmOverseasSites,
   resubmitApplication,
   updateQueriedBusinessPlan,
   updateQueriedSamplingPlan,
-  uploadOutstandingBesEvidence
+  uploadBesEvidenceForConfirmedSites
 } from '../../helpers/query-response-journey.js'
 import { reportDetails, reportStep } from '../../helpers/report-step.js'
 import { accreditationYear } from '../../config.js'
@@ -122,8 +123,8 @@ const APPLICATIONS = {
     org: MONOREPO_ORGS.exporter,
     isExporter: true,
     applicantType: 'Exporter',
-    querySections: [QUERY_SECTIONS.overseasSites, QUERY_SECTIONS.bes],
-    queriedTasks: ['task-overseas-sites', 'task-bes-evidence']
+    querySections: [QUERY_SECTIONS.overseasSitesAndBes],
+    queriedTasks: [COMBINED_ORS_BES_TASK]
   }
 }
 
@@ -289,7 +290,7 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
       `Operator: add overseas site ${QUERY_SITE.name} with interim site ${QUERY_INTERIM_SITE.name}`,
       async () => {
         await openQueriedApplication(APPLICATIONS.exporter)
-        await QueryTaskListPage.taskLink('task-overseas-sites').click()
+        await QueryTaskListPage.taskLink(COMBINED_ORS_BES_TASK).click()
         await expect(browser).toHaveUrl(
           expect.stringContaining('/accreditation/select-overseas-sites')
         )
@@ -300,14 +301,12 @@ describe(`Accreditation case management workflow ${accreditationYear} @monorepo`
           interimRecyclingOperationCodes: ['R12', 'R13']
         })
         await confirmOverseasSites()
-        await expect(browser).toHaveUrl(
-          expect.stringContaining('/accreditation/query-task-list/')
-        )
       }
     )
-    // The new site is outside the EU and OECD, so needs BES evidence.
+    // RA-698: confirming the sites goes straight on to the BES evidence, which
+    // the new site, outside the EU and OECD, needs.
     await reportStep('Operator: upload the BES evidence for the new site', () =>
-      uploadOutstandingBesEvidence()
+      uploadBesEvidenceForConfirmedSites()
     )
     await resubmit('exporter')
   })

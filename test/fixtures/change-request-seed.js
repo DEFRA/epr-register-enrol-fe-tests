@@ -42,3 +42,19 @@ export const SUBMITTER_NAME = 'Sam Patel'
 const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
 export const dayOf = (month, day) => (year) =>
   `${day} ${MONTHS[month - 1]} ${year}`
+
+// RA-698: the note the seed gives every Queried item (DevChangeRequestSeedService
+// and the frontend's stub-change-request-seed.js).
+export const QUERY_NOTE =
+  'Please confirm the site contact details and upload evidence of broadly equivalent standards.'
+
+// The id of the request holding an item: the item id with item number 0, e.g.
+// 00002026-0000-0000-a000-050018000008 for org 50018's exporter's 8th request.
+export const changeRequestId = (organisationId, year, side, request) =>
+  changeItemId(organisationId, year, side, request, 0)
+
+// The seeded exporter accreditation's application id, which the backend's
+// accreditation-changes routes take: "a", the year, then the org id padded to
+// 19 digits (the backend's DevExporterAccreditationSeedService.ApplicationIdFor).
+export const exporterApplicationId = (organisationId, year) =>
+  `a${year}${organisationId.padStart(19, '0')}`

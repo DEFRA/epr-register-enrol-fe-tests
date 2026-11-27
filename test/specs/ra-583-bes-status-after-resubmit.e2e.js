@@ -136,15 +136,14 @@ describe('RA-583: BES status after an ORS+BES query resubmission @docker-only', 
     })
 
     await QueryTaskListPage.open(applicationId)
-    await expect(QueryTaskListPage.taskTag('task-overseas-sites')).toHaveText(
-      'QUERIED'
-    )
-    await expect(QueryTaskListPage.taskTag('task-bes-evidence')).toHaveText(
-      'QUERIED'
-    )
+    // RA-698: queried together, they are one task.
+    await expect(
+      QueryTaskListPage.taskTag('task-overseas-sites-bes-evidence')
+    ).toHaveText('QUERIED')
+    await expect(QueryTaskListPage.taskTag('task-bes-evidence')).not.toExist()
 
     // Operator fixes ORS — re-confirms the same accredited sites.
-    await QueryTaskListPage.taskLink('task-overseas-sites').click()
+    await QueryTaskListPage.taskLink('task-overseas-sites-bes-evidence').click()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
@@ -156,13 +155,8 @@ describe('RA-583: BES status after an ORS+BES query resubmission @docker-only', 
     await ConfirmOverseasSitesPage.confirmAndContinue()
 
     // Operator confirms BES evidence — already uploaded and Clean, so this
-    // just walks back through the evidence list to Continue.
-    await browser.waitUntil(
-      async () =>
-        (await browser.getUrl()).includes('/accreditation/query-task-list/'),
-      { timeout: 10000, timeoutMsg: 'Did not return to query task list' }
-    )
-    await QueryTaskListPage.taskLink('task-bes-evidence').click()
+    // just walks through the evidence list to Continue. RA-698: confirming the
+    // sites goes straight to it.
     await expect(browser).toHaveUrl(
       expect.stringContaining(
         '/accreditation/upload-evidence-for-overseas-site/'

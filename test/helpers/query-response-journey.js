@@ -185,6 +185,26 @@ export async function updateQueriedSamplingPlan(baseName) {
   await waitForQueryTaskList()
 }
 
+/**
+ * RA-698: the overseas sites and the BES evidence, queried together, are one
+ * task on the query task list.
+ */
+export const COMBINED_ORS_BES_TASK = 'task-overseas-sites-bes-evidence'
+
+/**
+ * RA-698: after confirming the sites of a combined ORS and BES query, the
+ * operator lands straight on the BES evidence list instead of the query task
+ * list. Uploads the evidence still outstanding, which goes back to the query
+ * task list with both sections done.
+ */
+export async function uploadBesEvidenceForConfirmedSites() {
+  await expect(browser).toHaveUrl(
+    expect.stringContaining('/accreditation/upload-evidence-for-overseas-site/')
+  )
+  await BesEvidencePage.uploadAllEvidence(EVIDENCE_FIXTURE)
+  await waitForQueryTaskList()
+}
+
 /** Uploads BES evidence for every site still showing "Not uploaded". */
 export async function uploadOutstandingBesEvidence() {
   await QueryTaskListPage.taskLink('task-bes-evidence').click()

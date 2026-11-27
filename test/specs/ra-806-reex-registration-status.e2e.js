@@ -64,7 +64,7 @@ describe('RA-806: a registration takes its status from ReEx when its application
 
     await ChangeRequestsPage.open(`${org.managePath}/change-requests`)
     await expect(ChangeRequestsPage.pageHeading).toHaveText(
-      'In year change requests'
+      'In year change applications'
     )
     await expect(ChangeRequestsPage.pageCaption).toHaveText(
       `${org.organisationName} (${year}, ${org.material})`

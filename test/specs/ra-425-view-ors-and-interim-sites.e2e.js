@@ -109,7 +109,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
     await expect(browser).toHaveUrl(urlEndingWith(MANAGE_PATH))
     const managePage = ManageRegistrationAccreditationPage
     await expect(managePage.pageHeading).toHaveText(
-      'Manage registration and accreditation'
+      'Manage your registration and accreditation'
     )
     await expect(managePage.pageCaption).toHaveText(caption(year))
     await expect(managePage.applicationStatusTag).toHaveText('GRANTED')
@@ -129,7 +129,10 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       urlEndingWith(REEX_REGISTRATION_PATH)
     )
 
-    await managePage.openManageOverseasSites()
+    // RA-698: the seed's Queried ORS update means no ORS can be added, so
+    // the link to the overseas sites page is hidden; its page still opens.
+    await expect(managePage.manageOverseasSitesLink).not.toBeExisting()
+    await ManageOverseasSitesPage.open(OVERSEAS_SITES_PATH)
 
     await expect(browser).toHaveUrl(urlEndingWith(OVERSEAS_SITES_PATH))
     await expect(ManageOverseasSitesPage.pageHeading).toHaveText(
@@ -227,7 +230,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
 
       await expect(browser).toHaveUrl(urlEndingWith(MANAGE_PATH))
       await expect(ManageRegistrationAccreditationPage.pageHeading).toHaveText(
-        'Manage registration and accreditation'
+        'Manage your registration and accreditation'
       )
     })
 

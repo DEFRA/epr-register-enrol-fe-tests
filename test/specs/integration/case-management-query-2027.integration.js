@@ -17,10 +17,11 @@ import {
   WORK_ITEM_STATES
 } from '../../helpers/case-management-journey.js'
 import {
+  COMBINED_ORS_BES_TASK,
   addOverseasSiteWithInterimSite,
   confirmOverseasSites,
   resubmitApplication,
-  uploadOutstandingBesEvidence
+  uploadBesEvidenceForConfirmedSites
 } from '../../helpers/query-response-journey.js'
 import { signInToReex } from '../../helpers/reex-reaccreditation.js'
 import {
@@ -134,9 +135,10 @@ describe(`Case management query and determination ${accreditationYear} - integra
       )
     )
 
-    // ── Case management: query the overseas sites and BES sections ──────────
+    // ── Case management: query the overseas sites and BES evidence ──────────
+    // RA-698: one checkbox covers both, and the operator gets them as one task.
     await queryWorkItem({
-      sections: [QUERY_SECTIONS.overseasSites, QUERY_SECTIONS.bes],
+      sections: [QUERY_SECTIONS.overseasSitesAndBes],
       reason:
         'Please add an additional overseas reprocessing site and upload BES evidence.'
     })
@@ -172,15 +174,20 @@ describe(`Case management query and determination ${accreditationYear} - integra
       expect.stringContaining('/accreditation/query-task-list/')
     )
 
-    // Only the two queried sections are unlocked for editing.
-    await expect(QueryTaskListPage.taskTag('task-overseas-sites')).toHaveText(
+    // RA-698: the two queried sections are unlocked as one task, which appears
+    // once, and neither has a task of its own.
+    await expect(QueryTaskListPage.taskTag(COMBINED_ORS_BES_TASK)).toHaveText(
       'QUERIED'
     )
-    await expect(QueryTaskListPage.taskTag('task-bes-evidence')).toHaveText(
-      'QUERIED'
-    )
+    await expect(
+      $$(`[data-testid="${COMBINED_ORS_BES_TASK}"]`)
+    ).toBeElementsArrayOfSize(1)
+    await expect(
+      QueryTaskListPage.taskLink('task-overseas-sites')
+    ).not.toExist()
+    await expect(QueryTaskListPage.taskLink('task-bes-evidence')).not.toExist()
 
-    await QueryTaskListPage.taskLink('task-overseas-sites').click()
+    await QueryTaskListPage.taskLink(COMBINED_ORS_BES_TASK).click()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/select-overseas-sites')
     )
@@ -196,10 +203,12 @@ describe(`Case management query and determination ${accreditationYear} - integra
     })
     await confirmOverseasSites()
 
+    // Confirming the sites goes straight on to the BES evidence, and finishing
+    // that completes both sections, which are resubmitted together.
+    await uploadBesEvidenceForConfirmedSites()
     await expect(browser).toHaveUrl(
       expect.stringContaining('/accreditation/query-task-list/')
     )
-    await uploadOutstandingBesEvidence()
 
     await resubmitApplication()
 

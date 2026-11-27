@@ -110,6 +110,11 @@ class ChangeRequestsPage extends Page {
     return $(`[data-testid="change-request-view-${itemId}"]`)
   }
 
+  // RA-698: opens an item's page from its row's View link.
+  async openItem(itemId) {
+    await this.clickAndWaitForNextPage(this.viewLink(itemId))
+  }
+
   // The item ids of the rows on this page, top to bottom.
   async rowItemIds() {
     const ids = []
