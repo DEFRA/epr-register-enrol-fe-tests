@@ -477,7 +477,7 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
 
     await expect(ManageOverseasSitesPage.pendingChangeBanner).toHaveText(
       expect.stringContaining(
-        'Your regulator is reviewing your application to add 2 overseas reprocessing sites to your accreditation. You will not be able to apply for any other changes to these sites until your regulator makes their decisions.'
+        'Your regulator is reviewing your application to add or change 2 overseas reprocessing sites on your accreditation. You will not be able to apply for any other changes to these sites until your regulator makes their decisions.'
       )
     )
     await expect(ManageOverseasSitesPage.requestsBanner).not.toExist()

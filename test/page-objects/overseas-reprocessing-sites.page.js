@@ -18,10 +18,9 @@ class OverseasReprocessingSitesPage extends withInterimSiteDisclosure(Page) {
     return $('[data-testid="add-new-ors-button"]')
   }
 
-  // The "Approved" section's heading (RA-814: "Accredited" before; the
-  // test id kept its old name).
-  get accreditedHeading() {
-    return $('[data-testid="accredited-heading"]')
+  // The "Approved" section's heading ("Accredited" before RA-814).
+  get approvedHeading() {
+    return $('[data-testid="approved-heading"]')
   }
 
   get registeredHeading() {

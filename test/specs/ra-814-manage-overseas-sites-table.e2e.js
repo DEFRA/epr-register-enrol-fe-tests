@@ -23,7 +23,7 @@ import { MANAGE_PATH as NO_OVERSEAS_SITES_MANAGE_PATH } from '../fixtures/no-ove
  *
  * Read-only, against the backend's dev seed (see ra-425's header):
  *   - org 50018 (test/fixtures/manage-exporter-org.js): ORSs 001-003
- *     accredited, each held by a submitted ORS update in RA-697's change
+ *     approved, each held by a submitted ORS update in RA-697's change
  *     request seed (queried, submitted and updated items), so Pending; 004
  *     Dragon registered and in the accreditation's in-progress request.
  *     RA-682's update-accredited-ors monorepo spec covers Change;

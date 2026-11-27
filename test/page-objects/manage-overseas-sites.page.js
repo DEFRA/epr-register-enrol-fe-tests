@@ -46,7 +46,7 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
   }
 
   get pagination() {
-    return $('.govuk-pagination')
+    return $('[data-testid="overseas-sites-pagination"]')
   }
 
   // Shown instead of the table when the operator has no ORSs at all.
@@ -60,13 +60,17 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     return $('.govuk-tabs')
   }
 
-  async columnHeadings() {
-    const headings = await this.table.$$('thead th')
+  // The visible text of each element, in page order.
+  async texts(elements) {
     const texts = []
-    for (const heading of [...headings]) {
-      texts.push(await heading.getText())
+    for (const element of [...(await elements)]) {
+      texts.push(await element.getText())
     }
     return texts
+  }
+
+  async columnHeadings() {
+    return this.texts(this.table.$$('thead th'))
   }
 
   siteRow(siteId) {
@@ -90,31 +94,20 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     return $(`[data-testid="ors-status-tag-${siteId}"]`)
   }
 
-  // The row's Actions cell: the last of its three.
   siteActionsCell(siteId) {
-    return this.siteRow(siteId).$('td:last-child')
+    return $(`[data-testid="site-actions-${siteId}"]`)
   }
 
   // The ORS ids of the rows on this page, in page order. Read from each row's
   // own ORS id cell, so interim sites are never counted.
   async rowOrsIds() {
-    const cells = await this.table.$$('[data-testid^="site-orsid-"]')
-    const orsIds = []
-    for (const cell of [...cells]) {
-      orsIds.push(await cell.getText())
-    }
-    return orsIds
+    return this.texts(this.table.$$('[data-testid^="site-orsid-"]'))
   }
 
   // The visible text of every link and button in the page's main content,
   // to check that no control the page must not offer has crept in.
   async controlTexts() {
-    const controls = await $$('main a, main button')
-    const texts = []
-    for (const control of [...controls]) {
-      texts.push(await control.getText())
-    }
-    return texts
+    return this.texts($$('main a, main button'))
   }
 
   // RA-492 (f12): shown while the in-progress request has sites in it.

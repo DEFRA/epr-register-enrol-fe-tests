@@ -144,7 +144,7 @@ describe(`RA-425: view ORSs and interim sites for an existing accreditation ${DO
       await ManageOverseasSitesPage.pageHeading.waitForDisplayed()
     })
 
-    it('lists every ORS, accredited or registered, each with only its current interim sites', async () => {
+    it('lists every ORS, approved or registered, each with only its current interim sites', async () => {
       await expectSite(ORS.rotterdam, {
         orsId: '001',
         name: 'Rotterdam Recycling BV',
