@@ -79,12 +79,17 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
     [
       // RA-820: search takes pages of up to 500; overseas sites stay at 100.
       'a search limit over 500',
-      () => '/v1/accreditations?limit=501',
+      () => '/v1/accreditations?searchLimit=501',
       'invalid_paging'
     ],
     [
       'a search limit of 0',
-      () => '/v1/accreditations?limit=0',
+      () => '/v1/accreditations?searchLimit=0',
+      'invalid_paging'
+    ],
+    [
+      'a non-numeric search limit',
+      () => '/v1/accreditations?searchLimit=abc',
       'invalid_paging'
     ],
     [
@@ -99,6 +104,41 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
       assertProblem(await getAccreditationApi(path()), 400, code)
     })
   }
+
+  // RA-820: the search's page size is searchLimit. limit, which it used to
+  // take, and any other parameter the search does not define are refused, not
+  // ignored, so a client that sends the wrong name finds out instead of
+  // silently getting the default page.
+  describe('search parameters it does not define', () => {
+    const unwanted = [
+      ['limit, the old name for searchLimit', 'limit=500'],
+      ['limit in another case', 'Limit=500'],
+      ['limit alongside searchLimit', 'searchLimit=500&limit=500'],
+      ['a parameter the search has never had', 'foo=bar']
+    ]
+
+    for (const [what, query] of unwanted) {
+      it(`answers 400 for ${what} (${query})`, async () => {
+        const path = `/v1/accreditations?year=${year}&${query}`
+        const response = await getAccreditationApi(path)
+        assert.equal(
+          response.status,
+          400,
+          `GET ${path} answered ${response.status}: ${JSON.stringify(response.body).slice(0, 300)}`
+        )
+      })
+    }
+
+    for (const searchLimit of [1, 500]) {
+      it(`takes a searchLimit of ${searchLimit}`, async () => {
+        const path = `/v1/accreditations?year=${year}&searchLimit=${searchLimit}`
+        const { status, body } = await getAccreditationApi(path)
+        assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
+        assert.equal(body.limit, searchLimit, `GET ${path}: page size`)
+        assert.ok(body.items.length <= searchLimit)
+      })
+    }
+  })
 
   it('answers 404 accreditation_not_found for a registration the organisation does not have', async () => {
     assertProblem(

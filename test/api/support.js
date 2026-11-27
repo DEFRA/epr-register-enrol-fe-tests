@@ -72,7 +72,7 @@ export async function organisationUnderTest() {
  */
 export async function loadApiContext() {
   const organisation = await organisationUnderTest()
-  const searchPath = `/v1/accreditations?year=${year}&organisationNumber=${organisation.orgId}&limit=100`
+  const searchPath = `/v1/accreditations?year=${year}&organisationNumber=${organisation.orgId}&searchLimit=100`
   const response = await getAccreditationApi(searchPath)
   assert.equal(
     response.status,

@@ -57,7 +57,7 @@ describe(
     let context
     let orgId
     const searchFor = (query) =>
-      `/v1/accreditations?year=${year}&organisationNumber=${orgId}&limit=100${query}`
+      `/v1/accreditations?year=${year}&organisationNumber=${orgId}&searchLimit=100${query}`
 
     before(async () => {
       context = await loadApiContext()
@@ -80,7 +80,7 @@ describe(
     for (const filter of OTHER_STATUSES) {
       it(`accepts status=${filter} as a search filter`, async () => {
         const { status, body } = await getAccreditationApi(
-          `/v1/accreditations?status=${filter}&limit=1`
+          `/v1/accreditations?status=${filter}&searchLimit=1`
         )
         assert.equal(status, 200, JSON.stringify(body))
       })
@@ -93,7 +93,7 @@ describe(
         { todo: `case management cannot send ${filter} yet (RA-702)` },
         async () => {
           const { status, body } = await getAccreditationApi(
-            `/v1/accreditations?status=${filter}&limit=100`
+            `/v1/accreditations?status=${filter}&searchLimit=100`
           )
           assert.equal(status, 200, JSON.stringify(body))
           assert.ok(
@@ -110,7 +110,7 @@ describe(
     it('orders the search by accreditationNumber, the same on every call', async () => {
       const numbers = async () => {
         const { status, body } = await getAccreditationApi(
-          `/v1/accreditations?year=${year}&limit=100`
+          `/v1/accreditations?year=${year}&searchLimit=100`
         )
         assert.equal(status, 200)
         return body.items.map(({ accreditationNumber }) => accreditationNumber)
