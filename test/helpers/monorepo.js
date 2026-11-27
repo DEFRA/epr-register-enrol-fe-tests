@@ -162,9 +162,8 @@ export async function workItemsFor({ registrationId }) {
 /** The case management work item type an add-ORS change request raises. */
 export const ADD_OVERSEAS_SITE_TYPE_ID = 'add-overseas-site'
 
-// RA-682: ORS changes are add-ORS or ORS update work items. A request holding
-// both is sent as one submission per type, the update one under
-// `{requestId}:update-overseas-site`.
+// RA-682: ORS changes are add-ORS or ORS update work items. RA-782: a request
+// holding both is sent as one submission, under the request's own id.
 export const UPDATE_OVERSEAS_SITE_TYPE_ID = 'update-overseas-site'
 const ORS_CHANGE_TYPE_IDS = [
   ADD_OVERSEAS_SITE_TYPE_ID,
@@ -509,9 +508,8 @@ const snapshotName = (organisationId, containerId, applicationIds) =>
   }.json`
 
 // Whether a file in SNAPSHOT_DIRECTORY is one of the organisation's
-// snapshots, from any stack (or the pre-RA-782-round-2 name, with no stack).
+// snapshots, from any stack.
 const isOrganisationSnapshot = (file, organisationId) =>
-  file === `ors-snapshot-${organisationId}.json` ||
   file.startsWith(`ors-snapshot-${organisationId}-`)
 
 /**
@@ -534,9 +532,8 @@ function logSnapshot(organisationId, message) {
 
 /**
  * Deletes the organisation's snapshots that can never be restored on this
- * stack: one with the old name (no stack recorded), one this stack left for
- * applications it no longer has (reseeded), and one another stack left over
- * SNAPSHOT_MAX_AGE_MS ago. A newer one from another stack is left for it.
+ * stack: one this stack left for applications it no longer has (reseeded),
+ * and one another stack left over SNAPSHOT_MAX_AGE_MS ago. A newer one from another stack is left for it.
  *
  * @param {{ organisationId: string, containerId: string, keep: string }} args
  */
@@ -549,9 +546,7 @@ async function discardStaleSnapshots({ organisationId, containerId, keep }) {
     }
     const full = path.join(SNAPSHOT_DIRECTORY, file)
     let reason
-    if (file === `ors-snapshot-${organisationId}.json`) {
-      reason = 'it records no stack'
-    } else if (file.startsWith(thisStack)) {
+    if (file.startsWith(thisStack)) {
       reason = 'its applications are no longer on this stack'
     } else {
       const { mtimeMs } = await stat(full).catch(() => ({ mtimeMs: 0 }))

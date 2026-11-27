@@ -23,7 +23,8 @@ class CmWorkItemPage extends Page {
 
   // RA-739. An add-ORS (in-year change) header: "Site name (ORS id)" as its
   // title and the site's charge. RA-495 dropped its reference caption, as the
-  // breadcrumb already shows the reference.
+  // breadcrumb already shows the reference. RA-782: an ORS update's header
+  // has the application reference as its caption.
   get headerCaption() {
     return $('[data-testid="case-header-caption"]')
   }
@@ -34,6 +35,16 @@ class CmWorkItemPage extends Page {
 
   get headerCharge() {
     return $('[data-testid="case-header-charge"]')
+  }
+
+  /**
+   * A meta item's value in the case header, e.g. location or payment-date
+   * (RA-782's update header).
+   *
+   * @param {string} key the item's key in its case-header-* testid
+   */
+  headerMeta(key) {
+    return $(`[data-testid="case-header-${key}"]`)
   }
 
   /** The case tabs' names, in order. */

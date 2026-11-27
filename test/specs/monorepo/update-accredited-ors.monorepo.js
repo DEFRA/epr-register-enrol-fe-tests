@@ -51,15 +51,17 @@ import {
 //   6 AC05/AC06  submit: the payment page, for C alone
 //   7 AC03       A, B and C are pending; D can still be added, E changed
 //   8            case management raised two ORS update work items and one
-//                add-ORS work item, the updates under their own request id
+//                add-ORS work item, all under the request's id and one SUB
+//                reference
 //   9 AC05       an interim-only change to E is free: straight to the
 //                confirmation, no payment page
 //
 // The run first deletes 50025's change requests and the case management work
 // items and submissions they raised, so it can be run again and again. Nothing
-// here is approved, so the seeded ORSs never change; it also puts A and B back
-// as a review-ors-update run killed before its `after` hook found them (see
-// resetOverseasSites), as that spec grants a change to A. The tests share one
+// here is approved, so the seeded ORSs never change. review-ors-update does
+// grant a change to A, and puts A and B back in its `after` hook; if a run of
+// it is killed before that hook, this run puts them back instead (see
+// resetOverseasSites). The tests share one
 // request and run in order: each skips when the one before did not get as far
 // as it needs.
 
@@ -358,14 +360,19 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
     )
     expect(workItems).toHaveLength(3)
     expect(bySite[ORS.c.siteId].typeId).toBe(ADD)
-    expect(bySite[ORS.c.siteId].operatorRequestId).toBe(progress.requestId)
     expect(bySite[ORS.c.siteId].chargePence).toBeGreaterThan(0)
     for (const site of [ORS.a, ORS.b]) {
       expect(bySite[site.siteId].typeId).toBe(UPDATE)
-      expect(bySite[site.siteId].operatorRequestId).toBe(
-        `${progress.requestId}:${UPDATE}`
-      )
       expect(bySite[site.siteId].chargePence).toBe(0)
+    }
+    // RA-767: one POST for the whole request, so one submission: every item
+    // carries the request's own id, one SUB reference and the request's size.
+    for (const workItem of workItems) {
+      expect(workItem.operatorRequestId).toBe(progress.requestId)
+      expect(workItem.submissionReference).toBe(
+        workItems[0].submissionReference
+      )
+      expect(workItem.submissionSize).toBe(3)
     }
     expect(bySite[ORS.a.siteId].proposed.siteName).toBe('Gdansk Recycling')
     expect(bySite[ORS.a.siteId].interimSiteChanges).toEqual([

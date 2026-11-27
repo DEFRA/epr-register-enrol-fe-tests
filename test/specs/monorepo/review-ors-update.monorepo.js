@@ -251,7 +251,7 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
       await waitForPath('/declaration')
       await SubmitApplicationPage.submitApplication()
       // C is charged for, so the payment page; reached only once case
-      // management has accepted both groups.
+      // management has accepted the request (one submission for A and C).
       await waitForPath('/payment')
     })
 
@@ -339,6 +339,17 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
       await expect(CmWorkItemPage.headerTitle).toHaveText(
         `${ORS.a.siteName} (${ORS.a.orsId})`
       )
+      // RA-782 AC1 and AC4(a): the application reference (as the caption)
+      // and the location, and no charge or payment date, as an update is
+      // never paid for.
+      await expect(CmWorkItemPage.headerCaption).toHaveText(
+        progress.a.applicationReference
+      )
+      await expect(CmWorkItemPage.headerMeta('location')).toHaveText(
+        expect.stringContaining('Poland')
+      )
+      await expect(CmWorkItemPage.headerCharge).toHaveText('-')
+      await expect(CmWorkItemPage.headerMeta('payment-date')).toHaveText('-')
       expect(await CmWorkItemPage.tabNames()).toEqual([
         'Application summary',
         'Accreditation summary',
@@ -434,8 +445,8 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
         await CmDulyMakePage.submitButton.waitForDisplayed({ timeout: 30000 })
         await expect(CmDulyMakePage.paymentDateGroup).not.toExist()
         await expect(CmDulyMakePage.chargeAmount).toHaveText('-')
-        await CmDulyMakePage.completeDulyMaking()
-        await CmWorkItemPage.waitUntilLoaded()
+        await openWorkItem(workItemId)
+        await dulyMakeWorkItem({ paymentDate: null })
         await expect(CmWorkItemPage.stateTag).toHaveText(
           WORK_ITEM_STATES.dulyMade
         )
@@ -522,8 +533,8 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
     requireStage(this, progress, 'granted')
     await signInAsOperator()
 
-    const item = await currentItem(ORS.a)
-    expect(item.status).toBe('Approved')
+    // Confirming contact pushes the decision in the background.
+    const item = await waitForItemStatus(ORS.a, 'Approved')
     await expectOperatorStatus(item.itemId, 'GRANTED')
 
     await reportStep("Operator: A's details page", async () => {
@@ -610,8 +621,7 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
     requireStage(this, progress, 'refused')
     await signInAsOperator()
 
-    const item = await currentItem(ORS.b)
-    expect(item.status).toBe('Rejected')
+    const item = await waitForItemStatus(ORS.b, 'Rejected')
     await expectOperatorStatus(item.itemId, 'REFUSED')
 
     await openDetails(ORS.b)
