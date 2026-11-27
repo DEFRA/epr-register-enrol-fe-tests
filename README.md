@@ -77,9 +77,10 @@ run in CI, and no other config picks them up.
   org 50019's Lyon site; the regulator duly makes it (the request reads
   DULY MADE and the site stays locked), refuses it and confirms contact, so
   the case closes, the request reads REFUSED and the site can be requested
-  again; the operator requests it again; the regulator duly makes, approves
-  and confirms contact, so the request reads GRANTED, valid from its
-  submission date, and Lyon is on the Accredited tab.
+  again; the operator requests it again; the regulator duly makes and
+  approves it with a valid from date, corrects that date with a reason
+  (RA-800) and confirms contact, so the request reads GRANTED, valid from the
+  corrected date, and Lyon is on the Accredited tab.
 - `add-ors-bes-evidence-checks` (RA-495): an add-ORS request's BES upload
   for org 50019's Delhi site is checked against the files the site already
   holds on the accreditation. An upload over the 10-file cap is refused, and
@@ -87,6 +88,13 @@ run in CI, and no other config picks them up.
   sampling plan file, which the backend refuses after the CDP upload).
   Submit checks both rules again, and the requests page shows the upload
   message, linking to the refused site.
+- `update-accredited-ors` (RA-682): the operator changes the details of two
+  of org 50025's accredited ORSs (one with its interim sites changed, removed
+  and added) and adds a registered one in the same request, so only the add is
+  charged; the submitted ORSs are then pending, and case management raises an
+  add-ORS work item and two ORS update work items, the updates under their own
+  request id. An interim-only change to a third ORS is free, so it goes
+  straight to the confirmation with no payment page.
 
 1. Start the monorepo's stack from its root: `docker compose up --build -d`.
    It binds the same ports as this repo's own stack (3000, 8080), so stop
@@ -103,12 +111,15 @@ so every run starts afresh: `case-management-workflow` deletes the
 applications and case management work items of 50016 (the reprocessor) and
 50015 (the exporter), so both start from NOT STARTED; `add-ors-to-case-management`
 deletes 50019's change requests and the work items and submissions they
-raised, and `add-ors-case-management-decision` does the same and puts Lyon
-back to registered only. `add-ors-bes-evidence-checks` deletes 50019's change
+raised (add-ORS and ORS update alike), and
+`add-ors-case-management-decision` does the same and puts Lyon back to
+registered only. `add-ors-bes-evidence-checks` deletes 50019's change
 requests, clears Delhi's BES evidence on the accreditation and removes the
 sampling plan files it adds (`e2e-plan-…`), then gives Delhi and the sampling
-plan the files each check needs. What a run leaves is kept, to look at, until the
-next run, except `add-ors-case-management-decision` and
+plan the files each check needs. `update-accredited-ors` deletes 50025's
+change requests and the work items and submissions they raised; it approves
+nothing, so 50025's seeded ORSs never change. What a run leaves is kept, to
+look at, until the next run, except `add-ors-case-management-decision` and
 `add-ors-bes-evidence-checks`, which reset 50019 afterwards too: a granted Lyon
 would otherwise stop the other 50019 specs adding it, and the files given to
 Delhi would trip their uploads. All the 50019 specs share that organisation,

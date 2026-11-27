@@ -22,14 +22,16 @@ import {
 import { getAccreditationChanges } from '../../helpers/case-management.js'
 import { continueReview } from '../../helpers/monorepo-case-management.js'
 import {
-  addOverseasSiteWorkItemsFor,
+  ADD_OVERSEAS_SITE_TYPE_ID,
   clearChangeRequests,
+  orsWorkItemsFor,
   skipUnlessMonorepoRun
 } from '../../helpers/monorepo.js'
 import { signInAsOperator } from '../../helpers/monorepo-journey.js'
 import { reportDetails, reportStep } from '../../helpers/report-step.js'
+import { requireStage } from '../../helpers/require-stage.js'
 import { readSeededYear } from '../../helpers/seeded-year.js'
-import { waitForUrl } from '../../helpers/wait-for-url.js'
+import { waitForPath } from '../../helpers/wait-for-url.js'
 import {
   MANAGE_PATH,
   MATERIAL,
@@ -118,21 +120,6 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
         interval: 1000,
         timeoutMsg: `The operator backend's item did not become ${status}`
       }
-    )
-  }
-
-  function requireStage(context, stage) {
-    if (!progress[stage]) {
-      reportDetails('Skipped', { reason: `not ${stage}` })
-      context.skip()
-    }
-  }
-
-  async function waitForPath(suffix, { timeout = 30000 } = {}) {
-    await waitForUrl(
-      (url) => new URL(url).pathname.endsWith(suffix),
-      `Did not reach ${suffix}`,
-      { timeout }
     )
   }
 
@@ -232,10 +219,11 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   })
 
   it('Case management: raised one work item per site, sharing a submission reference', async function () {
-    requireStage(this, 'submitted')
+    requireStage(this, progress, 'submitted')
 
-    const workItems = await addOverseasSiteWorkItemsFor({
-      organisationId: ORGANISATION_ID
+    const workItems = await orsWorkItemsFor({
+      organisationId: ORGANISATION_ID,
+      typeIds: [ADD_OVERSEAS_SITE_TYPE_ID]
     })
     reportDetails('Work items', workItems)
     expect(workItems).toHaveLength(SITES.length)
@@ -259,7 +247,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   })
 
   it('Regulator: lists each site as its own New ORS accreditation under the In-year change filter', async function () {
-    requireStage(this, 'raised')
+    requireStage(this, progress, 'raised')
     await signInToCaseManagement()
 
     const listed = await reportStep(
@@ -295,7 +283,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   })
 
   it("Regulator: opens a site's application from the list, with its header, tabs and Application summary", async function () {
-    requireStage(this, 'listed')
+    requireStage(this, progress, 'listed')
 
     // Lyon: complete, so everything the page shows came from its ORS.
     const site = LYON
@@ -345,7 +333,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   })
 
   it("Operator: each site's change request shows its own case management reference", async function () {
-    requireStage(this, 'submitted')
+    requireStage(this, progress, 'submitted')
     await signInAsOperator()
 
     for (const item of Object.values(progress.items)) {
@@ -367,7 +355,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   })
 
   it("Regulator: queries Lyon's application with the one combined scope, and no section checkboxes", async function () {
-    requireStage(this, 'listed')
+    requireStage(this, progress, 'listed')
     const item = progress.items[LYON.siteId]
     const card = progress.cards.find(
       ({ reference }) => reference === item.reference
@@ -408,7 +396,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   })
 
   it('Operator: answers the query by changing the ORS name and contact details, and the item becomes Updated', async function () {
-    requireStage(this, 'queried')
+    requireStage(this, progress, 'queried')
     const { itemId } = progress.items[LYON.siteId]
     const itemPath = `${MANAGE_PATH}/change-requests/${itemId}`
     await signInAsOperator()
@@ -467,7 +455,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   })
 
   it("Regulator: sees Lyon's application Updated with the operator's answer, and continues the review", async function () {
-    requireStage(this, 'updated')
+    requireStage(this, progress, 'updated')
     const item = progress.items[LYON.siteId]
     const card = progress.cards.find(
       ({ reference }) => reference === item.reference

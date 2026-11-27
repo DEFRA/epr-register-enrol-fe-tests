@@ -77,8 +77,9 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
       'invalid_status'
     ],
     [
-      'a search limit over 100',
-      () => '/v1/accreditations?limit=101',
+      // RA-820: search takes pages of up to 500; overseas sites stay at 100.
+      'a search limit over 500',
+      () => '/v1/accreditations?limit=501',
       'invalid_paging'
     ],
     [
