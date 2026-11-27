@@ -2,18 +2,27 @@ import { Page } from 'page-objects/page'
 import { withInterimSiteDisclosure } from 'page-objects/interim-site-disclosure.mixin'
 
 // RA-425: the "Manage overseas reprocessing sites" page for an exporter's
-// current accreditation. GOV.UK tabs split the ORSs into Accredited and
-// Registered; each ORS row carries the shared, read-only "Show interim sites
-// (n)" disclosure.
+// current accreditation (or, since RA-697, its registration only). RA-814:
+// one table of every ORS - Site name, Status and Actions - ordered by ORS ID,
+// ten to a page. Each row is tagged Approved (on the accreditation) or
+// Registered, and carries the shared, read-only "Interim sites (n)"
+// disclosure when the ORS has interim sites.
 //
-// The row selectors take the tab's name ('accredited' or 'registered') and
-// the ORS's own site id, so a spec reads only the sites it knows about.
+// The row selectors take the ORS's own site id, so a spec reads only the
+// sites it knows about.
+//
+// Paging: no org the specs use reaches a second page. The seeds give org
+// 50018 four ORSs, 50019 six (one never registered, so not listed) and 50021
+// four, and no spec adds an ORS to any of them: they only move registered
+// sites onto the accreditation. So every site is on page 1, and paging is
+// covered by the frontend's page tests instead. A spec that takes an org past
+// ten sites would need this page object to follow the pagination to find a
+// site.
 //
 // RA-492 adds the in-year change request to it: an "Add to accreditation"
 // button on each registered site not yet in a request, a status tag (and, for
-// the in-progress request, a "View" link) on each site that is, and banners
-// for the in-progress and submitted requests. Its row selectors take the site
-// id too.
+// the in-progress request, a "View change requests" link) on each site that
+// is, and banners for the in-progress and submitted requests.
 class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
   get backLink() {
     return $('[data-testid="back-link"]')
@@ -23,32 +32,82 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     return $('[data-testid="return-to-home-link"]')
   }
 
-  tab(name) {
-    return $(`[data-testid="${name}-sites-tab"]`)
+  get intro() {
+    return $('[data-testid="overseas-sites-intro"]')
   }
 
-  panel(name) {
-    return $(`[data-testid="${name}-sites-panel"]`)
+  get table() {
+    return $('[data-testid="overseas-sites-table"]')
   }
 
-  emptyMessage(name) {
-    return $(`[data-testid="${name}-sites-empty"]`)
+  // "Showing {start}-{end} of {total}", above the table.
+  get countLine() {
+    return $('[data-testid="overseas-sites-count"]')
   }
 
-  siteRow(name, siteId) {
-    return $(`[data-testid="${name}-site-row-${siteId}"]`)
+  get pagination() {
+    return $('[data-testid="overseas-sites-pagination"]')
   }
 
-  siteOrsId(name, siteId) {
-    return $(`[data-testid="${name}-site-orsid-${siteId}"]`)
+  // Shown instead of the table when the operator has no ORSs at all.
+  get emptyMessage() {
+    return $('[data-testid="overseas-sites-empty"]')
   }
 
-  siteName(name, siteId) {
-    return $(`[data-testid="${name}-site-name-${siteId}"]`)
+  // RA-814 replaced the Approved and Registered tabs with the one table, so
+  // any GOV.UK tabs on the page would mean they are back.
+  get anyTabs() {
+    return $('.govuk-tabs')
   }
 
-  siteAddress(name, siteId) {
-    return $(`[data-testid="${name}-site-address-${siteId}"]`)
+  // The visible text of each element, in page order.
+  async texts(elements) {
+    const texts = []
+    for (const element of [...(await elements)]) {
+      texts.push(await element.getText())
+    }
+    return texts
+  }
+
+  async columnHeadings() {
+    return this.texts(this.table.$$('thead th'))
+  }
+
+  siteRow(siteId) {
+    return $(`[data-testid="site-row-${siteId}"]`)
+  }
+
+  siteOrsId(siteId) {
+    return $(`[data-testid="site-orsid-${siteId}"]`)
+  }
+
+  siteName(siteId) {
+    return $(`[data-testid="site-name-${siteId}"]`)
+  }
+
+  siteAddress(siteId) {
+    return $(`[data-testid="site-address-${siteId}"]`)
+  }
+
+  // "Approved" (green) or "Registered" (grey).
+  orsStatusTag(siteId) {
+    return $(`[data-testid="ors-status-tag-${siteId}"]`)
+  }
+
+  siteActionsCell(siteId) {
+    return $(`[data-testid="site-actions-${siteId}"]`)
+  }
+
+  // The ORS ids of the rows on this page, in page order. Read from each row's
+  // own ORS id cell, so interim sites are never counted.
+  async rowOrsIds() {
+    return this.texts(this.table.$$('[data-testid^="site-orsid-"]'))
+  }
+
+  // The visible text of every link and button in the page's main content,
+  // to check that no control the page must not offer has crept in.
+  async controlTexts() {
+    return this.texts($$('main a, main button'))
   }
 
   // RA-492 (f12): shown while the in-progress request has sites in it.
@@ -83,23 +142,13 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     return $('[data-testid^="add-to-accreditation-"]')
   }
 
-  // Replaces the add button on a registered site already in the in-progress
-  // request.
+  // "View change requests": beside the "In progress" tag on a registered site
+  // already in the in-progress request, in place of the add button.
   viewRequestLink(siteId) {
     return $(`[data-testid="view-request-${siteId}"]`)
   }
 
-  // GOV.UK tabs switch panels client-side, without a page load.
-  async openTab(name) {
-    const tab = this.tab(name)
-    await tab.waitForDisplayed()
-    await tab.click()
-    await this.panel(name).waitForDisplayed({
-      timeoutMsg: `The ${name} tab's panel did not show`
-    })
-  }
-
-  // RA-682: an accredited ORS's Change link, to its details page.
+  // RA-682: an approved ORS's Change link, to its details page.
   changeSiteLink(siteId) {
     return $(`[data-testid="change-site-${siteId}"]`)
   }
@@ -107,27 +156,18 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
   // A site already in the draft shows "In progress" and View instead; both
   // open its details page.
   async changeSite(siteId) {
-    await this.openTab('accredited')
     const change = this.changeSiteLink(siteId)
     const view = $(`[data-testid="view-request-${siteId}"]`)
-    // The link the wait found, rather than asking again after it.
-    const link = await browser.waitUntil(
-      async () => {
-        if (await change.isExisting()) {
-          return change
-        }
-        if (await view.isExisting()) {
-          return view
-        }
-        return false
-      },
-      { timeoutMsg: `Accredited site ${siteId} has neither Change nor View` }
+    await browser.waitUntil(
+      async () => (await change.isExisting()) || (await view.isExisting()),
+      { timeoutMsg: `Approved site ${siteId} has neither Change nor View` }
     )
-    await this.clickAndWaitForNextPage(link)
+    await this.clickAndWaitForNextPage(
+      (await change.isExisting()) ? change : view
+    )
   }
 
   async addToAccreditation(siteId) {
-    await this.openTab('registered')
     await this.clickAndWaitForNextPage(this.addToAccreditationButton(siteId))
   }
 
