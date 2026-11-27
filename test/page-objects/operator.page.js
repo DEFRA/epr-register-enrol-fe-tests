@@ -174,6 +174,15 @@ class OperatorPage extends Page {
     )
   }
 
+  // RA-765: the manage page of one of the apply banner orgs in
+  // test/fixtures/reapply-orgs.js. Listed only while the in-year changes flag
+  // is on.
+  async navigateToReapplyOrg({ operatorLinkTestId, managePath }) {
+    await this.clickAndWaitForNextPage(
+      $(`[data-testid="${operatorLinkTestId}"][href="${managePath}"]`)
+    )
+  }
+
   // The manage registration and accreditation page of the org in
   // test/fixtures/in-year-change-org.js, which exists specifically for
   // ra-492-add-registered-ors-to-accreditation.e2e.js: the backend's dev seed

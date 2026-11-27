@@ -46,6 +46,34 @@ class ManageRegistrationAccreditationPage extends Page {
     return $('[data-testid="back-link"]')
   }
 
+  // RA-765: the "Important" notification banner offering the accreditation
+  // year the operator can apply for. Absent when there is no year to offer.
+  get applyBanner() {
+    return $('[data-testid="apply-banner"]')
+  }
+
+  get applyBannerTitle() {
+    return $('[data-testid="apply-banner-title"]')
+  }
+
+  get applyBannerHeading() {
+    return $('[data-testid="apply-banner-heading"]')
+  }
+
+  get applyBannerBody() {
+    return $('[data-testid="apply-banner-body"]')
+  }
+
+  // "Start your {year} application": the apply page, by organisation and
+  // registration number.
+  get applyBannerLink() {
+    return $('[data-testid="apply-banner-link"]')
+  }
+
+  async openApplyBannerLink() {
+    await this.clickAndWaitForNextPage(this.applyBannerLink)
+  }
+
   // RA-697: the "In year change requests" section, one row per change type
   // with active items.
   get changeRequestsHeading() {
