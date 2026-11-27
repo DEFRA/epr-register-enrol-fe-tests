@@ -795,24 +795,26 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(sitesPage.pageCaption).toHaveText(
         `${REGISTRATION_ONLY_ORGANISATION_NAME} (${year}, ${REGISTRATION_ONLY_MATERIAL})`
       )
-      await expect(sitesPage.tab('accredited')).toHaveText('Accredited (0)')
-      await expect(sitesPage.panel('accredited')).toBeDisplayed()
-      await expect(sitesPage.emptyMessage('accredited')).toBeDisplayed()
-
-      await expect(sitesPage.tab('registered')).toHaveText(
-        `Registered (${REGISTRATION_ONLY_ORS.length})`
+      // RA-814: an intro that does not mention accreditation, and every site
+      // in the one table, Registered.
+      await expect(sitesPage.intro).toHaveText(
+        'You can add new overseas reprocessing sites or change existing site details.'
       )
-      await sitesPage.openTab('registered')
+      await expect(sitesPage.countLine).toHaveText(
+        `Showing 1-${REGISTRATION_ONLY_ORS.length} of ${REGISTRATION_ONLY_ORS.length}`
+      )
+      expect(await sitesPage.rowOrsIds()).toEqual(
+        REGISTRATION_ONLY_ORS.map((site) => site.orsId)
+      )
       for (const site of REGISTRATION_ONLY_ORS) {
-        await expect(sitesPage.siteOrsId('registered', site.siteId)).toHaveText(
-          site.orsId
+        await expect(sitesPage.siteOrsId(site.siteId)).toHaveText(site.orsId)
+        await expect(sitesPage.siteName(site.siteId)).toHaveText(site.name)
+        await expect(sitesPage.siteAddress(site.siteId)).toHaveText(
+          site.address
         )
-        await expect(sitesPage.siteName('registered', site.siteId)).toHaveText(
-          site.name
+        await expect(sitesPage.orsStatusTag(site.siteId)).toHaveText(
+          'Registered'
         )
-        await expect(
-          sitesPage.siteAddress('registered', site.siteId)
-        ).toHaveText(site.address)
         await expect(sitesPage.viewRequestLink(site.siteId)).not.toBeExisting()
       }
       await expect(sitesPage.anyAddToAccreditationButton).not.toBeExisting()
