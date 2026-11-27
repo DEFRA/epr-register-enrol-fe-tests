@@ -10,7 +10,7 @@
 import { dayOf, seededIds } from './change-request-seed.js'
 import { seededRegistrationYear, yearSuffix } from './year-suffix.js'
 
-const ORGANISATION_ID = '50018'
+export const ORGANISATION_ID = '50018'
 export const ORGANISATION_NAME = 'Manage Accreditation Test Ltd'
 const REGISTRATION_ID = 'aaa000000000000000050018'
 export const MATERIAL = 'Plastic'

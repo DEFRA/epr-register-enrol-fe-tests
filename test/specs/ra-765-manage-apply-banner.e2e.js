@@ -10,6 +10,8 @@ import {
 import { listApplicationsForYear } from '../helpers/case-management.js'
 import { escapeRegExp } from '../helpers/escape-regexp.js'
 import {
+  MATERIAL as MANAGE_EXPORTER_MATERIAL,
+  ORGANISATION_ID as MANAGE_EXPORTER_ORGANISATION_ID,
   ORGANISATION_NAME as MANAGE_EXPORTER_ORGANISATION_NAME,
   registrationNumber as manageExporterRegistrationNumber
 } from '../fixtures/manage-exporter-org.js'
@@ -51,8 +53,6 @@ import { seededRegistrationYear } from '../fixtures/year-suffix.js'
  *     the apply page's natural-number URL)
  * Docker-only because deployed environments have no such seed.
  */
-
-const MATERIAL = 'Plastic'
 
 async function expectApplyBanner(year, applyPath) {
   const managePage = ManageRegistrationAccreditationPage
@@ -115,7 +115,7 @@ describe(`RA-765: the manage page offers the accreditation year to apply for ${D
     // the banner on the next run.
     await expectApplyBanner(
       nextYear,
-      `/operator-accreditation/50018/${manageExporterRegistrationNumber(seededYear)}/${MATERIAL}/${nextYear}`
+      `/operator-accreditation/${MANAGE_EXPORTER_ORGANISATION_ID}/${manageExporterRegistrationNumber(seededYear)}/${MANAGE_EXPORTER_MATERIAL}/${nextYear}`
     )
   })
 
@@ -142,7 +142,7 @@ describe(`RA-765: the manage page offers the accreditation year to apply for ${D
     const applicationsForYear = () =>
       listApplicationsForYear(org.organisationId, {
         registrationId: org.registrationId,
-        materialType: MATERIAL,
+        materialType: org.material,
         year
       })
     const applicationsBefore = await applicationsForYear()
@@ -168,7 +168,7 @@ describe(`RA-765: the manage page offers the accreditation year to apply for ${D
     )
     // Starting anew posts to the Re/Ex ids the natural-number URL resolved to.
     expect(await OperatorAccreditationPage.startNewFormAction()).toBe(
-      `/operator-accreditation/${org.organisationId}/${org.registrationId}/${MATERIAL}/${year}/exporter/start-new`
+      `/operator-accreditation/${org.organisationId}/${org.registrationId}/${org.material}/${year}/exporter/start-new`
     )
     await expect(OperatorAccreditationPage.startNewLink).toBeDisplayed()
     await expect(OperatorAccreditationPage.firstContinueLink).not.toBeExisting()
