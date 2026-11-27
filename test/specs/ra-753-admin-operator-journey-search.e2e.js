@@ -4,6 +4,7 @@ import { browser, expect } from '@wdio/globals'
 import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import {
+  getApplication,
   issueAccreditationNumber,
   pushStatusChanged
 } from '../helpers/case-management.js'
@@ -59,6 +60,9 @@ describe('RA-753: Operator journey search on the admin API @docker-only', () => 
   const years = [submittedYear, startedYear]
   let submitted
   let started
+  // The application reference case management issued at submission, as
+  // the Legacy application stores it.
+  let submittedReference
 
   // Every search here also needs a q or a filter no other spec's records
   // match, so a page holds only this spec's records.
@@ -78,7 +82,13 @@ describe('RA-753: Operator journey search on the admin API @docker-only', () => 
     await openApplicationForYear(startedYear)
     await OperatorPage.open()
     await OperatorPage.navigateToReaccreditationPlastic()
-    await submitApplicationForYear(submittedYear)
+    const { organisationId, applicationId } =
+      await submitApplicationForYear(submittedYear)
+    ;({ applicationReference: submittedReference } = await getApplication(
+      organisationId,
+      applicationId
+    ))
+    expect(submittedReference).toEqual(expect.any(String))
 
     const both = await search('accreditation-applications', { year: years })
     expect(both.status).toBe(200)
@@ -112,7 +122,7 @@ describe('RA-753: Operator journey search on the admin API @docker-only', () => 
     it('shows each application its reference, status, year, registration, organisation and last changed date', async () => {
       expect(submitted).toEqual({
         id: expect.stringMatching(/^[0-9a-f]{24}$/),
-        applicationReference: expect.stringMatching(/^RA-\d{9}$/),
+        applicationReference: submittedReference,
         accreditationNumber: submitted.accreditationNumber,
         status: 'Submitted',
         year: Number(submittedYear),
@@ -137,7 +147,7 @@ describe('RA-753: Operator journey search on the admin API @docker-only', () => 
       expect(started.organisation).toEqual(submitted.organisation)
     })
 
-    it('finds an application by its exact id or RA- reference (AC03)', async () => {
+    it('finds an application by its exact id or application reference (AC03)', async () => {
       const byReference = await search('accreditation-applications', {
         q: submitted.applicationReference
       })
@@ -178,9 +188,9 @@ describe('RA-753: Operator journey search on the admin API @docker-only', () => 
     })
 
     it('finds applications by part of a reference or number (AC04)', async () => {
-      // The reference's digits alone.
+      // The reference without its first and last two characters.
       const byPartReference = await search('accreditation-applications', {
-        q: submitted.applicationReference.slice(3),
+        q: submitted.applicationReference.slice(2, -2),
         searchFields: 'applicationReference'
       })
       expect(ids(byPartReference)).toEqual([submitted.id])
