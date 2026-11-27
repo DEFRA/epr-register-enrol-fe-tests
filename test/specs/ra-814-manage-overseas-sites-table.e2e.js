@@ -131,6 +131,14 @@ describe(`RA-814: one table of overseas reprocessing sites ${DOCKER_ONLY_TAG}`, 
         )
       }
     })
+
+    // User, 2026-11-27: with sites pending and a request ready to submit, the
+    // requests banner shows instead of the pending banner, not beside it.
+    it('shows the requests banner, not the pending banner as well', async () => {
+      const page = ManageOverseasSitesPage
+      await expect(page.requestsBanner).toBeDisplayed()
+      await expect(page.pendingChangeBanner).not.toBeExisting()
+    })
   })
 
   describe('An exporter with no overseas sites', () => {
