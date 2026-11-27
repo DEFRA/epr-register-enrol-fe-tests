@@ -158,10 +158,20 @@ export async function workItemsFor({ registrationId }) {
 /** The case management work item type an add-ORS change request raises. */
 const ADD_OVERSEAS_SITE_TYPE_ID = 'add-overseas-site'
 
+// RA-682: ORS changes are add-ORS or ORS update work items. A request holding
+// both is sent as one submission per type, the update one under
+// `{requestId}:update-overseas-site`.
+const UPDATE_OVERSEAS_SITE_TYPE_ID = 'update-overseas-site'
+const ORS_CHANGE_TYPE_IDS = [
+  ADD_OVERSEAS_SITE_TYPE_ID,
+  UPDATE_OVERSEAS_SITE_TYPE_ID
+]
+
 /**
  * Deletes every in-year change request the organisation has, the add-ORS
- * work items case management raised for them, and the submissions those
- * came in, so the organisation's registered ORSs can be added afresh.
+ * and ORS update work items case management raised for them, and the
+ * submissions those came in, so the organisation's ORSs can be added or
+ * changed afresh.
  *
  * @param {{ organisationId: string }} org
  * @returns {Promise<{ changeRequests: number, workItems: number, submissions: number }>} how many were deleted
@@ -169,7 +179,7 @@ const ADD_OVERSEAS_SITE_TYPE_ID = 'add-overseas-site'
 export async function clearChangeRequests({ organisationId }) {
   const filter = JSON.stringify({ organisationId })
   const workItemFilter = JSON.stringify({
-    typeId: ADD_OVERSEAS_SITE_TYPE_ID,
+    typeId: { $in: ORS_CHANGE_TYPE_IDS },
     'payload.operatorOrganisationId': organisationId
   })
 
@@ -432,42 +442,6 @@ export async function setChangeRequestSite({
       .updateMany(${filter}, ${update}, { arrayFilters: ${arrayFilters} })
       .modifiedCount
     print(JSON.stringify({ changeRequests }))
-  `)
-}
-
-// RA-682: ORS changes are add-ORS or ORS update work items. A request holding
-// both is sent as one submission per type, the update one under
-// `{requestId}:update-overseas-site`.
-const UPDATE_OVERSEAS_SITE_TYPE_ID = 'update-overseas-site'
-const ORS_CHANGE_TYPE_IDS = [
-  ADD_OVERSEAS_SITE_TYPE_ID,
-  UPDATE_OVERSEAS_SITE_TYPE_ID
-]
-
-/**
- * As clearChangeRequests, for both ORS change types: the organisation's change
- * requests and the case management work items and submissions they raised.
- *
- * @param {{ organisationId: string }} org
- */
-export async function clearOrsChangeRequests({ organisationId }) {
-  const filter = JSON.stringify({ organisationId })
-  const workItemFilter = JSON.stringify({
-    typeId: { $in: ORS_CHANGE_TYPE_IDS },
-    'payload.operatorOrganisationId': organisationId
-  })
-
-  return mongosh(`
-    const changeRequests = db.getSiblingDB('${OPERATOR_DATABASE}')
-      .accreditationChangeRequests.deleteMany(${filter}).deletedCount
-    const caseManagement = db.getSiblingDB('${CASE_MANAGEMENT_DATABASE}')
-    const requestIds = caseManagement.workItems
-      .distinct('payload.operatorRequestId', ${workItemFilter})
-    const submissions = caseManagement.submissions
-      .deleteMany({ _id: { $in: requestIds } }).deletedCount
-    const workItems = caseManagement.workItems
-      .deleteMany(${workItemFilter}).deletedCount
-    print(JSON.stringify({ changeRequests, workItems, submissions }))
   `)
 }
 

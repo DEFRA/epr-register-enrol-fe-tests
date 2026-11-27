@@ -7,7 +7,7 @@ import UpdateOverseasSitePage from 'page-objects/update-overseas-site.page'
 
 import { getAccreditationChanges } from '../../helpers/case-management.js'
 import {
-  clearOrsChangeRequests,
+  clearChangeRequests,
   orsWorkItemsFor,
   skipUnlessMonorepoRun
 } from '../../helpers/monorepo.js'
@@ -95,7 +95,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   before(async () => {
-    const cleared = await clearOrsChangeRequests({
+    const cleared = await clearChangeRequests({
       organisationId: ORGANISATION_ID
     })
     reportDetails(`Cleared organisation ${ORGANISATION_ID}`, cleared)
