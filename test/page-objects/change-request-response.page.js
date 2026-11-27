@@ -1,6 +1,5 @@
-import { browser } from '@wdio/globals'
 import { Page } from 'page-objects/page'
-import { uniqueFixtureCopy } from '../helpers/unique-fixture-file.js'
+import { uploadableFixture } from '../helpers/upload-fixture.js'
 
 // RA-698: the pages the operator answers a regulator's query on an in-year
 // change request item on, under {item page}. This covers the ORS's location,
@@ -124,13 +123,7 @@ class ChangeRequestResponsePage extends Page {
   // the status page, which polls until the virus scan is done and returns to
   // the item's page.
   async submitUpload(filename) {
-    const filePath = uniqueFixtureCopy(filename)
-    let uploadPath
-    try {
-      uploadPath = await browser.uploadFile(filePath)
-    } catch {
-      uploadPath = filePath
-    }
+    const uploadPath = await uploadableFixture(filename)
     await this.fileInput.waitForExist()
     await this.fileInput.setValue(uploadPath)
     await this.fillDates({
