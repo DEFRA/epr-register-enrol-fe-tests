@@ -491,7 +491,8 @@ export async function statusPushesFor(workItemId) {
  * is killed before its `after` hook leaves it for the next run to restore.
  * Each file is named after the MongoDB container and the applications it
  * holds sites from, so a snapshot left on one stack is never restored over
- * another, nor over the same stack reseeded (its applications get new ids).
+ * another. A reseed inside the same container keeps the seeded application
+ * ids, so only the 24-hour limit guards against that case.
  */
 const SNAPSHOT_DIRECTORY = path.join(os.tmpdir(), 'epr-register-enrol-fe-tests')
 
@@ -683,6 +684,7 @@ const ROLL_BACK_GRANTS = `
 async function readOverseasSites({ organisationId, siteIds }) {
   return mongosh(`
     const siteIds = ${JSON.stringify(siteIds)}
+    const asNumber = (v) => (typeof v?.toNumber === 'function' ? v.toNumber() : Number(v))
     const applications = db.getSiblingDB('${OPERATOR_DATABASE}')
       .accreditationApplications
       // Unpromoted, so an Int32, Long or Double reads as one and the
@@ -696,7 +698,7 @@ async function readOverseasSites({ organisationId, siteIds }) {
       .toArray()
       .map((a) => ({
         _id: a._id,
-        sites: (a.overseasSites?.sites ?? []).filter((s) => siteIds.includes(Number(s.siteId)))
+        sites: (a.overseasSites?.sites ?? []).filter((s) => siteIds.includes(asNumber(s.siteId)))
       }))
       .filter((a) => a.sites.length > 0)
     print(JSON.stringify({
@@ -801,7 +803,7 @@ export async function resetOverseasSites({ organisationId, siteIds }) {
     for (const saved of snapshot) {
       // Unpromoted, so the sites written back unchanged keep their types.
       const [application] = database.accreditationApplications
-        .find({ _id: saved._id }, {}, { promoteValues: false })
+        .find({ _id: saved._id, organisationId: ${JSON.stringify(organisationId)} }, {}, { promoteValues: false })
         .limit(1)
         .toArray()
       if (!application) {

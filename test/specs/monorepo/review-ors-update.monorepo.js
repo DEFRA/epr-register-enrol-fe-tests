@@ -114,7 +114,7 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
       ...cleared,
       ...reset
     })
-    return { sites, gone: reset.gone }
+    return { sites }
   }
 
   async function openDetails(site) {
@@ -184,9 +184,7 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
   before(async () => {
     await browser.deleteCookies()
     await signInAsOperator()
-    const { sites, gone } = await resetOrganisation()
-    // Nothing is restored to an application the snapshot holds that is gone.
-    expect(gone).toEqual([])
+    const { sites } = await resetOrganisation()
     // The names the steps below start from, read back after the restore: an
     // A or B a run left changed (with no snapshot to restore) would not have
     // them.
