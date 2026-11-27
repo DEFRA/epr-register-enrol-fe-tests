@@ -15,15 +15,18 @@ import { MANAGE_PATH as NO_OVERSEAS_SITES_MANAGE_PATH } from '../fixtures/no-ove
  * Site name, Status and Actions - instead of the Accredited and Registered
  * tabs. Rows are ordered by ORS ID, tagged Approved (on the accreditation,
  * green) or Registered (grey), with a "Showing {start}-{end} of {total}" line
- * above them. Approved rows offer RA-682's Change; registered rows keep
- * RA-492's "Add to accreditation", "Pending", "In progress" and "View change
- * requests". The Add buttons, Withdraw, Remove and a registered site's Change
- * in the design are for later tickets, so must not show.
+ * above them. Approved rows keep RA-682's Change, "Pending", "In progress"
+ * and View; registered rows keep RA-492's "Add to accreditation", "Pending",
+ * "In progress" and "View change requests". The Add buttons, Withdraw, Remove
+ * and a registered site's Change in the design are for later tickets, so must
+ * not show.
  *
  * Read-only, against the backend's dev seed (see ra-425's header):
  *   - org 50018 (test/fixtures/manage-exporter-org.js): ORSs 001-003
- *     accredited, 004 Dragon registered and, from RA-697's change request
- *     seed, in the accreditation's in-progress request;
+ *     accredited, each held by a submitted ORS update in RA-697's change
+ *     request seed (queried, submitted and updated items), so Pending; 004
+ *     Dragon registered and in the accreditation's in-progress request.
+ *     RA-682's update-accredited-ors monorepo spec covers Change;
  *   - org 50022 (test/fixtures/no-overseas-sites-org.js): registered, with
  *     no ORSs at all.
  * RA-425 covers each row's site details and interim sites, RA-492 adding a
@@ -101,13 +104,13 @@ describe(`RA-814: one table of overseas reprocessing sites ${DOCKER_ONLY_TAG}`, 
 
     it('offers each row its own actions, and none the page does not support yet', async () => {
       const page = ManageOverseasSitesPage
-      // Approved rows: RA-682's Change only (Rotterdam's and Bharat's ORS
-      // updates are granted, so not in review); Withdraw is RA-676's.
+      // Approved rows: each is in a submitted ORS update, so RA-682 shows
+      // "Pending" and no Change; Withdraw is RA-676's. The status column still
+      // says Approved (checked above).
       for (const siteId of APPROVED) {
-        await expect(page.siteActionsCell(siteId)).toHaveText(
-          expect.stringMatching(/^Change\b/)
-        )
-        await expect(page.changeSiteLink(siteId)).toBeExisting()
+        await expect(page.siteStatusTag(siteId)).toHaveText('Pending')
+        await expect(page.siteActionsCell(siteId)).toHaveText('Pending')
+        await expect(page.changeSiteLink(siteId)).not.toBeExisting()
         await expect(page.addToAccreditationButton(siteId)).not.toBeExisting()
       }
 

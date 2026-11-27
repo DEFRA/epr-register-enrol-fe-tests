@@ -156,14 +156,14 @@ describe(`RA-492: add a registered ORS to a granted accreditation ${DOCKER_ONLY_
         ManageOverseasSitesPage.addToAccreditationButton(siteId)
       ).toBeDisplayed()
     }
-    // ORS 001 is already accredited, so it is not offered again, and its
-    // row has no actions at all.
+    // ORS 001 is already accredited, so it is not offered again; its only
+    // action is RA-682's Change.
     await expect(
       ManageOverseasSitesPage.addToAccreditationButton(ORS.hamburg.siteId)
     ).not.toExist()
     await expect(
-      ManageOverseasSitesPage.siteActionsCell(ORS.hamburg.siteId)
-    ).toHaveText('')
+      ManageOverseasSitesPage.changeSiteLink(ORS.hamburg.siteId)
+    ).toBeDisplayed()
     // A never-registered site is not listed.
     await expect(
       ManageOverseasSitesPage.siteRow(ORS.valencia.siteId)
