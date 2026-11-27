@@ -6,6 +6,7 @@ import {
 import { MANAGE_PATH as MANAGE_IN_YEAR_CHANGE_PATH } from '../fixtures/in-year-change-org.js'
 import { MANAGE_PATH as MANAGE_NO_CHANGE_REQUESTS_PATH } from '../fixtures/no-change-requests-org.js'
 import { MANAGE_PATH as MANAGE_REGISTRATION_ONLY_PATH } from '../fixtures/registration-only-org.js'
+import { MANAGE_PATH as MANAGE_NO_OVERSEAS_SITES_PATH } from '../fixtures/no-overseas-sites-org.js'
 
 class OperatorPage extends Page {
   open() {
@@ -170,6 +171,18 @@ class OperatorPage extends Page {
     await this.clickAndWaitForNextPage(
       $(
         `[data-testid="manage-registration-only-link"][href="${MANAGE_REGISTRATION_ONLY_PATH}"]`
+      )
+    )
+  }
+
+  // RA-814: the manage registration page of the org in
+  // test/fixtures/no-overseas-sites-org.js, an exporter with an Approved
+  // registration, no accreditation and no ORSs. Listed only while the in-year
+  // changes flag is on.
+  async navigateToNoOverseasSitesOrg() {
+    await this.clickAndWaitForNextPage(
+      $(
+        `[data-testid="manage-no-overseas-sites-link"][href="${MANAGE_NO_OVERSEAS_SITES_PATH}"]`
       )
     )
   }
