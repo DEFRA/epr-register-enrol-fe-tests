@@ -127,7 +127,6 @@ describe('RA-495: an add-ORS BES upload is checked against the files the site al
       `Operator: add ORS ${DELHI.orsId} to the accreditation`,
       async () => {
         await browser.url(OVERSEAS_SITES_PATH)
-        await ManageOverseasSitesPage.openTab('registered')
         await ManageOverseasSitesPage.addToAccreditation(DELHI.siteId)
         await waitForUrl(
           (url) => new URL(url).pathname.endsWith(`/add/${DELHI.siteId}`),

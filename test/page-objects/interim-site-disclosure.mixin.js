@@ -1,7 +1,7 @@
 import { browser } from '@wdio/globals'
 
 // RA-603, RA-425: an ORS's interim sites sit behind a collapsed
-// "Show interim sites (n)" govuk-details, one per ORS, rendered by the same
+// "Interim sites (n)" govuk-details, one per ORS, rendered by the same
 // shared macro on select-overseas-sites and on the read-only
 // manage/overseas-sites page. Mixed into both page objects rather than
 // duplicated so the two can't drift apart.
