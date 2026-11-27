@@ -102,12 +102,15 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
       'coordinates',
       'recycling-operation',
       'basel-codes',
-      'conditions-of-export',
       'bes-evidence'
     ]) {
       await expect(UpdateOverseasSitePage.rowValue(locked)).toExist()
       await expect(UpdateOverseasSitePage.rowAction(locked)).not.toExist()
     }
+    // Conditions of export applies only to steel and aluminium; this org is Plastic.
+    await expect(
+      UpdateOverseasSitePage.rowValue('conditions-of-export')
+    ).not.toExist()
 
     await reportStep(
       'Location: country and coordinates are read-only',
