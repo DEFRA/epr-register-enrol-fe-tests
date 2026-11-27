@@ -15,10 +15,10 @@ import { MANAGE_PATH as NO_OVERSEAS_SITES_MANAGE_PATH } from '../fixtures/no-ove
  * Site name, Status and Actions - instead of the Accredited and Registered
  * tabs. Rows are ordered by ORS ID, tagged Approved (on the accreditation,
  * green) or Registered (grey), with a "Showing {start}-{end} of {total}" line
- * above them. Approved rows have no actions yet; registered rows keep
+ * above them. Approved rows offer RA-682's Change; registered rows keep
  * RA-492's "Add to accreditation", "Pending", "In progress" and "View change
- * requests". The Add buttons, Change, Withdraw and Remove in the design are
- * for later tickets, so must not show.
+ * requests". The Add buttons, Withdraw, Remove and a registered site's Change
+ * in the design are for later tickets, so must not show.
  *
  * Read-only, against the backend's dev seed (see ra-425's header):
  *   - org 50018 (test/fixtures/manage-exporter-org.js): ORSs 001-003
@@ -99,12 +99,16 @@ describe(`RA-814: one table of overseas reprocessing sites ${DOCKER_ONLY_TAG}`, 
       )
     })
 
-    it('offers actions only on the registered site, and none the page does not support yet', async () => {
+    it('offers each row its own actions, and none the page does not support yet', async () => {
       const page = ManageOverseasSitesPage
-      // Approved rows: no actions until RA-682 and RA-676 build them, even
-      // though Rotterdam and Bharat have ORS updates in review.
+      // Approved rows: RA-682's Change only (Rotterdam's and Bharat's ORS
+      // updates are granted, so not in review); Withdraw is RA-676's.
       for (const siteId of APPROVED) {
-        await expect(page.siteActionsCell(siteId)).toHaveText('')
+        await expect(page.siteActionsCell(siteId)).toHaveText(
+          expect.stringMatching(/^Change\b/)
+        )
+        await expect(page.changeSiteLink(siteId)).toBeExisting()
+        await expect(page.addToAccreditationButton(siteId)).not.toBeExisting()
       }
 
       // Dragon is in the accreditation's in-progress request.
@@ -114,12 +118,13 @@ describe(`RA-814: one table of overseas reprocessing sites ${DOCKER_ONLY_TAG}`, 
         expect.stringContaining('View change requests')
       )
       await expect(page.addToAccreditationButton(ORS.dragon)).not.toBeExisting()
+      // A registered site's Change is RA-683's.
+      await expect(page.changeSiteLink(ORS.dragon)).not.toBeExisting()
 
-      // The design's Add buttons, Change, Withdraw and Remove are for later
-      // tickets.
+      // The design's Add buttons, Withdraw and Remove are for later tickets.
       for (const text of await page.controlTexts()) {
         expect(text).not.toMatch(
-          /^(Add a new overseas reprocessing site|Change|Withdraw|Remove)\b/
+          /^(Add a new overseas reprocessing site|Withdraw|Remove)\b/
         )
       }
     })

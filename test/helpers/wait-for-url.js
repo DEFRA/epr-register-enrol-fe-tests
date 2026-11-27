@@ -19,3 +19,13 @@ export async function waitForUrl(
   )
   return url
 }
+
+// Waits until the browser's path ends with suffix. 30s: the hops the journey
+// specs guard with it are page loads and submissions, not sign-in or scans.
+export async function waitForPath(suffix, { timeout = 30000 } = {}) {
+  return waitForUrl(
+    (url) => new URL(url).pathname.endsWith(suffix),
+    `Did not reach ${suffix}`,
+    { timeout }
+  )
+}
