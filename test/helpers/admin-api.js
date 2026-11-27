@@ -1,3 +1,4 @@
+import { expect } from '@wdio/globals'
 import { request } from 'undici'
 
 import { adminApiClient, backendUrl } from '../config.js'
@@ -36,6 +37,28 @@ export async function getAdminApi(path, { client = adminApiClient() } = {}) {
 }
 
 /**
+ * Asserts an /admin response is an application/problem+json error.
+ *
+ * @param {Awaited<ReturnType<typeof getAdminApi>>} response
+ * @param {number} status
+ * @param {string} code
+ * @param {string} [detail] the exact text, or omitted where only its presence
+ *   is asserted (a problem that is not the route's own, such as the
+ *   service-client authentication in front of /admin, or one whose wording
+ *   the spec does not pin)
+ */
+export function expectProblem(response, status, code, detail) {
+  expect(response.status).toBe(status)
+  expect(response.contentType).toContain('application/problem+json')
+  expect(response.body.code).toBe(code)
+  if (detail) {
+    expect(response.body.detail).toBe(detail)
+  } else {
+    expect(response.body.detail).toBeTruthy()
+  }
+}
+
+/**
  * GETs the Legacy accreditation application status of each case management
  * work item, in one batch.
  *
@@ -59,3 +82,44 @@ export function getLegacyApplicationStatuses(workItemIds, options) {
  */
 export const getCaseManagementStatusMapping = (options) =>
   getAdminApi('/admin/case-management-status-mapping', options)
+
+/**
+ * RA-753: the Operator journey record types the Admin UI searches, each read
+ * from its own domain model collection under /admin/operator-journey/.
+ */
+export const OPERATOR_JOURNEY_RECORD_TYPES = [
+  'accreditations',
+  'accreditation-applications',
+  'registrations',
+  'organisations',
+  'overseas-sites'
+]
+
+/**
+ * RA-753: searches one Operator journey record type.
+ *
+ * @param {string} type one of OPERATOR_JOURNEY_RECORD_TYPES
+ * @param {Record<string, string | number | boolean | Array<string | number | boolean>>} [params]
+ *   q, searchFields, the type's filters, pageNumber and limit; an array
+ *   sends that parameter once per value
+ * @param {object} [options] as getAdminApi
+ */
+export function searchOperatorJourney(type, params = {}, options) {
+  if (!OPERATOR_JOURNEY_RECORD_TYPES.includes(type)) {
+    throw new Error(`${type} is not an Operator journey record type`)
+  }
+  const query = new URLSearchParams(
+    Object.entries(params).flatMap(([name, value]) =>
+      [value].flat().map((each) => [name, String(each)])
+    )
+  )
+  return getAdminApi(`/admin/operator-journey/${type}?${query}`, options)
+}
+
+/**
+ * RA-753: the countries current overseas sites hold, for the country filter.
+ *
+ * @param {object} [options] as getAdminApi
+ */
+export const getOverseasSiteCountries = (options) =>
+  getAdminApi('/admin/operator-journey/overseas-site-countries', options)

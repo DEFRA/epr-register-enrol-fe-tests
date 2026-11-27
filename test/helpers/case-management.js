@@ -246,6 +246,28 @@ export async function pushStatusChanged(
   return body.json()
 }
 
+// RA-753: simulates case management issuing an application's accreditation
+// number, step 1 of its approval (RA-783), bypassing management-fe as
+// pushStatusChanged does. With DomainModel__DualWrite on, an approval push for
+// an application with no accreditation number is refused (409
+// AccreditationNumberMissing), so call this before pushing `approved`. Same
+// case-management caller identity, and the same Development-mode bypass, as
+// raiseQuery above. It takes no body: the number comes from the
+// application's own year and registration.
+export async function issueAccreditationNumber(organisationId, applicationId) {
+  const { statusCode, body } = await request(
+    apiUrl(`/${organisationId}/${applicationId}/accreditation-number`),
+    { method: 'POST' }
+  )
+  const text = await body.text()
+  if (statusCode !== 200) {
+    throw new Error(
+      `Failed to issue an accreditation number for application ${applicationId}: HTTP ${statusCode} ${text}`
+    )
+  }
+  return text ? JSON.parse(text) : null
+}
+
 // Calls the OJ Withdraw endpoint directly, the same bypass-the-UI approach
 // as patchSection below, to prove the backend's own withdraw guard - not
 // just the frontend withdraw link's visibility - accepts the request. Added
