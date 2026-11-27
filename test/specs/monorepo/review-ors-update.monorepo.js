@@ -114,7 +114,7 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
       ...cleared,
       ...reset
     })
-    return sites
+    return { sites, gone: reset.gone }
   }
 
   async function openDetails(site) {
@@ -184,9 +184,12 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
   before(async () => {
     await browser.deleteCookies()
     await signInAsOperator()
-    const sites = await resetOrganisation()
-    // The names the steps below start from: a snapshot of an A or B a run
-    // left changed (one with no snapshot to restore) would not have them.
+    const { sites, gone } = await resetOrganisation()
+    // Nothing is restored to an application the snapshot holds that is gone.
+    expect(gone).toEqual([])
+    // The names the steps below start from, read back after the restore: an
+    // A or B a run left changed (with no snapshot to restore) would not have
+    // them.
     expect(
       Object.fromEntries(sites.map((s) => [s.siteId, s.siteName]))
     ).toEqual({
@@ -441,8 +444,23 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
       }
     )
     await waitForItemStatus(ORS.a, 'DulyMade')
-    // The duly made push has landed (the operator side has applied it).
-    const pushedBefore = await statusPushesFor(workItemId)
+    // The duly made push's audit entry is written once the operator backend
+    // has responded, so can land after the item reads DulyMade: wait for it,
+    // so that it is not taken for a push of the determination below.
+    let pushedBefore
+    await browser.waitUntil(
+      async () => {
+        pushedBefore = await statusPushesFor(workItemId)
+        return pushedBefore.some(
+          (p) => p.action === 'status-push-sent' && p.actionId === 'duly-make'
+        )
+      },
+      {
+        timeout: PUSH_TIMEOUT,
+        interval: 500,
+        timeoutMsg: `Work item ${workItemId}'s duly made push was never audited`
+      }
+    )
 
     await reportStep(
       'Regulator: approve it, with no valid from date to enter',
