@@ -72,7 +72,9 @@ export async function findWorkItem({
 }
 
 /**
- * Records a payment date against the work item, which duly makes it.
+ * Records a payment date against the work item, which duly makes it. RA-782:
+ * a paymentDate of null duly makes a type that is never charged (an ORS
+ * update), whose page has no payment date to enter.
  *
  * Leaves the browser on the work item, which then shows the confirmation
  * banner and the Duly made state.
@@ -81,7 +83,11 @@ export async function dulyMakeWorkItem({ paymentDate = new Date() } = {}) {
   await CmWorkItemPage.startDulyMaking()
   await expect(browser).toHaveUrl(expect.stringContaining('/duly-make'))
 
-  await CmDulyMakePage.enterPaymentDate(paymentDate)
+  if (paymentDate === null) {
+    await CmDulyMakePage.submitButton.waitForDisplayed({ timeout: 30000 })
+  } else {
+    await CmDulyMakePage.enterPaymentDate(paymentDate)
+  }
   await CmDulyMakePage.completeDulyMaking()
 
   await CmWorkItemPage.waitUntilLoaded()

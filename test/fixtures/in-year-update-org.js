@@ -38,3 +38,59 @@ export const INTERIM = {
 
 export const accreditationApplicationId = (year) =>
   `a${year}${ORGANISATION_ID.padStart(19, '0')}`
+
+// RA-782: A and B as the dev seed (DevExporterAccreditationSeedService's
+// InYearUpdateOverseasSites) leaves them on the accreditation application,
+// accredited from 1 January of the year: what a granted update changes
+// (details, interim sites, BES evidence) is put back from this. Keep in step
+// with the seed.
+const interimSite = (siteId, siteNumber, siteName) => ({
+  siteId,
+  siteNumber,
+  country: 'Poland',
+  siteName,
+  addressLine1: '1 Quay Street',
+  townOrCity: 'Port',
+  contactName: 'Alex Morgan',
+  contactEmail: 'alex.morgan@example.com',
+  contactPhone: '0123456789',
+  operationCodes: ['R3', 'R13'],
+  isNewSite: false,
+  statusHistory: []
+})
+
+const seededSite = (site, country, coordinates, year, interimSites) => ({
+  siteId: site.siteId,
+  orsId: site.orsId,
+  siteName: site.siteName,
+  siteAddress: `${site.siteId} Harbour Estate, ${country}`,
+  addressLine1: `${site.siteId} Harbour Estate`,
+  townOrCity: 'Port',
+  country,
+  coordinates,
+  contactName: 'Site Manager',
+  contactEmail: `site${site.siteId}@example.com`,
+  contactPhone: '+44 1234 567890',
+  operationCodes: ['R3'],
+  code1: 'B3011',
+  repatriatedLoads: 'Rejected loads are returned to the UK exporter.',
+  conditionsOfExport: true,
+  isEu: true,
+  isOecd: true,
+  validFrom: `${year}-01-01T00:00:00Z`,
+  selected: true,
+  isNewSite: false,
+  registeredNowAccredited: false,
+  previousSites: [],
+  // The seed mirrors the first interim site into the legacy single field.
+  ...(interimSites.length > 0 ? { interimSite: interimSites[0] } : {}),
+  interimSites
+})
+
+export const seededAccreditedSites = (year) => [
+  seededSite(ORS.a, 'Poland', '54.3520, 18.6466', year, [
+    interimSite(INTERIM.gdynia.siteId, '001', INTERIM.gdynia.siteName),
+    interimSite(INTERIM.szczecin.siteId, '002', INTERIM.szczecin.siteName)
+  ]),
+  seededSite(ORS.b, 'Portugal', '41.1579, -8.6291', year, [])
+]

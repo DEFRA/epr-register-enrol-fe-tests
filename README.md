@@ -95,6 +95,18 @@ run in CI, and no other config picks them up.
   add-ORS work item and two ORS update work items, the updates under their own
   request id. An interim-only change to a third ORS is free, so it goes
   straight to the confirmation with no payment page.
+- `review-ors-update` (RA-782, RA-767): the operator changes the name of
+  org 50025's ORS A and one of its interim sites, adds registered C in the
+  same request and submits; case management lists A's "Update ORS
+  Accreditation" and C's "New ORS accreditation" under one `SUB-…` reference
+  with "(2 requests)"; the regulator opens A's update (the changed name is
+  marked against the current version, the interim site change shows, and
+  Related change requests lists both), assigns it to themselves, duly makes
+  it with no payment date, approves it with no valid from date and confirms
+  contact, so the request reads GRANTED and A carries its new details. Then
+  the operator changes B's town, and the regulator duly makes and refuses
+  it, so the request reads REFUSED and B is unchanged and can be changed
+  again.
 
 1. Start the monorepo's stack from its root: `docker compose up --build -d`.
    It binds the same ports as this repo's own stack (3000, 8080), so stop
@@ -118,11 +130,16 @@ requests, clears Delhi's BES evidence on the accreditation and removes the
 sampling plan files it adds (`e2e-plan-…`), then gives Delhi and the sampling
 plan the files each check needs. `update-accredited-ors` deletes 50025's
 change requests and the work items and submissions they raised; it approves
-nothing, so 50025's seeded ORSs never change. What a run leaves is kept, to
-look at, until the next run, except `add-ors-case-management-decision` and
-`add-ors-bes-evidence-checks`, which reset 50019 afterwards too: a granted Lyon
-would otherwise stop the other 50019 specs adding it, and the files given to
-Delhi would trip their uploads. All the 50019 specs share that organisation,
+nothing, so 50025's seeded ORSs never change. `review-ors-update` does the
+same and also puts 50025's A and B back as the dev seed leaves them, on the
+accreditation application and in the domain model (deleting the ORS versions
+a grant wrote). What a run leaves is kept, to
+look at, until the next run, except `add-ors-case-management-decision`,
+`add-ors-bes-evidence-checks` and `review-ors-update`, which reset their
+organisation afterwards too: a granted Lyon would otherwise stop the other
+50019 specs adding it, the files given to Delhi would trip their uploads,
+and a granted A would no longer have the names the 50025 specs expect. The
+two 50025 specs share that organisation, so never run them at once either. All the 50019 specs share that organisation,
 as does the mgmt-tests suite's ra-495-add-ors-operator-journey spec, which
 resets 50019 the same way, so never run any two of them at once.
 `MONOREPO_BASE_URL`, `MONOREPO_CASE_MANAGEMENT_URL` and

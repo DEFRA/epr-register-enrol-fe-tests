@@ -455,3 +455,66 @@ export async function orsWorkItemsFor({
     ))
   `)
 }
+
+/**
+ * RA-782: puts accredited ORSs back as given (the dev seed's copy), so a spec
+ * that grants an update to one (its details, interim sites or BES evidence)
+ * can run again:
+ *
+ * - on the organisation's accreditation applications, each site replaces the
+ *   one with its site id, keeping the domain model id the migration gave it;
+ * - in the domain model (the monorepo stack runs dual-write, so the first
+ *   write migrates the application), each of those ORSs' versions a grant
+ *   wrote are deleted and the version before made current again. Nothing
+ *   there until the application has been migrated.
+ *
+ * @param {{ organisationId: string, sites: object[] }} org
+ * @returns {Promise<{ applications: number, orsVersions: number }>} how many
+ *   applications were changed and granted ORS versions deleted
+ */
+export async function resetOverseasSites({ organisationId, sites }) {
+  return mongosh(`
+    const database = db.getSiblingDB('${OPERATOR_DATABASE}')
+    const seeded = ${JSON.stringify(sites)}
+    let applications = 0
+    let orsVersions = 0
+    database.accreditationApplications
+      .find({ organisationId: ${JSON.stringify(organisationId)} })
+      .forEach((application) => {
+        const current = application.overseasSites?.sites ?? []
+        let changed = false
+        const next = current.map((site) => {
+          const seed = seeded.find((s) => s.siteId === site.siteId)
+          if (!seed) return site
+          changed = true
+          return site.overseasSiteEntityId
+            ? { ...seed, overseasSiteEntityId: site.overseasSiteEntityId }
+            : seed
+        })
+        if (!changed) return
+        applications += database.accreditationApplications.updateOne(
+          { _id: application._id },
+          { $set: { 'overseasSites.sites': next } }
+        ).modifiedCount
+
+        if (!application.registrationEntityId) return
+        const versions = database.overseasSiteVersions
+        for (const orsId of seeded.map((s) => s.orsId)) {
+          const filter = { registrationId: application.registrationEntityId, orsId }
+          orsVersions += versions.deleteMany({
+            ...filter,
+            'lastChange.reason': 'ChangeRequestGranted'
+          }).deletedCount
+          if (versions.countDocuments({ ...filter, isCurrent: true }) > 0) continue
+          const [latest] = versions.find(filter).sort({ version: -1 }).limit(1).toArray()
+          if (latest) {
+            versions.updateOne(
+              { _id: latest._id },
+              { $set: { isCurrent: true, validTo: ISODate('9999-12-31T23:59:59.999Z') } }
+            )
+          }
+        }
+      })
+    print(JSON.stringify({ applications, orsVersions }))
+  `)
+}
