@@ -273,7 +273,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
       expect(await CmWorkItemPage.tabNames()).toEqual([
         'Application summary',
         'Accreditation summary',
-        'Related applications',
+        'Related change requests (2)',
         'Application history'
       ])
     })

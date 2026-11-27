@@ -1,3 +1,7 @@
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
 import { docker, mongosh as mongoshVia, OPERATOR_DATABASE } from './docker.js'
 
 /**
@@ -158,9 +162,8 @@ export async function workItemsFor({ registrationId }) {
 /** The case management work item type an add-ORS change request raises. */
 export const ADD_OVERSEAS_SITE_TYPE_ID = 'add-overseas-site'
 
-// RA-682: ORS changes are add-ORS or ORS update work items. A request holding
-// both is sent as one submission per type, the update one under
-// `{requestId}:update-overseas-site`.
+// RA-682: ORS changes are add-ORS or ORS update work items. RA-782: a request
+// holding both is sent as one submission, under the request's own id.
 export const UPDATE_OVERSEAS_SITE_TYPE_ID = 'update-overseas-site'
 const ORS_CHANGE_TYPE_IDS = [
   ADD_OVERSEAS_SITE_TYPE_ID,
@@ -454,4 +457,411 @@ export async function orsWorkItemsFor({
         }))
     ))
   `)
+}
+
+/**
+ * RA-782: the work item's status pushes to the operator backend, read from
+ * case management's audit log: every `status-push*` entry (sent, skipped or
+ * failed), oldest first, as { action, actionId, toStateId }.
+ *
+ * @param {string} workItemId
+ * @returns {Promise<Array<{ action: string, actionId: string, toStateId: string }>>}
+ */
+export async function statusPushesFor(workItemId) {
+  return mongosh(`
+    const workItem = db.getSiblingDB('${CASE_MANAGEMENT_DATABASE}').workItems
+      .findOne({ _id: ${JSON.stringify(workItemId)} }, { auditLog: 1 })
+    print(JSON.stringify(
+      (workItem?.auditLog ?? [])
+        .filter((e) => e.action.startsWith('status-push'))
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .map((e) => ({
+          action: e.action,
+          actionId: e.details?.actionId,
+          toStateId: e.details?.toStateId
+        }))
+    ))
+  `)
+}
+
+/**
+ * Where `resetOverseasSites` keeps an organisation's ORS snapshot between
+ * calls: outside the repo, and on disk rather than in memory, so a run that
+ * is killed before its `after` hook leaves it for the next run to restore.
+ * Each file is named after the MongoDB container and the applications it
+ * holds sites from, so a snapshot left on one stack is never restored over
+ * another. A reseed inside the same container keeps the seeded application
+ * ids, so only the 24-hour limit guards against that case.
+ */
+const SNAPSHOT_DIRECTORY = path.join(os.tmpdir(), 'epr-register-enrol-fe-tests')
+
+// A snapshot older than this is not restored: the stack may have been
+// reseeded since, with fields the snapshot lacks.
+const SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+const snapshotPrefix = (organisationId, containerId) =>
+  `ors-snapshot-${organisationId}-${containerId.slice(0, 12)}-`
+
+const snapshotName = (organisationId, containerId, applicationIds) =>
+  `${snapshotPrefix(organisationId, containerId)}${
+    applicationIds.map((id) => id.replace(/[^\w-]/g, '_')).join('-') || 'none'
+  }.json`
+
+// Whether a file in SNAPSHOT_DIRECTORY is one of the organisation's
+// snapshots, from any stack.
+const isOrganisationSnapshot = (file, organisationId) =>
+  file.startsWith(`ors-snapshot-${organisationId}-`)
+
+/**
+ * The full id of the monorepo's MongoDB container, which a recreated stack
+ * does not share even when MONOREPO_MONGO_CONTAINER names it. Looked up once
+ * per worker.
+ */
+let containerId
+
+async function mongoContainerId() {
+  containerId ??= (
+    await docker(['inspect', '--format', '{{.Id}}', await mongoContainer()])
+  ).trim()
+  return containerId
+}
+
+function logSnapshot(organisationId, message) {
+  process.stdout.write(`resetOverseasSites(${organisationId}): ${message}\n`)
+}
+
+/**
+ * Deletes the organisation's snapshots that can never be restored on this
+ * stack: one this stack left for applications it no longer has (reseeded),
+ * and one another stack left over SNAPSHOT_MAX_AGE_MS ago. A newer one from another stack is left for it.
+ *
+ * @param {{ organisationId: string, containerId: string, keep: string }} args
+ */
+async function discardStaleSnapshots({ organisationId, containerId, keep }) {
+  const files = await readdir(SNAPSHOT_DIRECTORY).catch(() => [])
+  const thisStack = snapshotPrefix(organisationId, containerId)
+  for (const file of files) {
+    if (file === keep || !isOrganisationSnapshot(file, organisationId)) {
+      continue
+    }
+    const full = path.join(SNAPSHOT_DIRECTORY, file)
+    let reason
+    if (file.startsWith(thisStack)) {
+      reason = 'its applications are no longer on this stack'
+    } else {
+      const { mtimeMs } = await stat(full).catch(() => ({ mtimeMs: 0 }))
+      if (Date.now() - mtimeMs > SNAPSHOT_MAX_AGE_MS) {
+        reason = 'another stack left it over 24 hours ago'
+      }
+    }
+    if (reason) {
+      logSnapshot(organisationId, `deleting snapshot ${full}: ${reason}`)
+      await rm(full, { force: true })
+    }
+  }
+}
+
+/**
+ * The snapshot saved in the file, as an EJSON string, if it was taken on this
+ * stack, of these applications, within SNAPSHOT_MAX_AGE_MS. Otherwise null,
+ * and a file that fails those checks is deleted, saying why.
+ *
+ * @param {string} file
+ * @param {{ organisationId: string, containerId: string,
+ *   applicationIds: string[] }} expected
+ * @returns {Promise<string | null>}
+ */
+async function readSavedSnapshot(file, expected) {
+  const text = await readFile(file, 'utf8').catch(() => null)
+  if (text === null) {
+    return null
+  }
+
+  let saved
+  try {
+    saved = JSON.parse(text)
+  } catch {
+    saved = {}
+  }
+  const age = Date.now() - Date.parse(saved.takenAt)
+  let reason
+  if (typeof saved.snapshot !== 'string') {
+    reason = 'it is not a snapshot this version of the suite wrote'
+  } else if (saved.containerId !== expected.containerId) {
+    reason = `it was taken on MongoDB container ${saved.containerId}, not ${expected.containerId}`
+  } else if (
+    saved.organisationId !== expected.organisationId ||
+    JSON.stringify(saved.applicationIds) !==
+      JSON.stringify(expected.applicationIds)
+  ) {
+    reason = `it holds applications ${saved.applicationIds}, not ${expected.applicationIds}`
+  } else if (!(age >= 0 && age <= SNAPSHOT_MAX_AGE_MS)) {
+    reason = `it was taken at ${saved.takenAt}, over 24 hours ago`
+  }
+  if (reason) {
+    logSnapshot(
+      expected.organisationId,
+      `not restoring snapshot ${file}: ${reason}; taking a fresh one`
+    )
+    await rm(file, { force: true })
+    return null
+  }
+  return saved.snapshot
+}
+
+/**
+ * The versions a grant writes, in the domain model, are rolled back to the
+ * one before the first grant. Mongosh source, for the reset script below:
+ * `rollBackGrants(versions, filter, label)` deletes the entity's first
+ * ChangeRequestGranted version and every version after it (a version written
+ * on top of a grant carries the grant's changes), makes the version before
+ * current again and returns how many it deleted. Anything unexpected (a
+ * non-grant version on top of a grant, no version before the grant, not
+ * exactly one current version, a current version that is itself a grant) is
+ * pushed onto `mismatches` rather than skipped silently.
+ */
+const ROLL_BACK_GRANTS = `
+  const GRANTED = 'ChangeRequestGranted'
+  const mismatches = []
+  function rollBackGrants(versions, filter, label) {
+    let deleted = 0
+    // Not migrated: nothing in the model to roll back.
+    if (versions.countDocuments(filter) === 0) return 0
+    const [firstGrant] = versions
+      .find({ ...filter, 'lastChange.reason': GRANTED })
+      .sort({ version: 1 })
+      .limit(1)
+      .toArray()
+    if (firstGrant) {
+      versions
+        .find({
+          ...filter,
+          version: { $gt: firstGrant.version },
+          'lastChange.reason': { $ne: GRANTED }
+        })
+        .forEach((v) => mismatches.push(
+          label + ' version ' + v.version + ' (' + v.lastChange?.reason +
+            ') was written on top of a grant and is deleted with it'
+        ))
+      deleted = versions
+        .deleteMany({ ...filter, version: { $gte: firstGrant.version } })
+        .deletedCount
+      const [before] = versions.find(filter).sort({ version: -1 }).limit(1).toArray()
+      if (before) {
+        versions.updateOne(
+          { _id: before._id },
+          { $set: { isCurrent: true, validTo: ISODate('9999-12-31T23:59:59.999Z') } }
+        )
+      } else {
+        mismatches.push(label + ' has no version before its first grant')
+      }
+    }
+    const current = versions.find({ ...filter, isCurrent: true }).toArray()
+    if (current.length !== 1) {
+      mismatches.push(label + ' has ' + current.length + ' current versions')
+    } else if (current[0].lastChange?.reason === GRANTED) {
+      mismatches.push(label + ' version ' + current[0].version + ', now current, is a grant')
+    }
+    return deleted
+  }
+`
+
+/**
+ * The organisation's ORSs with the site ids given, as they stand now on each
+ * of its accreditation applications: the ids of the applications holding
+ * them (sorted), the applications' sites as canonical EJSON (so numeric types
+ * survive a restore) and the sites as plain JSON.
+ *
+ * @param {{ organisationId: string, siteIds: number[] }} org
+ * @returns {Promise<{ applicationIds: string[], snapshot: string,
+ *   sites: object[] }>}
+ */
+async function readOverseasSites({ organisationId, siteIds }) {
+  return mongosh(`
+    const siteIds = ${JSON.stringify(siteIds)}
+    const asNumber = (v) => (typeof v?.toNumber === 'function' ? v.toNumber() : Number(v))
+    const applications = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationApplications
+      // Unpromoted, so an Int32, Long or Double reads as one and the
+      // canonical EJSON below keeps its type.
+      .find(
+        { organisationId: ${JSON.stringify(organisationId)} },
+        {},
+        { promoteValues: false }
+      )
+      .sort({ _id: 1 })
+      .toArray()
+      .map((a) => ({
+        _id: a._id,
+        sites: (a.overseasSites?.sites ?? []).filter((s) => siteIds.includes(asNumber(s.siteId)))
+      }))
+      .filter((a) => a.sites.length > 0)
+    print(JSON.stringify({
+      applicationIds: applications
+        .map((a) => String(a._id))
+        .sort(),
+      snapshot: EJSON.stringify(applications, { relaxed: false }),
+      sites: JSON.parse(
+        EJSON.stringify(applications.flatMap((a) => a.sites), { relaxed: true })
+      )
+    }))
+  `)
+}
+
+/**
+ * RA-782: puts the organisation's accredited ORSs with the site ids given
+ * back as they were before the spec changed them, so a spec that grants an
+ * update to one (its details, interim sites or BES evidence) can run again:
+ *
+ * - on the organisation's accreditation applications, each site is replaced
+ *   by its snapshot, keeping the domain model id (`overseasSiteEntityId`) the
+ *   site has now, if any: that id is never taken from the snapshot;
+ * - in the domain model, when dual-write is on (it is off on the committed
+ *   monorepo stack; only a local compose override turns it on), each ORS's
+ *   versions and the Accreditation's versions are rolled back to before the
+ *   first grant (a grant that adds BES evidence writes an Accreditation
+ *   version too). Nothing there until the application has been migrated.
+ *
+ * The snapshot is the one an earlier call left on disk for this stack and
+ * these applications within the last 24 hours, if any (a run killed before
+ * its `after` hook), otherwise the sites as they are now, saved to disk for
+ * the `after` hook. Restoring a snapshot taken now changes nothing on the
+ * applications, so the domain model is not rolled back either (any grant
+ * found there is reported as a mismatch): both are restored, or neither.
+ * `discardOverseasSitesSnapshot` removes the snapshot once the spec has
+ * finished. A first run on an organisation already changed by a run that
+ * left no snapshot would snapshot the changed sites: the spec checks the
+ * names it starts from, as read back after the restore.
+ *
+ * @param {{ organisationId: string, siteIds: number[] }} org
+ * @returns {Promise<{ snapshot: 'saved earlier' | 'taken now',
+ *   applications: number, orsVersions: number, accreditationVersions: number,
+ *   mismatches: string[], gone: string[], sites: object[] }>} how many
+ *   applications were changed and model versions deleted, anything unexpected
+ *   in the model, the snapshot's applications that no longer exist, and the
+ *   sites as read back after the restore
+ */
+export async function resetOverseasSites({ organisationId, siteIds }) {
+  const stack = await mongoContainerId()
+  const current = await readOverseasSites({ organisationId, siteIds })
+  const { applicationIds } = current
+  const name = snapshotName(organisationId, stack, applicationIds)
+  const file = path.join(SNAPSHOT_DIRECTORY, name)
+
+  await discardStaleSnapshots({
+    organisationId,
+    containerId: stack,
+    keep: name
+  })
+  const saved = await readSavedSnapshot(file, {
+    organisationId,
+    containerId: stack,
+    applicationIds
+  })
+  const snapshot = saved ?? current.snapshot
+  if (!saved) {
+    await mkdir(SNAPSHOT_DIRECTORY, { recursive: true })
+    await writeFile(
+      file,
+      JSON.stringify({
+        containerId: stack,
+        organisationId,
+        applicationIds,
+        takenAt: new Date().toISOString(),
+        snapshot
+      })
+    )
+  }
+
+  const result = await mongosh(`
+    const database = db.getSiblingDB('${OPERATOR_DATABASE}')
+    const snapshot = EJSON.parse(${JSON.stringify(snapshot)}, { relaxed: false })
+    // Only a snapshot saved earlier rolls the model back (see above).
+    const rollBack = ${Boolean(saved)}
+    ${ROLL_BACK_GRANTS}
+    const asNumber = (v) => (typeof v?.toNumber === 'function' ? v.toNumber() : Number(v))
+    function grantsLeft(versions, filter, label) {
+      const grants = versions.countDocuments({ ...filter, 'lastChange.reason': GRANTED })
+      if (grants > 0) {
+        mismatches.push(
+          label + ' has ' + grants + ' grant version(s), left as they are: ' +
+            'the snapshot was taken now, so the application is not restored either'
+        )
+      }
+      return 0
+    }
+    const restoreModel = rollBack ? rollBackGrants : grantsLeft
+    let applications = 0
+    let orsVersions = 0
+    let accreditationVersions = 0
+    const gone = []
+    for (const saved of snapshot) {
+      // Unpromoted, so the sites written back unchanged keep their types.
+      const [application] = database.accreditationApplications
+        .find({ _id: saved._id, organisationId: ${JSON.stringify(organisationId)} }, {}, { promoteValues: false })
+        .limit(1)
+        .toArray()
+      if (!application) {
+        gone.push(String(saved._id))
+        mismatches.push('accreditation application ' + saved._id + ' is gone')
+        continue
+      }
+      const next = (application.overseasSites?.sites ?? []).map((site) => {
+        const copy = saved.sites.find((s) => asNumber(s.siteId) === asNumber(site.siteId))
+        if (!copy) return site
+        // The domain model id is the current site's, never the snapshot's.
+        const { overseasSiteEntityId, ...restored } = copy
+        return site.overseasSiteEntityId === undefined
+          ? restored
+          : { ...restored, overseasSiteEntityId: site.overseasSiteEntityId }
+      })
+      applications += database.accreditationApplications.updateOne(
+        { _id: application._id },
+        { $set: { 'overseasSites.sites': next } }
+      ).modifiedCount
+
+      if (application.registrationEntityId) {
+        for (const { orsId } of saved.sites) {
+          orsVersions += restoreModel(
+            database.overseasSiteVersions,
+            { registrationId: application.registrationEntityId, orsId },
+            'ORS ' + orsId
+          )
+        }
+      }
+      if (application.accreditationEntityId) {
+        accreditationVersions += restoreModel(
+          database.accreditationVersions,
+          { entityId: application.accreditationEntityId },
+          'Accreditation'
+        )
+      }
+    }
+    print(JSON.stringify({ applications, orsVersions, accreditationVersions, mismatches, gone }))
+  `)
+  if (result.mismatches.length > 0) {
+    logSnapshot(
+      organisationId,
+      `${result.mismatches.length} mismatch(es):\n  ${result.mismatches.join('\n  ')}`
+    )
+  }
+  const { sites } = await readOverseasSites({ organisationId, siteIds })
+  return { snapshot: saved ? 'saved earlier' : 'taken now', ...result, sites }
+}
+
+/**
+ * Deletes the snapshots `resetOverseasSites` saved for the organisation on
+ * this stack, once the spec has put the sites back, so the next run
+ * snapshots them afresh.
+ *
+ * @param {string} organisationId
+ */
+export async function discardOverseasSitesSnapshot(organisationId) {
+  const prefix = snapshotPrefix(organisationId, await mongoContainerId())
+  const files = await readdir(SNAPSHOT_DIRECTORY).catch(() => [])
+  await Promise.all(
+    files
+      .filter((file) => file.startsWith(prefix))
+      .map((file) => rm(path.join(SNAPSHOT_DIRECTORY, file), { force: true }))
+  )
 }

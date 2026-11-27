@@ -23,7 +23,8 @@ class CmWorkItemPage extends Page {
 
   // RA-739. An add-ORS (in-year change) header: "Site name (ORS id)" as its
   // title and the site's charge. RA-495 dropped its reference caption, as the
-  // breadcrumb already shows the reference.
+  // breadcrumb already shows the reference. RA-782: an ORS update's header
+  // has the application reference as its caption.
   get headerCaption() {
     return $('[data-testid="case-header-caption"]')
   }
@@ -34,6 +35,16 @@ class CmWorkItemPage extends Page {
 
   get headerCharge() {
     return $('[data-testid="case-header-charge"]')
+  }
+
+  /**
+   * A meta item's value in the case header, e.g. location or payment-date
+   * (RA-782's update header).
+   *
+   * @param {string} key the item's key in its case-header-* testid
+   */
+  headerMeta(key) {
+    return $(`[data-testid="case-header-${key}"]`)
   }
 
   /** The case tabs' names, in order. */
@@ -49,6 +60,108 @@ class CmWorkItemPage extends Page {
    */
   summaryValue(key) {
     return $(`[data-testid="app-detail-value-${key}"]`)
+  }
+
+  // RA-782: an ORS update's Application summary, which compares each detail's
+  // Current version with the Requested change. A row's key is add-ORS's
+  // summary key, e.g. site-name or contact-name.
+  get updateOrsDetail() {
+    return $('[data-testid="update-overseas-site-detail"]')
+  }
+
+  get updateOrsIntro() {
+    return $('[data-testid="update-ors-intro"]')
+  }
+
+  updateOrsRow(key) {
+    return $(`[data-testid="update-ors-row-${key}"]`)
+  }
+
+  updateOrsCurrent(key) {
+    return $(`[data-testid="update-ors-current-${key}"]`)
+  }
+
+  updateOrsRequested(key) {
+    return $(`[data-testid="update-ors-requested-${key}"]`)
+  }
+
+  // The first interim site compare table's row: the one an update changes,
+  // when it is the ORS's first interim site.
+  updateOrsInterimRow(key) {
+    return $(`[data-testid="update-ors-interim-row-${key}"]`)
+  }
+
+  updateOrsChangedTag(key) {
+    return $(`[data-testid="update-ors-changed-${key}"]`)
+  }
+
+  /**
+   * RA-782: each interim site section of an ORS update's summary, in order:
+   * what the update does to it (added, removed, changed or unchanged), its
+   * title and its tag. textContent, as a closed section's body is not shown.
+   *
+   * @returns {Promise<Array<{ change: string, title: string, tag: string }>>}
+   */
+  async updateOrsInterimSites() {
+    await this.updateOrsDetail.waitForExist({ timeout: 30000 })
+    return browser.execute(() =>
+      [
+        ...document.querySelectorAll('[data-testid="update-ors-interim-site"]')
+      ].map((section) => {
+        const text = (testId) =>
+          section
+            .querySelector(`[data-testid="${testId}"]`)
+            ?.textContent.replace(/\s+/g, ' ')
+            .trim() ?? ''
+        return {
+          change: section.dataset.change,
+          title: text('update-ors-interim-site-title'),
+          tag: text('update-ors-interim-site-tag')
+        }
+      })
+    )
+  }
+
+  // RA-770: the Related change requests tab and its rows.
+  get relatedRequestsTab() {
+    return $('[data-testid="tab-related-requests"]')
+  }
+
+  /**
+   * The Related change requests tab's rows.
+   *
+   * @returns {Promise<Array<{ reference: string, site: string, type: string,
+   *   charge: string, status: string }>>}
+   */
+  async relatedRequests() {
+    await $('[data-testid="related-requests-tab"]').waitForExist({
+      timeout: 30000
+    })
+    return browser.execute(() =>
+      [
+        ...document.querySelectorAll('[data-testid="related-requests-row"]')
+      ].map((row) => {
+        const text = (testId) =>
+          row.querySelector(`[data-testid="${testId}"]`)?.innerText.trim() ?? ''
+        return {
+          reference: text('related-requests-reference'),
+          site: text('related-requests-site'),
+          type: text('related-requests-type'),
+          charge: text('related-requests-charge'),
+          status: text('related-requests-status')
+        }
+      })
+    )
+  }
+
+  // "Assigned to you" once the caseworker has assigned it to themselves.
+  get assignmentCurrent() {
+    return $('[data-testid="assignment-current"]')
+  }
+
+  async assignToYourself() {
+    await this.clickReliably(this.assignToYourselfButton)
+    await this.assignmentCurrent.waitForDisplayed({ timeout: 30000 })
   }
 
   get notificationBanner() {

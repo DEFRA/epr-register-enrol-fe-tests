@@ -15,6 +15,15 @@ class CmDulyMakePage extends Page {
     return $('#payment-date-year')
   }
 
+  // RA-782: absent for a type that is never charged, such as an ORS update.
+  get paymentDateGroup() {
+    return $('[data-testid="duly-making-payment-date"]')
+  }
+
+  get chargeAmount() {
+    return $('[data-testid="duly-making-charge-amount"]')
+  }
+
   get submitButton() {
     return $('[data-testid="duly-making-submit"]')
   }
