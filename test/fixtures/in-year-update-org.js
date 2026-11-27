@@ -14,6 +14,12 @@ export const registrationNumber = (year) => `R${yearSuffix(year)}EX0500250001PL`
 export const MANAGE_PATH = `/manage/${ORGANISATION_ID}/${registrationNumber(seededRegistrationYear())}/${MATERIAL}`
 export const OVERSEAS_SITES_PATH = `${MANAGE_PATH}/overseas-sites`
 
+// The change request pages under the accreditation application: the
+// request's sites (/requests) and each accredited site's details
+// (/update/{siteId}).
+export const changeRequestPath = (applicationId) =>
+  `/accreditation/manage-overseas-sites/${applicationId}`
+
 // The seeded ORSs. A, B and E are accredited (A with two interim sites); C and
 // D are registered only, and complete, so either can be added with nothing to
 // fill in.

@@ -6,15 +6,19 @@ import SubmitApplicationPage from 'page-objects/submit-application.page'
 import UpdateOverseasSitePage from 'page-objects/update-overseas-site.page'
 
 import { getAccreditationChanges } from '../../helpers/case-management.js'
+import { assertDeclarationContent } from '../../helpers/declaration.js'
 import {
+  ADD_OVERSEAS_SITE_TYPE_ID as ADD,
+  UPDATE_OVERSEAS_SITE_TYPE_ID as UPDATE,
   clearChangeRequests,
   orsWorkItemsFor,
   skipUnlessMonorepoRun
 } from '../../helpers/monorepo.js'
 import { signInAsOperator } from '../../helpers/monorepo-journey.js'
 import { reportDetails, reportStep } from '../../helpers/report-step.js'
+import { requireStage } from '../../helpers/require-stage.js'
 import { readSeededYear } from '../../helpers/seeded-year.js'
-import { waitForUrl } from '../../helpers/wait-for-url.js'
+import { waitForPath } from '../../helpers/wait-for-url.js'
 import {
   INTERIM,
   MANAGE_PATH,
@@ -23,7 +27,8 @@ import {
   ORGANISATION_NAME,
   ORS,
   OVERSEAS_SITES_PATH,
-  accreditationApplicationId
+  accreditationApplicationId,
+  changeRequestPath
 } from '../../fixtures/in-year-update-org.js'
 
 // Runs only against the DEFRA/epr-register-enrol monorepo's local stack:
@@ -54,28 +59,11 @@ import {
 // request and run in order: each skips when the one before did not get as far
 // as it needs.
 
-const UPDATE = 'update-overseas-site'
-const ADD = 'add-overseas-site'
 const IN_YEAR_CHANGE_REFERENCE = /^IYC-ORS-\d{4}-\d{5}$/
 
 describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => {
   const progress = {}
   let applicationId
-
-  function requireStage(context, stage) {
-    if (!progress[stage]) {
-      reportDetails('Skipped', { reason: `not ${stage}` })
-      context.skip()
-    }
-  }
-
-  async function waitForPath(suffix, { timeout = 30000 } = {}) {
-    await waitForUrl(
-      (url) => new URL(url).pathname.endsWith(suffix),
-      `Did not reach ${suffix}`,
-      { timeout }
-    )
-  }
 
   async function openDetails(site) {
     await browser.url(OVERSEAS_SITES_PATH)
@@ -84,9 +72,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   }
 
   async function openRequests() {
-    await browser.url(
-      `/accreditation/manage-overseas-sites/${applicationId}/requests`
-    )
+    await browser.url(`${changeRequestPath(applicationId)}/requests`)
     await waitForPath('/requests')
   }
 
@@ -179,7 +165,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   it("Changes B's town: two ORS updates and nothing to pay", async function () {
-    requireStage(this, 'a')
+    requireStage(this, progress, 'a')
     await openDetails(ORS.b)
     await UpdateOverseasSitePage.openRowAction('location')
     await UpdateOverseasSitePage.fill({ townOrCity: 'Vila Nova de Gaia' })
@@ -199,7 +185,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   it('Adds registered C in the same request: charged for one ORS', async function () {
-    requireStage(this, 'b')
+    requireStage(this, progress, 'b')
     await browser.url(OVERSEAS_SITES_PATH)
     await ManageOverseasSitesPage.addToAccreditation(ORS.c.siteId)
     await waitForPath(`/add/${ORS.c.siteId}`)
@@ -219,7 +205,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   it("AC04: changes, removes and adds A's interim sites", async function () {
-    requireStage(this, 'c')
+    requireStage(this, progress, 'c')
     await openDetails(ORS.a)
     const gdynia = `interim-${INTERIM.gdynia.siteId}`
     const szczecin = `interim-${INTERIM.szczecin.siteId}`
@@ -261,7 +247,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   it("Removes B's update from the request, then changes B again", async function () {
-    requireStage(this, 'interim')
+    requireStage(this, progress, 'interim')
     await openRequests()
     await AccreditationRequestsPage.removeRequest(ORS.b.orsId)
     await waitForPath('/requests')
@@ -286,7 +272,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   it('AC05/AC06: submits the request, and pays for C alone', async function () {
-    requireStage(this, 'ready')
+    requireStage(this, progress, 'ready')
     await openRequests()
     await AccreditationRequestsPage.continue()
     await waitForPath('/declaration')
@@ -298,6 +284,8 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
       ORGANISATION_ID,
       applicationId
     )
+    // One request: the before hook cleared 50025's earlier ones.
+    expect(requests).toHaveLength(1)
     const [request] = requests
     expect(request.status).toBe('Submitted')
     expect(request.sites).toHaveLength(3)
@@ -317,7 +305,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   it('AC03: A, B and C are pending; D can still be added and E changed', async function () {
-    requireStage(this, 'submitted')
+    requireStage(this, progress, 'submitted')
     await browser.url(OVERSEAS_SITES_PATH)
     await ManageOverseasSitesPage.openTab('accredited')
     for (const site of [ORS.a, ORS.b]) {
@@ -335,7 +323,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
     ).toExist()
 
     await browser.url(
-      `/accreditation/manage-overseas-sites/${applicationId}/update/${ORS.a.siteId}`
+      `${changeRequestPath(applicationId)}/update/${ORS.a.siteId}`
     )
     await expect(UpdateOverseasSitePage.statusTag).toHaveText('Pending')
     await expect(UpdateOverseasSitePage.pendingInset).toBeDisplayed()
@@ -343,7 +331,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   it('Case management: two ORS update work items and one add-ORS work item', async function () {
-    requireStage(this, 'submitted')
+    requireStage(this, progress, 'submitted')
     const workItems = await orsWorkItemsFor({ organisationId: ORGANISATION_ID })
     reportDetails('Work items', workItems)
 
@@ -373,7 +361,7 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   })
 
   it('AC05: an interim-only change to E is free, so there is no payment page', async function () {
-    requireStage(this, 'submitted')
+    requireStage(this, progress, 'submitted')
     await openDetails(ORS.e)
     await UpdateOverseasSitePage.newInterimSite({
       siteName: 'Turin Depot',
@@ -386,11 +374,39 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
     await expect(AccreditationRequestsPage.chargeInset).not.toExist()
     await AccreditationRequestsPage.continue()
     await waitForPath('/declaration')
+    await assertDeclarationContent(SubmitApplicationPage)
     await SubmitApplicationPage.submitApplication()
     await waitForPath('/submitted')
 
-    const workItems = await orsWorkItemsFor({ organisationId: ORGANISATION_ID })
-    const milano = workItems.find((w) => Number(w.siteId) === ORS.e.siteId)
+    // AC06: informed the submission succeeded, under E's reference.
+    await expect(UpdateOverseasSitePage.submittedPanel).toHaveText(
+      expect.stringContaining('In year change application submitted')
+    )
+    await expect(
+      UpdateOverseasSitePage.submittedReferences
+    ).toBeElementsArrayOfSize(1)
+    await expect(UpdateOverseasSitePage.submittedReference).toHaveText(
+      IN_YEAR_CHANGE_REFERENCE
+    )
+    await expect(UpdateOverseasSitePage.submittedNext).toHaveText(
+      expect.stringContaining('There is no charge')
+    )
+
+    // Case management may record the submission after the operator's page
+    // has moved on, so wait for E's work item rather than read it once.
+    const milano = await browser.waitUntil(
+      async () => {
+        const workItems = await orsWorkItemsFor({
+          organisationId: ORGANISATION_ID
+        })
+        return workItems.find((w) => Number(w.siteId) === ORS.e.siteId)
+      },
+      {
+        timeout: 30000,
+        timeoutMsg: 'Case management raised no work item for E'
+      }
+    )
+    expect(milano).toBeDefined()
     expect(milano.typeId).toBe(UPDATE)
     expect(milano.interimSiteChanges).toEqual(['add'])
   })

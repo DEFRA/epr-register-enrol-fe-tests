@@ -1,3 +1,7 @@
+import {
+  enterAutocompleteValue,
+  waitForAutocomplete
+} from 'page-objects/accessible-autocomplete'
 import { Page } from 'page-objects/page'
 
 // RA-682: changing an accredited ORS's details, at
@@ -20,6 +24,24 @@ class UpdateOverseasSitePage extends Page {
 
   get pendingInset() {
     return $('[data-testid="pending-inset"]')
+  }
+
+  // AC06: the confirmation after a request with nothing to pay, at
+  // .../manage-overseas-sites/{applicationId}/submitted.
+  get submittedPanel() {
+    return $('[data-testid="submitted-panel"]')
+  }
+
+  get submittedReferences() {
+    return $$('[data-testid="submitted-reference"]')
+  }
+
+  get submittedReference() {
+    return $('[data-testid="submitted-reference"]')
+  }
+
+  get submittedNext() {
+    return $('[data-testid="submitted-next"]')
   }
 
   get interimRows() {
@@ -54,7 +76,6 @@ class UpdateOverseasSitePage extends Page {
     for (const [name, value] of Object.entries(values)) {
       const input = this.input(name)
       await input.waitForDisplayed()
-      await input.clearValue()
       await input.setValue(value)
     }
   }
@@ -85,15 +106,9 @@ class UpdateOverseasSitePage extends Page {
       contactEmail: 'sam.lee@example.com',
       contactPhone: '0123456789'
     })
-    // As add-interim-site's country page: the <select> is enhanced into an
-    // accessible-autocomplete <input>, which writes back to the select on blur.
     const countryInput = $('#country')
-    await browser.waitUntil(
-      async () => (await countryInput.getTagName()) === 'input',
-      { timeout: 10000, timeoutMsg: 'Country field did not enhance' }
-    )
-    await countryInput.setValue(country)
-    await browser.execute((el) => el.blur(), await countryInput)
+    await waitForAutocomplete(countryInput, { label: 'Country field' })
+    await enterAutocompleteValue(countryInput, country)
     for (const code of codes) {
       // GOV.UK checkbox inputs are visually hidden behind their label.
       await this.clickReliably($(`label[for="operation-${code}"]`))

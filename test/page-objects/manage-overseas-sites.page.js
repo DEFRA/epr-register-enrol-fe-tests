@@ -110,13 +110,20 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     await this.openTab('accredited')
     const change = this.changeSiteLink(siteId)
     const view = $(`[data-testid="view-request-${siteId}"]`)
-    await browser.waitUntil(
-      async () => (await change.isExisting()) || (await view.isExisting()),
+    // The link the wait found, rather than asking again after it.
+    const link = await browser.waitUntil(
+      async () => {
+        if (await change.isExisting()) {
+          return change
+        }
+        if (await view.isExisting()) {
+          return view
+        }
+        return false
+      },
       { timeoutMsg: `Accredited site ${siteId} has neither Change nor View` }
     )
-    await this.clickAndWaitForNextPage(
-      (await change.isExisting()) ? change : view
-    )
+    await this.clickAndWaitForNextPage(link)
   }
 
   async addToAccreditation(siteId) {

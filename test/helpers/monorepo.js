@@ -156,12 +156,12 @@ export async function workItemsFor({ registrationId }) {
 }
 
 /** The case management work item type an add-ORS change request raises. */
-const ADD_OVERSEAS_SITE_TYPE_ID = 'add-overseas-site'
+export const ADD_OVERSEAS_SITE_TYPE_ID = 'add-overseas-site'
 
 // RA-682: ORS changes are add-ORS or ORS update work items. A request holding
 // both is sent as one submission per type, the update one under
 // `{requestId}:update-overseas-site`.
-const UPDATE_OVERSEAS_SITE_TYPE_ID = 'update-overseas-site'
+export const UPDATE_OVERSEAS_SITE_TYPE_ID = 'update-overseas-site'
 const ORS_CHANGE_TYPE_IDS = [
   ADD_OVERSEAS_SITE_TYPE_ID,
   UPDATE_OVERSEAS_SITE_TYPE_ID
@@ -194,39 +194,6 @@ export async function clearChangeRequests({ organisationId }) {
     const workItems = caseManagement.workItems
       .deleteMany(${workItemFilter}).deletedCount
     print(JSON.stringify({ changeRequests, workItems, submissions }))
-  `)
-}
-
-/**
- * The add-ORS work items case management raised for the organisation, one
- * per site.
- *
- * @param {{ organisationId: string }} org
- * @returns {Promise<Array<{ id: string, stateId: string, siteId: number,
- *   orsId: string, applicationReference: string,
- *   submissionReference: string, submissionSize: number }>>}
- */
-export async function addOverseasSiteWorkItemsFor({ organisationId }) {
-  const filter = JSON.stringify({
-    typeId: ADD_OVERSEAS_SITE_TYPE_ID,
-    'payload.operatorOrganisationId': organisationId
-  })
-
-  return mongosh(`
-    print(JSON.stringify(
-      db.getSiblingDB('${CASE_MANAGEMENT_DATABASE}').workItems
-        .find(${filter})
-        .toArray()
-        .map((w) => ({
-          id: String(w._id),
-          stateId: w.stateId,
-          siteId: w.payload.site.siteId,
-          orsId: w.payload.site.orsId,
-          applicationReference: w.payload.applicationReference,
-          submissionReference: w.payload.submissionReference,
-          submissionSize: w.payload.submissionSize
-        }))
-    ))
   `)
 }
 
@@ -446,14 +413,23 @@ export async function setChangeRequestSite({
 }
 
 /**
- * The add-ORS and ORS update work items case management raised for the
- * organisation, one per site, with what each update proposes.
+ * The ORS work items case management raised for the organisation, one per
+ * site: add-ORS and ORS update ones, or only those of the types given. Update
+ * items carry what they propose; add-ORS ones the submission they came in.
  *
- * @param {{ organisationId: string }} org
+ * @param {{ organisationId: string, typeIds?: string[] }} org
+ * @returns {Promise<Array<{ id: string, typeId: string, stateId: string,
+ *   siteId: number, orsId: string, operatorRequestId: string,
+ *   applicationReference: string, submissionReference: string,
+ *   submissionSize: number, chargePence: number | null,
+ *   proposed: object | null, interimSiteChanges: string[] }>>}
  */
-export async function orsWorkItemsFor({ organisationId }) {
+export async function orsWorkItemsFor({
+  organisationId,
+  typeIds = ORS_CHANGE_TYPE_IDS
+}) {
   const filter = JSON.stringify({
-    typeId: { $in: ORS_CHANGE_TYPE_IDS },
+    typeId: { $in: typeIds },
     'payload.operatorOrganisationId': organisationId
   })
 
@@ -470,6 +446,8 @@ export async function orsWorkItemsFor({ organisationId }) {
           orsId: w.payload.site.orsId,
           operatorRequestId: w.payload.operatorRequestId,
           applicationReference: w.payload.applicationReference,
+          submissionReference: w.payload.submissionReference,
+          submissionSize: w.payload.submissionSize,
           chargePence: w.payload.site.chargePence ?? null,
           proposed: w.payload.site.proposed ?? null,
           interimSiteChanges: (w.payload.site.interimSiteChanges ?? []).map((c) => c.action)
