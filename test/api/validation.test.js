@@ -106,8 +106,8 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
   }
 
   // RA-820: the search's page size is limit, from 1 to 500. A parameter the
-  // search does not define is refused, not ignored, so a client that sends
-  // the wrong name finds out instead of silently getting the default page.
+  // search does not define is ignored: the answer is the same as without it,
+  // the default page of 20.
   describe('search parameters', () => {
     const unwanted = [
       ['searchLimit, which is not the page size parameter', 'searchLimit=500'],
@@ -115,13 +115,28 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
     ]
 
     for (const [what, query] of unwanted) {
-      it(`answers 400 for ${what} (${query})`, async () => {
-        const path = `/v1/accreditations?year=${year}&${query}`
-        const response = await getAccreditationApi(path)
+      it(`ignores ${what} (${query})`, async () => {
+        const plain = `/v1/accreditations?year=${year}`
+        const path = `${plain}&${query}`
+        const [withIt, without] = [
+          await getAccreditationApi(path),
+          await getAccreditationApi(plain)
+        ]
         assert.equal(
-          response.status,
-          400,
-          `GET ${path} answered ${response.status}: ${JSON.stringify(response.body).slice(0, 300)}`
+          withIt.status,
+          200,
+          `GET ${path} answered ${withIt.status}: ${JSON.stringify(withIt.body).slice(0, 300)}`
+        )
+        assert.equal(
+          withIt.body.limit,
+          20,
+          `GET ${path}: the default page size`
+        )
+        assert.equal(withIt.body.pageNumber, 1, `GET ${path}: page`)
+        assert.deepStrictEqual(
+          withIt.body.items.map((item) => item.accreditationNumber),
+          without.body.items.map((item) => item.accreditationNumber),
+          `GET ${path} serves different accreditations from GET ${plain}`
         )
       })
     }
