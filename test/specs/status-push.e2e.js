@@ -3,6 +3,7 @@ import LoginPage from 'page-objects/login.page'
 import OperatorPage from 'page-objects/operator.page'
 import OperatorAccreditationPage from 'page-objects/operator-accreditation.page'
 import {
+  issueAccreditationNumber,
   pushStatusChanged,
   withdrawApplication,
   patchSection
@@ -120,6 +121,10 @@ describe('RA-368: Push CM status changes to OJ @docker-only', () => {
       expect.stringContaining('AWAITING DECISION')
     )
 
+    // Case management issues the accreditation number before it approves
+    // (RA-783): with dual-write on (docker/config/operator-be.env), an
+    // approval of an application without one is refused.
+    await issueAccreditationNumber(organisationId, applicationId)
     // Occurring strictly after the prior pushes, per the plan's
     // OccurredAt-ordering rule (not state-precedence) - approved is a
     // terminal state, so this application isn't reused by any other case.

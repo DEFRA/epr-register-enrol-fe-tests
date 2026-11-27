@@ -11,6 +11,7 @@ import { skipDockerOnlyOnDeployedEnvironment } from '../helpers/docker-only.js'
 import { disposableYear } from '../helpers/disposable-year.js'
 import { submitApplicationForYear } from '../helpers/accreditation-journey.js'
 import {
+  expectProblem,
   getCaseManagementStatusMapping,
   getLegacyApplicationStatuses
 } from '../helpers/admin-api.js'
@@ -46,19 +47,6 @@ describe('RA-751: Legacy application statuses for case management work items @do
   before(function () {
     skipDockerOnlyOnDeployedEnvironment(this)
   })
-
-  // detail: the exact text, or omitted where the problem is not this route's
-  // own (the service-client authentication RA-740 put in front of /admin).
-  function expectProblem(response, status, code, detail) {
-    expect(response.status).toBe(status)
-    expect(response.contentType).toContain('application/problem+json')
-    expect(response.body.code).toBe(code)
-    if (detail) {
-      expect(response.body.detail).toBe(detail)
-    } else {
-      expect(response.body.detail).toBeTruthy()
-    }
-  }
 
   const NOT_A_GUID =
     'workItemId must each be a work item id, a GUID such as 3f2b8c1e-4d5a-4b6c-9e7f-0a1b2c3d4e5f.'

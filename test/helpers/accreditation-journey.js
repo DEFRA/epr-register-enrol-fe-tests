@@ -23,7 +23,7 @@ const TASK_LIST_PATH = '/accreditation/task-list/'
  * @param {string} year
  * @returns {Promise<{organisationId: string, registrationId: string, materialType: string, applicationId: string}>}
  */
-async function openApplicationForYear(year) {
+export async function openApplicationForYear(year) {
   const [, organisationId, registrationId, materialType] = new URL(
     await browser.getUrl()
   ).pathname
