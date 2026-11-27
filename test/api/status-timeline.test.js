@@ -13,9 +13,10 @@ import {
 // each statusTimeline served with timelineFromHistory of its statusHistory,
 // so these make sure that comparison is the ticket's algorithm.
 
+// recordedAt is a date, recorded at 10:00 UTC that day, or a full timestamp.
 const entry = (status, recordedAt, effectiveFromDate) => ({
   status,
-  recordedAt: `${recordedAt}T10:00:00Z`,
+  recordedAt: recordedAt.includes('T') ? recordedAt : `${recordedAt}T10:00:00Z`,
   effectiveFromDate
 })
 
@@ -225,13 +226,13 @@ describe('Accreditation API: statusTimeline rules (RA-809)', () => {
     })
 
     it('a status overruled on its first day leaves no period, even when it is the only change that day', () => {
-      // The withdrawal and the restore start the same day: the restore,
-      // recorded later, wins, so the site is never withdrawn and the approved
-      // periods either side merge.
+      // The withdrawal and the restore are recorded the same UK day, so both
+      // take effect that day: the restore, recorded later, wins, so the site
+      // is never withdrawn and the approved periods either side merge.
       const history = [
         entry('approved', '2026-11-10', '2027-01-01'),
-        entry('withdrawn', '2027-03-01', '2027-03-01'),
-        entry('approved', '2027-03-02', '2027-03-01')
+        entry('withdrawn', '2027-03-01T10:00:00Z', '2027-03-01'),
+        entry('approved', '2027-03-01T11:00:00Z', '2027-03-01')
       ]
       assert.deepStrictEqual(timelineFromHistory(history), [
         {

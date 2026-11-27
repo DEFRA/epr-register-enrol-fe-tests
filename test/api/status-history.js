@@ -212,17 +212,17 @@ export function timelineFromHistory(history) {
 // on a date as the history.
 export function assertStatusTimeline(record, what) {
   const { statusHistory: history, statusTimeline: timeline } = record
-  assert.ok(Array.isArray(timeline), `${what} has no statusTimeline`)
-  // Exactly the ticket's algorithm applied to the history served with it.
-  assert.deepStrictEqual(
-    timeline,
-    timelineFromHistory(history),
-    `${what} statusTimeline is not its statusHistory flattened`
+  assert.ok(
+    Array.isArray(history) && history.length > 0,
+    `${what} has no statusHistory to resolve a statusTimeline from`
   )
-  if (history.length === 0) {
-    return
-  }
+  assert.ok(
+    Array.isArray(timeline) && timeline.length > 0,
+    `${what} has no statusTimeline`
+  )
 
+  // The structural checks first, so a broken timeline fails with what is
+  // wrong with it rather than as a difference from the expected one.
   timeline.forEach((period, index) => {
     assertOneOf(period.status, STATUSES, `${what} timeline status`)
     assert.match(
@@ -287,6 +287,13 @@ export function assertStatusTimeline(record, what) {
       `${what} status on ${date}, from the timeline and from the history`
     )
   }
+
+  // Last, exactly the ticket's algorithm applied to the history served with it.
+  assert.deepStrictEqual(
+    timeline,
+    timelineFromHistory(history),
+    `${what} statusTimeline is not its statusHistory flattened`
+  )
 }
 
 // An accreditation's status to filter on: latestStatus's since RA-773, the

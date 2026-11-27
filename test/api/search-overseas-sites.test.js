@@ -514,6 +514,13 @@ describe(
       const report = `Page of ${body.items.length} of ${body.totalItems} at limit ${MAX_SEARCH_LIMIT} (${exporters} exporters): ${elapsed}ms, ${kilobytes} KB`
       t.diagnostic(report)
       log(report)
+      // The checks above still ran on the smaller page, but a full page of
+      // 500 was not served, so this is not a pass for one.
+      if (body.items.length < MAX_SEARCH_LIMIT) {
+        t.skip(
+          `only ${body.totalItems} accreditations in ${year} on test, not a full page of ${MAX_SEARCH_LIMIT}`
+        )
+      }
     })
   }
 )

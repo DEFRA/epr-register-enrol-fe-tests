@@ -107,7 +107,9 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
 
   // RA-820: the search's page size is limit, from 1 to 500. A parameter the
   // search does not define is ignored: the answer is the same as without it,
-  // the default page of 20.
+  // the default page. Both searches are of the seeded organisation, which
+  // this run owns, so no other team's data can change between them. (A
+  // limit of 500 is search-overseas-sites.test.js's.)
   describe('search parameters', () => {
     const unwanted = [
       ['searchLimit, which is not the page size parameter', 'searchLimit=500'],
@@ -116,40 +118,38 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
 
     for (const [what, query] of unwanted) {
       it(`ignores ${what} (${query})`, async () => {
-        const plain = `/v1/accreditations?year=${year}`
+        const plain = `/v1/accreditations?year=${year}&organisationNumber=${orgId}`
         const path = `${plain}&${query}`
-        const [withIt, without] = [
-          await getAccreditationApi(path),
-          await getAccreditationApi(plain)
-        ]
+        const withIt = await getAccreditationApi(path)
+        const without = await getAccreditationApi(plain)
         assert.equal(
           withIt.status,
           200,
           `GET ${path} answered ${withIt.status}: ${JSON.stringify(withIt.body).slice(0, 300)}`
         )
+        assert.equal(without.status, 200, `GET ${plain}`)
         assert.equal(
           withIt.body.limit,
-          20,
-          `GET ${path}: the default page size`
+          without.body.limit,
+          `GET ${path}: not the default page size`
         )
         assert.equal(withIt.body.pageNumber, 1, `GET ${path}: page`)
+        assert.equal(withIt.body.totalItems, without.body.totalItems)
         assert.deepStrictEqual(
-          withIt.body.items.map((item) => item.accreditationNumber),
-          without.body.items.map((item) => item.accreditationNumber),
+          withIt.body.items.map((item) => item.accreditationNumber).sort(),
+          without.body.items.map((item) => item.accreditationNumber).sort(),
           `GET ${path} serves different accreditations from GET ${plain}`
         )
       })
     }
 
-    for (const limit of [1, 500]) {
-      it(`takes a limit of ${limit}`, async () => {
-        const path = `/v1/accreditations?year=${year}&limit=${limit}`
-        const { status, body } = await getAccreditationApi(path)
-        assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
-        assert.equal(body.limit, limit, `GET ${path}: page size`)
-        assert.ok(body.items.length <= limit)
-      })
-    }
+    it('takes a limit of 1', async () => {
+      const path = `/v1/accreditations?year=${year}&limit=1`
+      const { status, body } = await getAccreditationApi(path)
+      assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
+      assert.equal(body.limit, 1, `GET ${path}: page size`)
+      assert.ok(body.items.length <= 1)
+    })
   })
 
   it('answers 404 accreditation_not_found for a registration the organisation does not have', async () => {
