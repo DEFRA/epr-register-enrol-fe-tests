@@ -345,12 +345,17 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
     expect(bySite[ORS.c.siteId].typeId).toBe(ADD)
     expect(bySite[ORS.c.siteId].operatorRequestId).toBe(progress.requestId)
     expect(bySite[ORS.c.siteId].chargePence).toBeGreaterThan(0)
+    // RA-681: case management prefixes the request type "Accreditation:" or
+    // "Registration:" from each site's selected flag: an add is sent as
+    // selected, and A and B are accredited ORSs.
+    expect(bySite[ORS.c.siteId].selected).toBe(true)
     for (const site of [ORS.a, ORS.b]) {
       expect(bySite[site.siteId].typeId).toBe(UPDATE)
       expect(bySite[site.siteId].operatorRequestId).toBe(
         `${progress.requestId}:${UPDATE}`
       )
       expect(bySite[site.siteId].chargePence).toBe(0)
+      expect(bySite[site.siteId].selected).toBe(true)
     }
     expect(bySite[ORS.a.siteId].proposed.siteName).toBe('Gdansk Recycling')
     expect(bySite[ORS.a.siteId].interimSiteChanges).toEqual([

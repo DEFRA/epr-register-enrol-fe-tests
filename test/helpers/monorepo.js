@@ -421,7 +421,7 @@ export async function setChangeRequestSite({
  * @returns {Promise<Array<{ id: string, typeId: string, stateId: string,
  *   siteId: number, orsId: string, operatorRequestId: string,
  *   applicationReference: string, submissionReference: string,
- *   submissionSize: number, chargePence: number | null,
+ *   submissionSize: number, chargePence: number | null, selected: boolean | null,
  *   proposed: object | null, interimSiteChanges: string[] }>>}
  */
 export async function orsWorkItemsFor({
@@ -449,6 +449,7 @@ export async function orsWorkItemsFor({
           submissionReference: w.payload.submissionReference,
           submissionSize: w.payload.submissionSize,
           chargePence: w.payload.site.chargePence ?? null,
+          selected: w.payload.site.selected ?? null,
           proposed: w.payload.site.proposed ?? null,
           interimSiteChanges: (w.payload.site.interimSiteChanges ?? []).map((c) => c.action)
         }))

@@ -198,7 +198,10 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
           orsId: item.orsId,
           applicationReference: item.reference,
           submissionReference,
-          submissionSize: SITES.length
+          submissionSize: SITES.length,
+          // RA-681: an add is an accreditation request, so case management
+          // labels it "Accreditation:"
+          selected: true
         })
       )
     }
