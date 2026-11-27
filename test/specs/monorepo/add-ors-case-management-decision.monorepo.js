@@ -30,8 +30,9 @@ import {
 } from '../../helpers/monorepo.js'
 import { signInAsOperator } from '../../helpers/monorepo-journey.js'
 import { reportDetails, reportStep } from '../../helpers/report-step.js'
+import { requireStage } from '../../helpers/require-stage.js'
 import { readSeededYear } from '../../helpers/seeded-year.js'
-import { waitForUrl } from '../../helpers/wait-for-url.js'
+import { waitForPath } from '../../helpers/wait-for-url.js'
 import {
   MANAGE_PATH,
   MATERIAL,
@@ -111,21 +112,6 @@ const PUSH_TIMEOUT = 30000
 
 describe('RA-495: an add-ORS change request decided in case management @monorepo', () => {
   const progress = {}
-
-  function requireStage(context, stage) {
-    if (!progress[stage]) {
-      reportDetails('Skipped', { reason: `not ${stage}` })
-      context.skip()
-    }
-  }
-
-  async function waitForPath(suffix, { timeout = 30000 } = {}) {
-    await waitForUrl(
-      (url) => new URL(url).pathname.endsWith(suffix),
-      `Did not reach ${suffix}`,
-      { timeout }
-    )
-  }
 
   async function resetOrganisation() {
     const cleared = await clearChangeRequests({
@@ -263,7 +249,7 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
   })
 
   it('Regulator: duly makes it, which the operator sees, and Lyon stays locked', async function () {
-    requireStage(this, 'submitted')
+    requireStage(this, progress, 'submitted')
     await signInToCaseManagement()
 
     await reportStep('Regulator: duly make the work item', async () => {
@@ -284,7 +270,7 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
   })
 
   it('Regulator: refuses it; Lyon stays locked until the applicant is contacted', async function () {
-    requireStage(this, 'dulyMade')
+    requireStage(this, progress, 'dulyMade')
 
     await reportStep('Regulator: refuse the application', async () => {
       await openWorkItem()
@@ -302,7 +288,7 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
   })
 
   it('Regulator: confirms contact, closing the case; the operator sees REFUSED and can request Lyon again', async function () {
-    requireStage(this, 'refusalPending')
+    requireStage(this, progress, 'refusalPending')
 
     await reportStep(
       'Regulator: confirm the applicant was contacted',
@@ -336,7 +322,7 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
   })
 
   it('Operator: requests Lyon again and submits it', async function () {
-    requireStage(this, 'refused')
+    requireStage(this, progress, 'refused')
 
     await reportStep(`Operator: add ORS ${SITE.orsId} again and submit`, () =>
       requestSite()
@@ -345,7 +331,7 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
   })
 
   it('Regulator: duly makes and approves it; Lyon stays locked until the applicant is contacted', async function () {
-    requireStage(this, 'resubmitted')
+    requireStage(this, progress, 'resubmitted')
 
     await reportStep('Regulator: duly make and approve', async () => {
       await openWorkItem()
@@ -373,7 +359,7 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
   })
 
   it('Regulator: corrects the valid from date while the approval awaits contact', async function () {
-    requireStage(this, 'approvalPending')
+    requireStage(this, progress, 'approvalPending')
 
     await reportStep(
       'Regulator: change the valid from date, with a reason',
@@ -407,7 +393,7 @@ describe('RA-495: an add-ORS change request decided in case management @monorepo
   })
 
   it('Regulator: confirms contact, granting it; the operator sees GRANTED, valid from the corrected date, and Lyon is accredited', async function () {
-    requireStage(this, 'corrected')
+    requireStage(this, progress, 'corrected')
 
     await reportStep(
       'Regulator: confirm the applicant was contacted',
@@ -469,21 +455,6 @@ const IZMIR_UNANSWERED = ['operationCodes', 'conditionsOfExport']
 
 describe("RA-495: a granted add-ORS request writes the operator's supplied answers @monorepo", () => {
   const progress = {}
-
-  function requireStage(context, stage) {
-    if (!progress[stage]) {
-      reportDetails('Skipped', { reason: `not ${stage}` })
-      context.skip()
-    }
-  }
-
-  async function waitForPath(suffix, { timeout = 30000 } = {}) {
-    await waitForUrl(
-      (url) => new URL(url).pathname.endsWith(suffix),
-      `Did not reach ${suffix}`,
-      { timeout }
-    )
-  }
 
   async function resetOrganisation() {
     const cleared = await clearChangeRequests({
@@ -601,7 +572,7 @@ describe("RA-495: a granted add-ORS request writes the operator's supplied answe
   })
 
   it('Regulator: duly makes, approves and confirms contact, granting it', async function () {
-    requireStage(this, 'submitted')
+    requireStage(this, progress, 'submitted')
     await signInToCaseManagement()
 
     await reportStep(
@@ -631,7 +602,7 @@ describe("RA-495: a granted add-ORS request writes the operator's supplied answe
   })
 
   it('Operator: Izmir is accredited with the answers supplied on the request', async function () {
-    requireStage(this, 'granted')
+    requireStage(this, progress, 'granted')
 
     const { item, site } = await currentItem()
     reportDetails('Operator backend: Izmir', site)

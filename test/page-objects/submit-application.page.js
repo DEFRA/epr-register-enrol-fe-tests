@@ -5,6 +5,18 @@ class SubmitApplicationPage extends Page {
     return $('h1')
   }
 
+  get declarationIntro() {
+    return $('[data-testid="declaration-intro"]')
+  }
+
+  get declarationBullets() {
+    return $$('[data-testid^="declaration-bullet-"]')
+  }
+
+  declarationBullet(index) {
+    return $(`[data-testid="declaration-bullet-${index}"]`)
+  }
+
   get eligiblePersonBullet() {
     return $('[data-testid="declaration-bullet-0"]')
   }
