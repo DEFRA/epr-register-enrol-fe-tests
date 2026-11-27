@@ -155,7 +155,7 @@ export function assertLatestStatusMatchesHistory(record, what) {
 
 // The status on a date from a statusTimeline: that of the period containing
 // it, or null before the first. ISO dates compare as strings.
-const statusOnFromTimeline = (timeline, date) =>
+export const statusOnFromTimeline = (timeline, date) =>
   timeline.find(
     ({ effectiveFromDate, effectiveToDate }) =>
       effectiveFromDate <= date &&
@@ -165,11 +165,46 @@ const statusOnFromTimeline = (timeline, date) =>
 // The same answer straight from a statusHistory: of the entries started by the
 // date, the latest effectiveFromDate, then the latest recordedAt. The history
 // is oldest first and the sort is stable, so a full tie goes to the later entry.
-const statusOnFromHistory = (history, date) =>
+export const statusOnFromHistory = (history, date) =>
   history
     .filter(({ effectiveFromDate }) => effectiveFromDate <= date)
     .sort(byPrecedence)
     .at(-1)?.status ?? null
+
+// statusTimeline (RA-809) as the ticket's algorithm builds it from a
+// statusHistory, using only each entry's status, effectiveFromDate and
+// recordedAt:
+//   1. an empty history has an empty timeline;
+//   2. sort the entries by effectiveFromDate, then recordedAt, oldest first;
+//   3. for each effectiveFromDate keep only the entry recorded latest (the
+//      others are overruled on their first day, so never apply);
+//   4. one period per entry kept, from its effectiveFromDate to the day before
+//      the next kept entry's, the last with no end (effectiveToDate null);
+//   5. merge adjacent periods of the same status, keeping the first's start
+//      and the last's end.
+export function timelineFromHistory(history) {
+  const sorted = [...history].sort(byPrecedence)
+  const kept = sorted.filter(
+    (entry, index) =>
+      sorted[index + 1]?.effectiveFromDate !== entry.effectiveFromDate
+  )
+  const periods = kept.map((entry, index) => ({
+    status: entry.status,
+    effectiveFromDate: entry.effectiveFromDate,
+    effectiveToDate: kept[index + 1]
+      ? addDays(kept[index + 1].effectiveFromDate, -1)
+      : null
+  }))
+  return periods.reduce((merged, period) => {
+    const previous = merged.at(-1)
+    if (previous?.status === period.status) {
+      previous.effectiveToDate = period.effectiveToDate
+    } else {
+      merged.push({ ...period })
+    }
+    return merged
+  }, [])
+}
 
 // statusTimeline (RA-809): the statusHistory as periods that don't overlap, in
 // order and with no gaps, adjacent periods of one status merged and only the
@@ -177,10 +212,16 @@ const statusOnFromHistory = (history, date) =>
 // on a date as the history.
 export function assertStatusTimeline(record, what) {
   const { statusHistory: history, statusTimeline: timeline } = record
-  assert.ok(
-    Array.isArray(timeline) && timeline.length > 0,
-    `${what} has no statusTimeline`
+  assert.ok(Array.isArray(timeline), `${what} has no statusTimeline`)
+  // Exactly the ticket's algorithm applied to the history served with it.
+  assert.deepStrictEqual(
+    timeline,
+    timelineFromHistory(history),
+    `${what} statusTimeline is not its statusHistory flattened`
   )
+  if (history.length === 0) {
+    return
+  }
 
   timeline.forEach((period, index) => {
     assertOneOf(period.status, STATUSES, `${what} timeline status`)
