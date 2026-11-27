@@ -36,7 +36,7 @@ export const ORS = {
   // Turkey: coordinates only, so R code and conditions of export are
   // missing; Turkey is in the OECD, so no BES evidence.
   izmir: { siteId: 901912, orsId: '007' },
-  // Spain: never registered (IsNewSite), so on neither tab and not addable.
+  // Spain: never registered (IsNewSite), so not listed and not addable.
   valencia: { siteId: 901913, orsId: '008' }
 }
 

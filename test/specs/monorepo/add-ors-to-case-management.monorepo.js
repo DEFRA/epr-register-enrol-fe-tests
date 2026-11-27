@@ -101,7 +101,6 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
   /** Adds a registered ORS to the request and returns to its summary list. */
   async function addSite(site) {
     await browser.url(OVERSEAS_SITES_PATH)
-    await ManageOverseasSitesPage.openTab('registered')
     await ManageOverseasSitesPage.addToAccreditation(site.siteId)
     await waitForPath(`/add/${site.siteId}`)
   }

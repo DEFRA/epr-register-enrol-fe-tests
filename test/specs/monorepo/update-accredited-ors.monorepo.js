@@ -327,14 +327,12 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
   it('AC03: A, B and C are pending; D can still be added and E changed', async function () {
     requireStage(this, progress, 'submitted')
     await browser.url(OVERSEAS_SITES_PATH)
-    await ManageOverseasSitesPage.openTab('accredited')
     for (const site of [ORS.a, ORS.b]) {
       await expect(
         ManageOverseasSitesPage.changeSiteLink(site.siteId)
       ).not.toExist()
     }
     await expect(ManageOverseasSitesPage.changeSiteLink(ORS.e.siteId)).toExist()
-    await ManageOverseasSitesPage.openTab('registered')
     await expect(
       ManageOverseasSitesPage.addToAccreditationButton(ORS.c.siteId)
     ).not.toExist()

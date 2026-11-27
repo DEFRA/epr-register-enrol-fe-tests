@@ -18,8 +18,9 @@ class OverseasReprocessingSitesPage extends withInterimSiteDisclosure(Page) {
     return $('[data-testid="add-new-ors-button"]')
   }
 
-  get accreditedHeading() {
-    return $('[data-testid="accredited-heading"]')
+  // The "Approved" section's heading ("Accredited" before RA-814).
+  get approvedHeading() {
+    return $('[data-testid="approved-heading"]')
   }
 
   get registeredHeading() {
@@ -148,7 +149,7 @@ class OverseasReprocessingSitesPage extends withInterimSiteDisclosure(Page) {
   // RA-486, reworked by RA-603: interim sites are visible, changeable and
   // withdrawable directly from this page, nested under their linked ORS row
   // across all four site sections (accredited, registered, newSites,
-  // registeredSitesAdded). The rows and their "Show interim sites (n)"
+  // registeredSitesAdded). The rows and their "Interim sites (n)"
   // disclosure come from withInterimSiteDisclosure, shared with the read-only
   // manage/overseas-sites page.
   //

@@ -111,8 +111,8 @@ describe('RA-597: every overseas site in the application must be complete @docke
 
     // Section headings carry their site count, and the add-site button is
     // offered both above the sections and above Continue.
-    await expect(OverseasReprocessingSitesPage.accreditedHeading).toHaveText(
-      expect.stringMatching(/^Accredited\(\d+\)$/)
+    await expect(OverseasReprocessingSitesPage.approvedHeading).toHaveText(
+      expect.stringMatching(/^Approved\(\d+\)$/)
     )
     await expect(OverseasReprocessingSitesPage.addNewOrsButton).toBeDisplayed()
     await expect(
