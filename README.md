@@ -110,13 +110,15 @@ so every run starts afresh: `case-management-workflow` deletes the
 applications and case management work items of 50016 (the reprocessor) and
 50015 (the exporter), so both start from NOT STARTED; `add-ors-to-case-management`
 deletes 50019's change requests and the work items and submissions they
-raised (add-ORS and ORS update alike), and `add-ors-case-management-decision` does the same and puts Lyon
-back to registered only. `add-ors-bes-evidence-checks` deletes 50019's change
+raised (add-ORS and ORS update alike), and
+`add-ors-case-management-decision` does the same and puts Lyon back to
+registered only. `add-ors-bes-evidence-checks` deletes 50019's change
 requests, clears Delhi's BES evidence on the accreditation and removes the
 sampling plan files it adds (`e2e-plan-…`), then gives Delhi and the sampling
 plan the files each check needs. `update-accredited-ors` deletes 50025's
-change requests and the work items and submissions they raised; it approves nothing, so 50025's seeded ORSs never change. What a run leaves is kept, to look at, until the
-next run, except `add-ors-case-management-decision` and
+change requests and the work items and submissions they raised; it approves
+nothing, so 50025's seeded ORSs never change. What a run leaves is kept, to
+look at, until the next run, except `add-ors-case-management-decision` and
 `add-ors-bes-evidence-checks`, which reset 50019 afterwards too: a granted Lyon
 would otherwise stop the other 50019 specs adding it, and the files given to
 Delhi would trip their uploads. All the 50019 specs share that organisation,
