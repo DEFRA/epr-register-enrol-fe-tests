@@ -101,7 +101,7 @@ describe(
     // reprocessor item has none.
     it("searches as a page of summaries, with an exporter's overseas sites (RA-802)", async () => {
       const { status, body } = await getAccreditationApi(
-        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&searchLimit=100`
+        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
       )
       assert.equal(status, 200)
       assert.equal(body.pageNumber, 1)
@@ -173,7 +173,7 @@ describe(
     it('pages the search by limit and pageNumber', async (t) => {
       const page = async (pageNumber) => {
         const { status, body } = await getAccreditationApi(
-          `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&pageNumber=${pageNumber}&searchLimit=1`
+          `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&pageNumber=${pageNumber}&limit=1`
         )
         assert.equal(status, 200)
         assert.equal(body.pageNumber, pageNumber)
@@ -318,7 +318,7 @@ describe(
 
     it('gives each search item a latestStatus in place of status', async () => {
       const { status, body } = await getAccreditationApi(
-        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&searchLimit=100`
+        `/v1/accreditations?year=${year}&organisationNumber=${context.organisation.orgId}&limit=100`
       )
       assert.equal(status, 200)
       for (const item of body.items) {

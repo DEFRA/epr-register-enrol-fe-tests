@@ -79,17 +79,17 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
     [
       // RA-820: search takes pages of up to 500; overseas sites stay at 100.
       'a search limit over 500',
-      () => '/v1/accreditations?searchLimit=501',
+      () => '/v1/accreditations?limit=501',
       'invalid_paging'
     ],
     [
       'a search limit of 0',
-      () => '/v1/accreditations?searchLimit=0',
+      () => '/v1/accreditations?limit=0',
       'invalid_paging'
     ],
     [
       'a non-numeric search limit',
-      () => '/v1/accreditations?searchLimit=abc',
+      () => '/v1/accreditations?limit=abc',
       'invalid_paging'
     ],
     [
@@ -105,15 +105,12 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
     })
   }
 
-  // RA-820: the search's page size is searchLimit. limit, which it used to
-  // take, and any other parameter the search does not define are refused, not
-  // ignored, so a client that sends the wrong name finds out instead of
-  // silently getting the default page.
-  describe('search parameters it does not define', () => {
+  // RA-820: the search's page size is limit, from 1 to 500. A parameter the
+  // search does not define is refused, not ignored, so a client that sends
+  // the wrong name finds out instead of silently getting the default page.
+  describe('search parameters', () => {
     const unwanted = [
-      ['limit, the old name for searchLimit', 'limit=500'],
-      ['limit in another case', 'Limit=500'],
-      ['limit alongside searchLimit', 'searchLimit=500&limit=500'],
+      ['searchLimit, which is not the page size parameter', 'searchLimit=500'],
       ['a parameter the search has never had', 'foo=bar']
     ]
 
@@ -129,13 +126,13 @@ describe('Accreditation API: validation', { skip: notConfigured }, () => {
       })
     }
 
-    for (const searchLimit of [1, 500]) {
-      it(`takes a searchLimit of ${searchLimit}`, async () => {
-        const path = `/v1/accreditations?year=${year}&searchLimit=${searchLimit}`
+    for (const limit of [1, 500]) {
+      it(`takes a limit of ${limit}`, async () => {
+        const path = `/v1/accreditations?year=${year}&limit=${limit}`
         const { status, body } = await getAccreditationApi(path)
         assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
-        assert.equal(body.limit, searchLimit, `GET ${path}: page size`)
-        assert.ok(body.items.length <= searchLimit)
+        assert.equal(body.limit, limit, `GET ${path}: page size`)
+        assert.ok(body.items.length <= limit)
       })
     }
   })

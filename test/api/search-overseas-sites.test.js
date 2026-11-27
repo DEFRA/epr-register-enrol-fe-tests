@@ -63,7 +63,7 @@ const pathOf = (item) =>
   })
 
 async function getSearchPage(query, limit, pageNumber) {
-  const path = `/v1/accreditations?${query}&searchLimit=${limit}&pageNumber=${pageNumber}`
+  const path = `/v1/accreditations?${query}&limit=${limit}&pageNumber=${pageNumber}`
   const { status, body } = await getAccreditationApi(path)
   assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
   assert.equal(body.pageNumber, pageNumber, `${path}: pageNumber`)
@@ -449,7 +449,7 @@ describe(
     // client's whole round trip (network and gateway included), so it is
     // reported, not asserted.
     it(`serves a page of ${PAGE_LIMIT}, its exporters with their overseasSites, without a query timeout`, async (t) => {
-      const path = `/v1/accreditations?year=${year}&searchLimit=${PAGE_LIMIT}`
+      const path = `/v1/accreditations?year=${year}&limit=${PAGE_LIMIT}`
       const started = performance.now()
       const { status, body } = await getAccreditationApi(path)
       const elapsed = Math.round(performance.now() - started)
@@ -485,7 +485,7 @@ describe(
     // above, the elapsed time and size are reported, not asserted: how 500
     // performs under load is for the performance tests.
     it(`takes the largest page, ${MAX_SEARCH_LIMIT}, and serves it whole without a query timeout (RA-820)`, async (t) => {
-      const path = `/v1/accreditations?year=${year}&searchLimit=${MAX_SEARCH_LIMIT}&pageNumber=1`
+      const path = `/v1/accreditations?year=${year}&limit=${MAX_SEARCH_LIMIT}&pageNumber=1`
       const started = performance.now()
       const { status, body } = await getAccreditationApi(path)
       const elapsed = Math.round(performance.now() - started)
