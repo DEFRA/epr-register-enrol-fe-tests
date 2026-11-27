@@ -163,7 +163,11 @@ async function expectSelectedFilters(status, type) {
   ).toBe(type)
 }
 
-async function expectRequestDetails(item, year, { submitted = true } = {}) {
+async function expectRequestDetails(
+  item,
+  year,
+  { submitted = true, queried = false } = {}
+) {
   const detail = ChangeRequestDetailPage
   await expect(detail.requestType).toHaveText(item.type)
   if (submitted) {
@@ -181,8 +185,26 @@ async function expectRequestDetails(item, year, { submitted = true } = {}) {
   await expect(detail.requestValidTo).toHaveText(
     item.validTo?.(year) ?? 'Not applicable'
   )
-  // Read-only: nothing on the page changes the request.
-  await expect(detail.actions).toBeElementsArrayOfSize(0)
+  // Read-only: nothing on the page changes the request. A queried item (RA-698)
+  // is the exception: it offers Change links (Upload for BES evidence) on the
+  // fields the query leaves open, a Change link on each interim site and Save
+  // and continue, so the operator can answer. Answering is covered by
+  // test/serial-specs/ra-698-in-year-query-response.e2e.js.
+  if (queried) {
+    expect(await detail.rowIdsWithActions()).toEqual([
+      'site-name',
+      'location',
+      'contact-name',
+      'contact-email',
+      'contact-phone',
+      'repatriated-loads',
+      'bes-evidence'
+    ])
+    await expect(detail.interimChangeLinks).toBeElementsArrayOfSize(2)
+    await expect(detail.saveAndContinueButton).toBeDisplayed()
+  } else {
+    await expect(detail.actions).toBeElementsArrayOfSize(0)
+  }
 }
 
 describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
@@ -225,7 +247,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
       const managePage = ManageRegistrationAccreditationPage
       await expect(managePage.changeRequestsHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       expect(await managePage.changeRequestsSummaryTypes()).toEqual([
         'add-overseas-site',
@@ -277,7 +299,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await ChangeRequestsPage.open(LIST_PATH)
 
       await expect(ChangeRequestsPage.pageHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       await expect(ChangeRequestsPage.pageCaption).toHaveText(
         `${ORGANISATION_NAME} (${year}, ${MATERIAL})`
@@ -465,7 +487,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
 
       await expect(detail.headerLocation).toHaveText(
-        'Industrieweg 44, Netherlands'
+        'Industrieweg 44, Port, Netherlands'
       )
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.statusTag).toHaveText('QUERIED')
@@ -477,25 +499,25 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         'Rotterdam Recycling BV'
       )
       await expect(detail.rowValue('location')).toHaveText(
-        'Industrieweg 44, Netherlands'
+        'Industrieweg 44, Port, Netherlands'
       )
       await expect(detail.rowValue('recycling-operation')).toHaveText('R3')
       await expect(detail.rowValue('bes-evidence')).toHaveText('Not provided')
       // Coordinates aren't on the design's site details.
       await expect(detail.rowValue('coordinates')).not.toBeExisting()
 
-      // Only the ORS's current interim sites: Old Depot was removed.
+      // Only the ORS's current interim sites: Old Depot was removed. A queried item also offers a Change link on each (RA-698), so match the summary text.
       await expect(detail.interimSitesHeading).toHaveText('Interim sites (2)')
       await expect(detail.interimSiteRows).toBeElementsArrayOfSize(2)
       await expect(detail.interimSite(INTERIM.calais)).toHaveText(
-        'Calais Storage SARL, France, R13'
+        expect.stringContaining('Calais Storage SARL, France, R13')
       )
       await expect(detail.interimSite(INTERIM.antwerpForRotterdam)).toHaveText(
-        'Antwerp Transfer Hub, Belgium, R3, R13'
+        expect.stringContaining('Antwerp Transfer Hub, Belgium, R3, R13')
       )
       await expect(detail.interimSite(INTERIM.oldDepot)).not.toBeExisting()
 
-      await expectRequestDetails(item, year)
+      await expectRequestDetails(item, year, { queried: true })
       await expect(detail.backLink).toHaveAttribute(
         'href',
         urlEndingWith(LIST_PATH)
@@ -533,7 +555,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.headerLocation).toHaveText(
-        '8 Harbour Avenue, Vietnam'
+        '8 Harbour Avenue, Port, Vietnam'
       )
       await expect(detail.statusTag).toHaveText('IN PROGRESS')
       await expectRequestDetails(item, year, { submitted: false })
@@ -561,7 +583,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       )
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.headerLocation).toHaveText(
-        '8 Harbour Avenue, Vietnam'
+        '8 Harbour Avenue, Port, Vietnam'
       )
       await expect(detail.statusTag).toHaveText('REFUSED')
       await expectRequestDetails(item, year)
@@ -640,7 +662,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await ChangeRequestsPage.open(REPROCESSOR_LIST_PATH)
 
       await expect(ChangeRequestsPage.pageHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       await expectRows([tonnageSubmitted, granted, refused], year)
       await expect(ChangeRequestsPage.countLine).toHaveText('Showing 1-3 of 3')
@@ -691,11 +713,11 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
       await expect(managePage.manageOverseasSitesCard).toBeDisplayed()
 
       await expect(managePage.changeRequestsHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       await expect(managePage.changeRequestsSummaryTable).not.toBeExisting()
       await expect(managePage.noActiveChangeRequests).toHaveText(
-        'You currently have no active change requests. View change requests.'
+        'You currently have no active change requests. View your in year change applications.'
       )
 
       await managePage.clickAndWaitForNextPage(
@@ -704,7 +726,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
       await waitForListQuery(EMPTY_LIST_PATH, '')
       await expect(ChangeRequestsPage.pageHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       await expect(ChangeRequestsPage.noResultsTitle).toHaveText(
         'There are no matching results'
@@ -750,7 +772,7 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
 
       // Its change requests section: ORS updates, the only type it can have.
       await expect(managePage.changeRequestsHeading).toHaveText(
-        'In year change requests'
+        'In year change applications'
       )
       expect(await managePage.changeRequestsSummaryTypes()).toEqual([
         'update-overseas-site'
@@ -871,14 +893,14 @@ describe(`RA-697: view in-year change requests ${DOCKER_ONLY_TAG}`, () => {
         `${item.siteName} (${item.orsId})`
       )
 
-      await expect(detail.headerLocation).toHaveText(item.siteAddress)
+      await expect(detail.headerLocation).toHaveText(item.detailAddress)
       await expect(detail.headerSiteId).toHaveText(item.orsId)
       await expect(detail.statusTag).toHaveText('SUBMITTED')
       await expect(detail.headerDateAdded).toHaveText(item.sent(year))
       await expect(detail.headerBesExpiry).toHaveText('Not applicable')
 
       await expect(detail.rowValue('site-name')).toHaveText(item.siteName)
-      await expect(detail.rowValue('location')).toHaveText(item.siteAddress)
+      await expect(detail.rowValue('location')).toHaveText(item.detailAddress)
       await expect(detail.rowValue('contact-name')).toHaveText('Site Manager')
       await expect(detail.rowValue('recycling-operation')).toHaveText('R3')
 

@@ -4,6 +4,7 @@
 // spec may share it. The backend (DevSeed, alongside RA-425's org 50018) and
 // the frontend's stub define the same org: keep all three in step.
 
+import { exporterApplicationId } from './change-request-seed.js'
 import { seededRegistrationYear, yearSuffix } from './year-suffix.js'
 
 export const ORGANISATION_ID = '50019'
@@ -44,4 +45,17 @@ export const ORS = {
 // routes and backend endpoints take: "a", the year, then the org id padded to
 // 19 digits (the backend's DevExporterAccreditationSeedService.ApplicationIdFor).
 export const accreditationApplicationId = (year) =>
-  `a${year}${ORGANISATION_ID.padStart(19, '0')}`
+  exporterApplicationId(ORGANISATION_ID, year)
+
+// RA-698: how the operator answers the regulator's query on Lyon's add-ORS
+// item (test/specs/monorepo/add-ors-to-case-management.monorepo.js), and the
+// regulator's note.
+export const QUERY_RESPONSE = {
+  note: 'Please correct the site name and add a contact for the site.',
+  siteName: 'Lyon Plastiques Recyclage SA',
+  contact: {
+    name: 'Camille Laurent',
+    email: 'camille.laurent@example.com',
+    phone: '+33 4 72 00 00 00'
+  }
+}

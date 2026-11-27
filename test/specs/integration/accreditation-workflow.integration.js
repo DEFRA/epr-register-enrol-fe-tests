@@ -38,12 +38,13 @@ import {
   SUBMISSION_INTERIM_SITE_NAME
 } from '../../helpers/integration-organisation/interim-site-statuses.js'
 import {
+  COMBINED_ORS_BES_TASK,
   addOverseasSiteWithInterimSite,
   confirmOverseasSites,
   resubmitApplication,
   updateQueriedBusinessPlan,
   updateQueriedSamplingPlan,
-  uploadOutstandingBesEvidence
+  uploadBesEvidenceForConfirmedSites
 } from '../../helpers/query-response-journey.js'
 import {
   completeOutstandingTasks,
@@ -686,18 +687,15 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
     const workItemId = await dulyMakeAndQuery(
       application,
       'Exporter',
-      [QUERY_SECTIONS.overseasSites, QUERY_SECTIONS.bes],
+      [QUERY_SECTIONS.overseasSitesAndBes],
       () => expectOverseasSitesInCaseManagement(submittedSiteNames)
     )
 
-    await openQueriedApplication(application, [
-      'task-overseas-sites',
-      'task-bes-evidence'
-    ])
+    await openQueriedApplication(application, [COMBINED_ORS_BES_TASK])
     await reportStep(
       `Operator: add overseas site ${QUERY_SITE.name} with interim site ${QUERY_INTERIM_SITE.name}`,
       async () => {
-        await QueryTaskListPage.taskLink('task-overseas-sites').click()
+        await QueryTaskListPage.taskLink(COMBINED_ORS_BES_TASK).click()
         await expect(browser).toHaveUrl(
           expect.stringContaining('/accreditation/select-overseas-sites')
         )
@@ -708,14 +706,12 @@ describe(`Accreditation workflow ${accreditationYear} on the run's organisation 
           interimRecyclingOperationCodes: ['R12', 'R13']
         })
         await confirmOverseasSites()
-        await expect(browser).toHaveUrl(
-          expect.stringContaining('/accreditation/query-task-list/')
-        )
       }
     )
-    // Required for the query's new site, outside the EU and OECD.
+    // RA-698: confirming the sites goes straight on to the BES evidence, which
+    // the query's new site, outside the EU and OECD, requires.
     await reportStep('Operator: upload the outstanding BES evidence', () =>
-      uploadOutstandingBesEvidence()
+      uploadBesEvidenceForConfirmedSites()
     )
     await resubmit()
 

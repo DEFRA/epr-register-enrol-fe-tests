@@ -357,3 +357,30 @@ export async function patchChangeRequestSite(
   )
   return { statusCode, body: await body.json() }
 }
+
+// RA-698: asks the backend to change a Queried item's answers, or one of its
+// interim sites' (the item-keyed route, not the draft's), and returns the
+// status code and the parsed body, so a spec can prove the server-side lock on
+// the fields a query leaves closed, and on an item that is no longer Queried,
+// rather than just the UI offering no way to change them.
+export async function patchQueriedItem(
+  organisationId,
+  applicationId,
+  itemId,
+  answers,
+  { interimSiteId } = {}
+) {
+  const path = interimSiteId
+    ? `/items/${itemId}/interim-sites/${interimSiteId}/answers`
+    : `/items/${itemId}/answers`
+  const { statusCode, body } = await request(
+    accreditationChangesUrl(organisationId, applicationId, path),
+    {
+      method: 'PATCH',
+      headers: { ...frontendAuthHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify(answers)
+    }
+  )
+  const text = await body.text()
+  return { statusCode, body: text ? JSON.parse(text) : null }
+}

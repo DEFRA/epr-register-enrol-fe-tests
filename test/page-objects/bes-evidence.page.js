@@ -1,6 +1,6 @@
 import { browser } from '@wdio/globals'
 import { Page } from 'page-objects/page'
-import { uniqueFixtureCopy } from '../helpers/unique-fixture-file.js'
+import { uploadableFixture } from '../helpers/upload-fixture.js'
 
 class BesEvidencePage extends Page {
   // Evidence list page (/upload-evidence-for-overseas-site/)
@@ -102,13 +102,7 @@ class BesEvidencePage extends Page {
   // "upload more evidence" page, so a refused upload can be asserted on.
   // `exactName` (3bb.38) uploads it under exactly that name.
   async attemptUpload(filename, { exactName } = {}) {
-    const filePath = uniqueFixtureCopy(filename, { exactName })
-    let uploadPath
-    try {
-      uploadPath = await browser.uploadFile(filePath)
-    } catch {
-      uploadPath = filePath
-    }
+    const uploadPath = await uploadableFixture(filename, { exactName })
 
     await this.fileInput.waitForExist()
     await this.fileInput.setValue(uploadPath)
@@ -137,13 +131,7 @@ class BesEvidencePage extends Page {
   // the application journey goes on to "upload more evidence?", while RA-492's
   // in-year add-to-accreditation flow returns straight to its site summary.
   async submitUpload(filename, { baseName } = {}) {
-    const filePath = uniqueFixtureCopy(filename, { baseName })
-    let uploadPath
-    try {
-      uploadPath = await browser.uploadFile(filePath)
-    } catch {
-      uploadPath = filePath
-    }
+    const uploadPath = await uploadableFixture(filename, { baseName })
 
     await this.fileInput.waitForExist()
     await this.fileInput.setValue(uploadPath)
