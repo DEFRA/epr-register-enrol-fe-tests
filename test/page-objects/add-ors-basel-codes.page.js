@@ -1,4 +1,7 @@
-import { browser } from '@wdio/globals'
+import {
+  enterAutocompleteValue,
+  waitForAutocomplete
+} from 'page-objects/accessible-autocomplete'
 import { Page } from 'page-objects/page'
 
 class AddOrsBaselCodesPage extends Page {
@@ -32,10 +35,7 @@ class AddOrsBaselCodesPage extends Page {
 
   // RA-377: each code field is progressively enhanced from a <select> into a
   // GDS accessible-autocomplete <input> by a deferred JS module — the same
-  // pattern the country field uses (see add-interim-site-country.page.js).
-  // Wait for the enhancement to land before typing, since the raw <select>
-  // doesn't accept typed text the way the enhanced widget does, then type
-  // and select the matching suggestion instead of a raw setValue.
+  // pattern the country field uses (see accessible-autocomplete.js).
   //
   // RA-470: an edit-mode replay can reach this step with the field already
   // enhanced-and-confirmed to the target value (server-rendered from the
@@ -51,28 +51,16 @@ class AddOrsBaselCodesPage extends Page {
   // fighting the widget's controlled-input reconciliation for no reason.
   async enterCode(index, value) {
     const input = this.codeInput(index)
-    await input.waitForDisplayed()
-    await browser.waitUntil(
-      async () => (await input.getTagName()) === 'input',
-      {
-        timeout: 10000,
-        timeoutMsg: `Basel/OECD code field ${index} did not enhance into an autocomplete input`
-      }
-    )
+    await waitForAutocomplete(input, {
+      label: `Basel/OECD code field ${index}`
+    })
 
     const currentValue = await input.getValue()
     if (currentValue.trim().toUpperCase() === value.trim().toUpperCase()) {
       return
     }
 
-    await input.setValue(value)
-
-    // accessible-autocomplete only writes the typed value back into the
-    // underlying (POSTed) <select> on blur (confirmOnBlur, its default) —
-    // blur explicitly rather than relying on a later field/click to do it,
-    // same as the country field.
-    const resolvedInput = await input
-    await browser.execute((el) => el.blur(), resolvedInput)
+    await enterAutocompleteValue(input, value)
   }
 
   async enterCodes(codes = []) {

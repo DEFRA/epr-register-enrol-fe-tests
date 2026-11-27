@@ -83,6 +83,13 @@ class AccreditationRequestsPage extends Page {
   async continue() {
     await this.clickAndWaitForNextPage(this.continueButton)
   }
+
+  // RA-682: an ORS update's Remove, which takes it out of the request.
+  async removeRequest(orsId) {
+    await this.clickAndWaitForNextPage(
+      $(`[data-testid="request-remove-${orsId}"]`)
+    )
+  }
 }
 
 export default new AccreditationRequestsPage()

@@ -99,6 +99,33 @@ class ManageOverseasSitesPage extends withInterimSiteDisclosure(Page) {
     })
   }
 
+  // RA-682: an accredited ORS's Change link, to its details page.
+  changeSiteLink(siteId) {
+    return $(`[data-testid="change-site-${siteId}"]`)
+  }
+
+  // A site already in the draft shows "In progress" and View instead; both
+  // open its details page.
+  async changeSite(siteId) {
+    await this.openTab('accredited')
+    const change = this.changeSiteLink(siteId)
+    const view = $(`[data-testid="view-request-${siteId}"]`)
+    // The link the wait found, rather than asking again after it.
+    const link = await browser.waitUntil(
+      async () => {
+        if (await change.isExisting()) {
+          return change
+        }
+        if (await view.isExisting()) {
+          return view
+        }
+        return false
+      },
+      { timeoutMsg: `Accredited site ${siteId} has neither Change nor View` }
+    )
+    await this.clickAndWaitForNextPage(link)
+  }
+
   async addToAccreditation(siteId) {
     await this.openTab('registered')
     await this.clickAndWaitForNextPage(this.addToAccreditationButton(siteId))
