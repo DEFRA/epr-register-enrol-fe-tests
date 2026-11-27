@@ -34,6 +34,8 @@ import {
 const SEARCH_ITEM_FIELDS = [...SUMMARY_FIELDS, 'overseasSites']
 
 const PAGE_LIMIT = 100
+// RA-820: the largest page the search takes.
+const MAX_SEARCH_LIMIT = 500
 // Requests at a time when getting accreditations one by one.
 const CONCURRENCY = 5
 // How many of other teams' accreditations are compared with getting them, on
@@ -473,6 +475,51 @@ describe(
       // carry each exporter's sites.
       for (const item of body.items) {
         assertSearchItemSites(item, { fullShape: false })
+      }
+    })
+
+    // RA-820: the search takes pages of up to 500, so a client reading every
+    // accreditation needs as few requests as possible (the rest of the API
+    // stays at 100: validation.test.js). A page of the largest size is served
+    // whole, each accreditation once, every exporter with its sites. As
+    // above, the elapsed time and size are reported, not asserted: how 500
+    // performs under load is for the performance tests.
+    it(`takes the largest page, ${MAX_SEARCH_LIMIT}, and serves it whole without a query timeout (RA-820)`, async (t) => {
+      const path = `/v1/accreditations?year=${year}&limit=${MAX_SEARCH_LIMIT}&pageNumber=1`
+      const started = performance.now()
+      const { status, body } = await getAccreditationApi(path)
+      const elapsed = Math.round(performance.now() - started)
+      assert.equal(status, 200, `GET ${path}: ${JSON.stringify(body)}`)
+      assert.equal(body.limit, MAX_SEARCH_LIMIT)
+      assert.equal(body.pageNumber, 1)
+      assert.equal(
+        body.items.length,
+        Math.min(MAX_SEARCH_LIMIT, body.totalItems),
+        `a page of up to ${MAX_SEARCH_LIMIT} of ${body.totalItems}`
+      )
+      const numbers = body.items.map((item) => item.accreditationNumber)
+      assert.equal(
+        new Set(numbers).size,
+        numbers.length,
+        'an accreditation is served twice on the page'
+      )
+      for (const item of body.items) {
+        assertSearchItemSites(item, { fullShape: false })
+      }
+
+      const exporters = body.items.filter(isExporter).length
+      const kilobytes = Math.round(
+        Buffer.byteLength(JSON.stringify(body)) / 1024
+      )
+      const report = `Page of ${body.items.length} of ${body.totalItems} at limit ${MAX_SEARCH_LIMIT} (${exporters} exporters): ${elapsed}ms, ${kilobytes} KB`
+      t.diagnostic(report)
+      log(report)
+      // The checks above still ran on the smaller page, but a full page of
+      // 500 was not served, so this is not a pass for one.
+      if (body.items.length < MAX_SEARCH_LIMIT) {
+        t.skip(
+          `only ${body.totalItems} accreditations in ${year} on test, not a full page of ${MAX_SEARCH_LIMIT}`
+        )
       }
     })
   }
