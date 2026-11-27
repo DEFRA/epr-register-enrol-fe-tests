@@ -46,10 +46,10 @@ import {
 //
 //   1 operator    adds two registered ORSs to org 50019's current
 //                 accreditation and submits the request
-//   2 regulator   sees each site as its own "New ORS accreditation" card,
-//                 with its own IYC-ORS reference and the shared SUB
-//                 reference with "(2 requests)", under the "In-year change"
-//                 application type
+//   2 regulator   sees each site as its own "Accreditation: add registered
+//                 ORS" card, with its own IYC-ORS reference and the shared
+//                 SUB reference with "(2 requests)", under the "In-year
+//                 change" application type
 //   3 regulator   opens Lyon's application from the list: its header has the
 //                 reference as its caption, "Site name (ORS id)" as its
 //                 title and the site's own £328.00 charge; it has the four case
@@ -206,7 +206,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
     progress.raised = true
   })
 
-  it('Regulator: lists each site as its own New ORS accreditation under the In-year change filter', async function () {
+  it('Regulator: lists each site as its own "Accreditation: add registered ORS" request under the In-year change filter', async function () {
     requireStage(this, progress, 'raised')
     await signInToCaseManagement()
 
@@ -234,7 +234,7 @@ describe('RA-739: an add-ORS change request reaches case management @monorepo', 
           state: WORK_ITEM_STATES.notStarted,
           submissionReference: `${progress.submissionReference} (${SITES.length} requests)`,
           site: `${item.siteName} (${item.orsId})`,
-          requestType: 'Request type: New ORS accreditation'
+          requestType: 'Request type: Accreditation: add registered ORS'
         })
       )
     }
