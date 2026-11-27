@@ -25,9 +25,11 @@ import {
   MONOREPO_RUN_FLAG,
   UPDATE_OVERSEAS_SITE_TYPE_ID as UPDATE,
   clearChangeRequests,
+  discardOverseasSitesSnapshot,
   orsWorkItemsFor,
   resetOverseasSites,
-  skipUnlessMonorepoRun
+  skipUnlessMonorepoRun,
+  statusPushesFor
 } from '../../helpers/monorepo.js'
 import { signInAsOperator } from '../../helpers/monorepo-journey.js'
 import { reportDetails, reportStep } from '../../helpers/report-step.js'
@@ -42,8 +44,7 @@ import {
   ORGANISATION_NAME,
   ORS,
   OVERSEAS_SITES_PATH,
-  accreditationApplicationId,
-  seededAccreditedSites
+  accreditationApplicationId
 } from '../../fixtures/in-year-update-org.js'
 
 // Runs only against the DEFRA/epr-register-enrol monorepo's local stack:
@@ -71,8 +72,10 @@ import {
 //
 // Approving changes A on the accreditation for good, so the hooks clear
 // 50025's change requests (and the work items and submissions they raised)
-// and put A and B back as the dev seed leaves them, so
-// update-accredited-ors.monorepo.js and this spec can run again. The tests
+// and put A and B back as `before` found them (a snapshot kept on disk until
+// `after` has restored it, so a run killed in between is restored by the
+// next; see resetOverseasSites), so update-accredited-ors.monorepo.js and
+// this spec can run again. The tests
 // share the requests and run in order: each skips when the one before it did
 // not get as far as it needs.
 
@@ -89,33 +92,29 @@ const SUBMISSION_REFERENCE = /^SUB-\d{4}-\d{4,}$/
 // recorded it, so the operator side catches up shortly afterwards.
 const PUSH_TIMEOUT = 30000
 
+// How long a step that should push nothing is watched for a push.
+const NO_PUSH_WATCH = 5000
+
 describe('RA-782: an ORS update reviewed, approved and refused in case management @monorepo', () => {
   const progress = {}
   let applicationId
+  // B's location row (its address, town included) as the run found it,
+  // which the refusal must leave.
+  let bLocation
 
   async function resetOrganisation() {
     const cleared = await clearChangeRequests({
       organisationId: ORGANISATION_ID
     })
-    const year = await readSeededYearOnce()
-    const reset = await resetOverseasSites({
+    const { sites, ...reset } = await resetOverseasSites({
       organisationId: ORGANISATION_ID,
-      sites: seededAccreditedSites(year)
+      siteIds: [ORS.a.siteId, ORS.b.siteId]
     })
     reportDetails(`Reset organisation ${ORGANISATION_ID}`, {
       ...cleared,
       ...reset
     })
-  }
-
-  let seededYear
-  async function readSeededYearOnce() {
-    seededYear ??= await readSeededYear({
-      managePath: MANAGE_PATH,
-      organisationName: ORGANISATION_NAME,
-      material: MATERIAL
-    })
-    return seededYear
+    return sites
   }
 
   async function openDetails(site) {
@@ -129,7 +128,8 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
     await CmWorkItemPage.waitUntilLoaded()
   }
 
-  // The operator backend's item for the site, in its newest request.
+  // The operator backend's item for the site, in the newest request that
+  // holds it (the API lists requests newest first).
   async function currentItem(site) {
     const { requests } = await getAccreditationChanges(
       ORGANISATION_ID,
@@ -184,13 +184,31 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
   before(async () => {
     await browser.deleteCookies()
     await signInAsOperator()
-    await resetOrganisation()
-    applicationId = accreditationApplicationId(await readSeededYearOnce())
+    const sites = await resetOrganisation()
+    // The names the steps below start from: a snapshot of an A or B a run
+    // left changed (one with no snapshot to restore) would not have them.
+    expect(
+      Object.fromEntries(sites.map((s) => [s.siteId, s.siteName]))
+    ).toEqual({
+      [ORS.a.siteId]: ORS.a.siteName,
+      [ORS.b.siteId]: ORS.b.siteName
+    })
+    applicationId = accreditationApplicationId(
+      await readSeededYear({
+        managePath: MANAGE_PATH,
+        organisationName: ORGANISATION_NAME,
+        material: MATERIAL
+      })
+    )
+    await openDetails(ORS.b)
+    bLocation = await UpdateOverseasSitePage.rowValue('location').getText()
+    expect(bLocation).not.toContain(NEW_TOWN)
   })
 
   after(async () => {
     if (process.env[MONOREPO_RUN_FLAG] === 'true') {
       await resetOrganisation()
+      await discardOverseasSitesSnapshot(ORGANISATION_ID)
     }
   })
 
@@ -242,7 +260,6 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
     )
     expect(requests).toHaveLength(1)
     const [request] = requests
-    progress.items = Object.fromEntries(request.sites.map((s) => [s.siteId, s]))
     reportDetails('Submitted', request.sites)
     expect(request.sites).toHaveLength(2)
     progress.submitted = true
@@ -424,6 +441,8 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
       }
     )
     await waitForItemStatus(ORS.a, 'DulyMade')
+    // The duly made push has landed (the operator side has applied it).
+    const pushedBefore = await statusPushesFor(workItemId)
 
     await reportStep(
       'Regulator: approve it, with no valid from date to enter',
@@ -443,8 +462,31 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
     )
 
     // The determination alone is not pushed, so A is unchanged until the
-    // applicant has been contacted.
-    expect((await currentItem(ORS.a)).status).toBe('DulyMade')
+    // applicant has been contacted. A push runs in the background after the
+    // response, so watch for one for a while rather than read once.
+    await reportStep(
+      'The determination is not pushed to the operator backend',
+      async () => {
+        const watchUntil = Date.now() + NO_PUSH_WATCH
+        let pushed
+        await browser.waitUntil(
+          async () => {
+            const pushes = await statusPushesFor(workItemId)
+            const { status } = await currentItem(ORS.a)
+            if (
+              pushes.length !== pushedBefore.length ||
+              status !== 'DulyMade'
+            ) {
+              pushed = { pushes, status }
+              return true
+            }
+            return Date.now() >= watchUntil
+          },
+          { timeout: NO_PUSH_WATCH * 4, interval: 500 }
+        )
+        expect(pushed).toBeUndefined()
+      }
+    )
 
     await reportStep(
       'Regulator: confirm the applicant was contacted',
@@ -558,8 +600,8 @@ describe('RA-782: an ORS update reviewed, approved and refused in case managemen
 
     await openDetails(ORS.b)
     await expect(UpdateOverseasSitePage.statusTag).toHaveText('Approved')
-    await expect(UpdateOverseasSitePage.rowValue('location')).not.toHaveText(
-      expect.stringContaining(NEW_TOWN)
+    await expect(UpdateOverseasSitePage.rowValue('location')).toHaveText(
+      bLocation
     )
     await expect(UpdateOverseasSitePage.rowAction('location')).toExist()
 

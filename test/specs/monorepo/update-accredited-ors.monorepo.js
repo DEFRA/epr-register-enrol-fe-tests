@@ -11,7 +11,9 @@ import {
   ADD_OVERSEAS_SITE_TYPE_ID as ADD,
   UPDATE_OVERSEAS_SITE_TYPE_ID as UPDATE,
   clearChangeRequests,
+  discardOverseasSitesSnapshot,
   orsWorkItemsFor,
+  resetOverseasSites,
   skipUnlessMonorepoRun
 } from '../../helpers/monorepo.js'
 import { signInAsOperator } from '../../helpers/monorepo-journey.js'
@@ -55,7 +57,9 @@ import {
 //
 // The run first deletes 50025's change requests and the case management work
 // items and submissions they raised, so it can be run again and again. Nothing
-// here is approved, so the seeded ORSs never change. The tests share one
+// here is approved, so the seeded ORSs never change; it also puts A and B back
+// as a review-ors-update run killed before its `after` hook found them (see
+// resetOverseasSites), as that spec grants a change to A. The tests share one
 // request and run in order: each skips when the one before did not get as far
 // as it needs.
 
@@ -84,7 +88,18 @@ describe('RA-682: change accredited ORSs alongside adding one @monorepo', () => 
     const cleared = await clearChangeRequests({
       organisationId: ORGANISATION_ID
     })
-    reportDetails(`Cleared organisation ${ORGANISATION_ID}`, cleared)
+    // Restores only what a killed review-ors-update run left; nothing here is
+    // granted, so there is no snapshot to keep.
+    const { sites, ...reset } = await resetOverseasSites({
+      organisationId: ORGANISATION_ID,
+      siteIds: [ORS.a.siteId, ORS.b.siteId]
+    })
+    await discardOverseasSitesSnapshot(ORGANISATION_ID)
+    reportDetails(`Cleared organisation ${ORGANISATION_ID}`, {
+      ...cleared,
+      ...reset,
+      names: sites.map((s) => s.siteName)
+    })
     await browser.deleteCookies()
     await signInAsOperator()
     const year = await readSeededYear({

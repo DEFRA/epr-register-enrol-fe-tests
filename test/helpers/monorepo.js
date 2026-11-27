@@ -1,3 +1,7 @@
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
 import { docker, mongosh as mongoshVia, OPERATOR_DATABASE } from './docker.js'
 
 /**
@@ -457,64 +461,219 @@ export async function orsWorkItemsFor({
 }
 
 /**
- * RA-782: puts accredited ORSs back as given (the dev seed's copy), so a spec
- * that grants an update to one (its details, interim sites or BES evidence)
- * can run again:
+ * RA-782: the work item's status pushes to the operator backend, read from
+ * case management's audit log: every `status-push*` entry (sent, skipped or
+ * failed), oldest first, as { action, actionId, toStateId }.
  *
- * - on the organisation's accreditation applications, each site replaces the
- *   one with its site id, keeping the domain model id the migration gave it;
- * - in the domain model (the monorepo stack runs dual-write, so the first
- *   write migrates the application), each of those ORSs' versions a grant
- *   wrote are deleted and the version before made current again. Nothing
- *   there until the application has been migrated.
- *
- * @param {{ organisationId: string, sites: object[] }} org
- * @returns {Promise<{ applications: number, orsVersions: number }>} how many
- *   applications were changed and granted ORS versions deleted
+ * @param {string} workItemId
+ * @returns {Promise<Array<{ action: string, actionId: string, toStateId: string }>>}
  */
-export async function resetOverseasSites({ organisationId, sites }) {
+export async function statusPushesFor(workItemId) {
   return mongosh(`
+    const workItem = db.getSiblingDB('${CASE_MANAGEMENT_DATABASE}').workItems
+      .findOne({ _id: ${JSON.stringify(workItemId)} }, { auditLog: 1 })
+    print(JSON.stringify(
+      (workItem?.auditLog ?? [])
+        .filter((e) => e.action.startsWith('status-push'))
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .map((e) => ({
+          action: e.action,
+          actionId: e.details?.actionId,
+          toStateId: e.details?.toStateId
+        }))
+    ))
+  `)
+}
+
+/**
+ * Where an organisation's ORS snapshot is kept between `resetOverseasSites`
+ * calls: outside the repo, and on disk rather than in memory, so a run that
+ * is killed before its `after` hook leaves it for the next run to restore.
+ */
+const snapshotPath = (organisationId) =>
+  path.join(
+    os.tmpdir(),
+    'epr-register-enrol-fe-tests',
+    `ors-snapshot-${organisationId}.json`
+  )
+
+/**
+ * The versions a grant writes, in the domain model, are rolled back to the
+ * one before the first grant. Mongosh source, for the reset script below:
+ * `rollBackGrants(versions, filter, label)` deletes the entity's first
+ * ChangeRequestGranted version and every version after it (a version written
+ * on top of a grant carries the grant's changes), makes the version before
+ * current again and returns how many it deleted. Anything unexpected (a
+ * non-grant version on top of a grant, no version before the grant, not
+ * exactly one current version, a current version that is itself a grant) is
+ * pushed onto `mismatches` rather than skipped silently.
+ */
+const ROLL_BACK_GRANTS = `
+  const GRANTED = 'ChangeRequestGranted'
+  const mismatches = []
+  function rollBackGrants(versions, filter, label) {
+    let deleted = 0
+    // Not migrated: nothing in the model to roll back.
+    if (versions.countDocuments(filter) === 0) return 0
+    const [firstGrant] = versions
+      .find({ ...filter, 'lastChange.reason': GRANTED })
+      .sort({ version: 1 })
+      .limit(1)
+      .toArray()
+    if (firstGrant) {
+      versions
+        .find({
+          ...filter,
+          version: { $gt: firstGrant.version },
+          'lastChange.reason': { $ne: GRANTED }
+        })
+        .forEach((v) => mismatches.push(
+          label + ' version ' + v.version + ' (' + v.lastChange?.reason +
+            ') was written on top of a grant and is deleted with it'
+        ))
+      deleted = versions
+        .deleteMany({ ...filter, version: { $gte: firstGrant.version } })
+        .deletedCount
+      const [before] = versions.find(filter).sort({ version: -1 }).limit(1).toArray()
+      if (before) {
+        versions.updateOne(
+          { _id: before._id },
+          { $set: { isCurrent: true, validTo: ISODate('9999-12-31T23:59:59.999Z') } }
+        )
+      } else {
+        mismatches.push(label + ' has no version before its first grant')
+      }
+    }
+    const current = versions.find({ ...filter, isCurrent: true }).toArray()
+    if (current.length !== 1) {
+      mismatches.push(label + ' has ' + current.length + ' current versions')
+    } else if (current[0].lastChange?.reason === GRANTED) {
+      mismatches.push(label + ' version ' + current[0].version + ', now current, is a grant')
+    }
+    return deleted
+  }
+`
+
+/**
+ * The organisation's ORSs with the site ids given, as they stand now on each
+ * of its accreditation applications, as an EJSON string.
+ *
+ * @param {{ organisationId: string, siteIds: number[] }} org
+ * @returns {Promise<string>}
+ */
+async function readOverseasSites({ organisationId, siteIds }) {
+  return mongosh(`
+    const siteIds = ${JSON.stringify(siteIds)}
+    const applications = db.getSiblingDB('${OPERATOR_DATABASE}')
+      .accreditationApplications
+      .find({ organisationId: ${JSON.stringify(organisationId)} })
+      .toArray()
+      .map((a) => ({
+        _id: a._id,
+        sites: (a.overseasSites?.sites ?? []).filter((s) => siteIds.includes(s.siteId))
+      }))
+      .filter((a) => a.sites.length > 0)
+    print(JSON.stringify(EJSON.stringify(applications)))
+  `)
+}
+
+/**
+ * RA-782: puts the organisation's accredited ORSs with the site ids given
+ * back as they were before the spec changed them, so a spec that grants an
+ * update to one (its details, interim sites or BES evidence) can run again:
+ *
+ * - on the organisation's accreditation applications, each site is replaced
+ *   by its snapshot, keeping the domain model id the migration gave it (the
+ *   first write migrates the application when dual-write is on);
+ * - in the domain model, when dual-write is on (it is off on the committed
+ *   monorepo stack; only a local compose override turns it on), each ORS's
+ *   versions and the Accreditation's versions are rolled back to before the
+ *   first grant (a grant that adds BES evidence writes an Accreditation
+ *   version too). Nothing there until the application has been migrated.
+ *
+ * The snapshot is the one an earlier call left on disk, if any (a run killed
+ * before its `after` hook), otherwise the sites as they are now, saved to disk
+ * for the `after` hook. `discardOverseasSitesSnapshot` removes it once the
+ * spec has finished. A first run on an organisation already changed by a run
+ * of a version of this suite that kept no snapshot would snapshot the changed
+ * sites: the spec checks the names it starts from.
+ *
+ * @param {{ organisationId: string, siteIds: number[] }} org
+ * @returns {Promise<{ snapshot: 'saved earlier' | 'taken now',
+ *   applications: number, orsVersions: number, accreditationVersions: number,
+ *   mismatches: string[], sites: object[] }>} how many applications were
+ *   changed and model versions deleted, anything unexpected in the model, and
+ *   the restored sites
+ */
+export async function resetOverseasSites({ organisationId, siteIds }) {
+  const file = snapshotPath(organisationId)
+  let snapshot = await readFile(file, 'utf8').catch(() => null)
+  const source = snapshot ? 'saved earlier' : 'taken now'
+  if (!snapshot) {
+    snapshot = await readOverseasSites({ organisationId, siteIds })
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, snapshot)
+  }
+
+  const result = await mongosh(`
     const database = db.getSiblingDB('${OPERATOR_DATABASE}')
-    const seeded = ${JSON.stringify(sites)}
+    const snapshot = EJSON.parse(${JSON.stringify(snapshot)})
+    ${ROLL_BACK_GRANTS}
     let applications = 0
     let orsVersions = 0
-    database.accreditationApplications
-      .find({ organisationId: ${JSON.stringify(organisationId)} })
-      .forEach((application) => {
-        const current = application.overseasSites?.sites ?? []
-        let changed = false
-        const next = current.map((site) => {
-          const seed = seeded.find((s) => s.siteId === site.siteId)
-          if (!seed) return site
-          changed = true
-          return site.overseasSiteEntityId
-            ? { ...seed, overseasSiteEntityId: site.overseasSiteEntityId }
-            : seed
-        })
-        if (!changed) return
-        applications += database.accreditationApplications.updateOne(
-          { _id: application._id },
-          { $set: { 'overseasSites.sites': next } }
-        ).modifiedCount
-
-        if (!application.registrationEntityId) return
-        const versions = database.overseasSiteVersions
-        for (const orsId of seeded.map((s) => s.orsId)) {
-          const filter = { registrationId: application.registrationEntityId, orsId }
-          orsVersions += versions.deleteMany({
-            ...filter,
-            'lastChange.reason': 'ChangeRequestGranted'
-          }).deletedCount
-          if (versions.countDocuments({ ...filter, isCurrent: true }) > 0) continue
-          const [latest] = versions.find(filter).sort({ version: -1 }).limit(1).toArray()
-          if (latest) {
-            versions.updateOne(
-              { _id: latest._id },
-              { $set: { isCurrent: true, validTo: ISODate('9999-12-31T23:59:59.999Z') } }
-            )
-          }
-        }
+    let accreditationVersions = 0
+    for (const saved of snapshot) {
+      const application = database.accreditationApplications.findOne({ _id: saved._id })
+      if (!application) {
+        mismatches.push('accreditation application ' + saved._id + ' is gone')
+        continue
+      }
+      const next = (application.overseasSites?.sites ?? []).map((site) => {
+        const copy = saved.sites.find((s) => s.siteId === site.siteId)
+        if (!copy) return site
+        return site.overseasSiteEntityId
+          ? { ...copy, overseasSiteEntityId: site.overseasSiteEntityId }
+          : copy
       })
-    print(JSON.stringify({ applications, orsVersions }))
+      applications += database.accreditationApplications.updateOne(
+        { _id: application._id },
+        { $set: { 'overseasSites.sites': next } }
+      ).modifiedCount
+
+      if (application.registrationEntityId) {
+        for (const { orsId } of saved.sites) {
+          orsVersions += rollBackGrants(
+            database.overseasSiteVersions,
+            { registrationId: application.registrationEntityId, orsId },
+            'ORS ' + orsId
+          )
+        }
+      }
+      if (application.accreditationEntityId) {
+        accreditationVersions += rollBackGrants(
+          database.accreditationVersions,
+          { entityId: application.accreditationEntityId },
+          'Accreditation'
+        )
+      }
+    }
+    print(JSON.stringify({ applications, orsVersions, accreditationVersions, mismatches }))
   `)
+  if (result.mismatches.length > 0) {
+    process.stdout.write(
+      `resetOverseasSites(${organisationId}): ${result.mismatches.length} domain model mismatch(es):\n  ${result.mismatches.join('\n  ')}\n`
+    )
+  }
+  const sites = JSON.parse(snapshot).flatMap((application) => application.sites)
+  return { snapshot: source, ...result, sites }
+}
+
+/**
+ * Deletes the snapshot `resetOverseasSites` saved, once the spec has put the
+ * sites back, so the next run snapshots them afresh.
+ *
+ * @param {string} organisationId
+ */
+export async function discardOverseasSitesSnapshot(organisationId) {
+  await rm(snapshotPath(organisationId), { force: true })
 }
