@@ -9,25 +9,26 @@ import BusinessPlanPage from 'page-objects/business-plan.page'
 import BusinessPlanDetailPage from 'page-objects/business-plan-detail.page'
 import BusinessPlanCheckAnswersPage from 'page-objects/business-plan-check-answers.page'
 import SamplingPlanPage from 'page-objects/sampling-plan.page'
+import SubmitApplicationPage from 'page-objects/submit-application.page'
+import ApplicationSubmittedPage from 'page-objects/application-submitted.page'
 import { disposableYear } from './disposable-year.js'
 
 const TASK_LIST_PATH = '/accreditation/task-list/'
 
 /**
- * From the operator landing page, opens the Glass exporter application for a
- * run-unique disposable year (so it cannot race other specs that use org 50006)
- * and returns once on its task list.
+ * From a material's landing page (the operator just followed its link), opens
+ * that material's application for `year` and returns once on its task list.
+ * The landing page seeds a fresh application on a year it has not seen.
  *
- * @returns {Promise<{organisationId: string, registrationId: string, applicationId: string}>}
+ * @param {string} year
+ * @returns {Promise<{organisationId: string, registrationId: string, materialType: string, applicationId: string}>}
  */
-export async function startDisposableGlassExporterApplication() {
-  await OperatorPage.navigateToExporterAccreditationGlass()
+async function openApplicationForYear(year) {
   const [, organisationId, registrationId, materialType] = new URL(
     await browser.getUrl()
   ).pathname
     .split('/')
     .filter(Boolean)
-  const year = disposableYear()
   await browser.url(
     `/operator-accreditation/${organisationId}/${registrationId}/${materialType}/${year}`
   )
@@ -40,7 +41,58 @@ export async function startDisposableGlassExporterApplication() {
   const applicationId = (await browser.getUrl())
     .split(TASK_LIST_PATH)[1]
     .split('?')[0]
+  return { organisationId, registrationId, materialType, applicationId }
+}
+
+/**
+ * From the operator landing page, opens the Glass exporter application for a
+ * run-unique disposable year (so it cannot race other specs that use org 50006)
+ * and returns once on its task list.
+ *
+ * @returns {Promise<{organisationId: string, registrationId: string, applicationId: string}>}
+ */
+export async function startDisposableGlassExporterApplication() {
+  await OperatorPage.navigateToExporterAccreditationGlass()
+  const { organisationId, registrationId, applicationId } =
+    await openApplicationForYear(disposableYear())
   return { organisationId, registrationId, applicationId }
+}
+
+/**
+ * From a material's landing page (the operator just followed its link), drives
+ * that material's application for `year` through the PRN tonnage, business
+ * plan and sampling plan tasks and submits it, which creates its case
+ * management work item. Only for an application whose task list is those three
+ * tasks: any other task left open fails assertAllTasksCompleted.
+ *
+ * Pass a year no other spec uses on the same organisation, registration and
+ * material (a disposableYear()), or the specs share one application.
+ *
+ * @param {string} year
+ * @returns {Promise<{organisationId: string, registrationId: string, materialType: string, applicationId: string}>}
+ */
+export async function submitApplicationForYear(year) {
+  const application = await openApplicationForYear(year)
+
+  await completePrnBusinessPlanSamplingPlan({
+    assert: false,
+    skipCompletedTasks: true
+  })
+  await TaskListPage.assertAllTasksCompleted()
+  await TaskListPage.continueToSubmit()
+  await SubmitApplicationPage.submitApplication()
+
+  // Confirms the submit POST actually landed server-side (and with it, CM
+  // work-item creation) before returning, so a caller cannot race ahead of
+  // the backend and find caseManagementWorkItemId still unset. Generous
+  // timeout: this is the tail of a long multi-section journey and the submit
+  // to confirmation render is the slowest hop under a loaded parallel grid.
+  await ApplicationSubmittedPage.panelTitle.waitForDisplayed({
+    timeout: 30000,
+    timeoutMsg: 'Application submitted confirmation panel did not appear'
+  })
+
+  return application
 }
 
 // RA-424: the four PRN tonnage bands, in display order, as they must now read.
